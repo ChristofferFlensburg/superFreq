@@ -1,0 +1,818 @@
+projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA=T, clonalityCut=0.4, forceRedoMean=F, forceRedoVariants=F, forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
+  samples = inProject(metaData, project, includeNormal=F, onlyDNA=onlyDNA)
+  individuals = metaData$samples[samples,]$INDIVIDUAL
+
+  saveFile = paste0(metaData$project[project,]$Rdirectory, '/meanCNV.Rdata')
+  if ( file.exists(saveFile) & !forceRedoMean ) {
+    catLog('loading cohort data...')
+    load(saveFile)
+    catLog('done.\n')
+  }
+  else {
+    variants = getProjectVariants(metaData, project, cpus=cpus, onlyDNA=onlyDNA, forceRedo=forceRedoVariants)
+    meanCNV = getMeanCNV(metaData, samples, variants, genome=genome, clonalityCut=clonalityCut, cpus=cpus)
+    
+    catLog('Saving meanCNV...')
+    save(meanCNV, file=saveFile)
+    catLog('done.\n')
+  }
+
+  catLog('Plotting mean CNV...')
+  plotMeanCNVtoFile(metaData, project, meanCNV, cosmicDirectory=cosmicDirectory, forceRedo=forceRedoMeanPlot, genome=genome)
+  catLog('mutation matrix...')
+  plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)
+  catLog('done.\n')
+
+  subgroups = getSubgroups(metaData, project, includeNormal=F)
+  for ( subgroup in subgroups ) {
+    catLog('Plotting mean CNV for subgroup', subgroup, '...')
+    plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
+    meanCNVs = plotSubgroupCNVtoFile(metaData, meanCNV, project, subgroup, cosmicDirectory=cosmicDirectory,
+                                     forceRedo=forceRedoMeanPlot, genome=genome)
+    plotMeanCNVtoFile(metaData, project, meanCNVs$inGroup, cosmicDirectory=cosmicDirectory, forceRedo=forceRedoMeanPlot,
+                      plotFile=paste0(plotDirectory, '/meanCNVinGroup.pdf'), genome=genome)
+    plotMeanCNVtoFile(metaData, project, meanCNVs$outGroup, cosmicDirectory=cosmicDirectory, forceRedo=forceRedoMeanPlot,
+                      plotFile=paste0(plotDirectory, '/meanCNVoutGroup.pdf'), genome=genome)
+
+    catLog('mutation matrix...')
+    plotSubgroupMutationMatrix(metaData, meanCNVs, project, subgroup, cosmicDirectory=cosmicDirectory,
+                               nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
+    plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory,
+                                nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+                                plotFile=paste0(plotDirectory, '/mutationMatrixInGroup.pdf'))
+    plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory,
+                                nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+                                plotFile=paste0(plotDirectory, '/mutationMatrixOutGroup.pdf'))
+    catLog('done.\n')
+  }
+
+  cat('Done! Invisible returning mean CNV data.\n\n')
+  invisible(meanCNV)
+}
+
+#checks the mutation rates for gain, amplification, loss, complete loss, SNVs and biallelic loss
+#returns matrices for genes over all samples, as well as rates in terms of fraction of individuals
+#that have the gene mutated.
+getMeanCNV = function(metaData, samples, variants, genome=genome, clonalityCut=0.4, cpus=1) {
+  individuals = metaData$samples[samples,]$INDIVIDUAL
+  uInd = unique(individuals)
+  indSamples = lapply(uInd, function(i) which(individuals == i))
+  cnvs = getCNV(metaData, samples)
+    
+  fits = getFit(metaData, samples)
+  sex = sapply(fits, function(fit) fit$sex)
+  names(sex) = samples
+    
+  cnvRates = getCNVrates(metaData, cnvs, sex, individuals, clonalityCut=clonalityCut, cpus=cpus, genome=genome)
+    
+  varSamples = names(variants$variants)
+  varInd = metaData$samples[varSamples,]$INDIVIDUAL
+  uVarInd = unique(varInd)
+    
+  snvRates = getSNVrates(metaData, variants, clonalityCut=clonalityCut, genome=genome, cpus=cpus)
+  mutationRate = snvRates$mutationRate
+  hitMx = snvRates$hitMx
+  
+  doubleLossRates = mergeDoubleLoss(snvRates, cnvRates, individuals)
+  doubleLossRate = doubleLossRates$doubleLossRate
+  doubleLossMx = doubleLossRates$doubleLossMx
+  
+  meanCNV = list(cnvs=cnvs, cnvRates=cnvRates, snvRates=snvRates, doubleLossRates=doubleLossRates, individuals=individuals)
+  return(meanCNV)
+}
+
+#plots the mutation rates over the genome (CNVs and SNVs) to file.
+#also outputs the data from the analysis to a spreadsheet.
+plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plotFile='', forceRedo=F, genome='hg19') {
+  if ( plotFile == '' )
+    plotFile = paste0(metaData$project[project,]$plotDirectory, '/meanCNV.pdf')
+  if ( file.exists(plotFile) & !forceRedo ) return()
+
+  pdf(plotFile, width=20, height=10)
+  output = plotMeanCNV(metaData, meanCNV=meanCNV, cosmicDirectory=cosmicDirectory, add=F, genome=genome)
+  dev.off()
+
+  outputMeanCNV(metaData, project, output, outName=gsub('.pdf$', '',plotFile))
+}
+
+#plots the mutation reates over the genome.
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19') {
+  samples = names(meanCNV$cnvs)
+  individuals = metaData$samples[samples,]$INDIVIDUAL
+  uInd = unique(individuals)
+  indSamples = lapply(uInd, function(ind) which(individuals == ind))
+
+  spaceForSNVs = 0.5
+  spaceForLoh = 1
+
+  maxCNV = max(meanCNV$cnvRates$gain, meanCNV$cnvRates$loss, meanCNV$cnvRates$loh)
+  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+    maxCNV = max(maxCNV, meanCNV2$cnvRates$gain, meanCNV2$cnvRates$loss, meanCNV2$cnvRates$loh)
+  }
+  
+  indTicks = (1:length(uInd))/length(uInd)
+  indTicks = indTicks[indTicks <= maxCNV+0.05]
+  heavy = rep(T, length(indTicks))
+  while ( sum(heavy) > 10 ) heavy[heavy] = rep(c(F,T), length.out = sum(heavy))
+  cnvScale = 1/max(indTicks)
+  yTicks = indTicks*cnvScale
+  yTicks = c(-spaceForLoh - spaceForSNVs - yTicks, -spaceForSNVs - yTicks*spaceForLoh*0.9, spaceForSNVs + yTicks)
+  indTicks = rep(indTicks, 3)
+  ymax = max(yTicks)
+  ymin = min(yTicks)
+
+  xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths())))
+  names(xs) = xs
+  xsOri = c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2)
+  delimiter = xs %in% c(0, cumsum(chrLengths()))
+
+  #set up plot
+  if ( !add ) {
+    par(oma=c(0,0,0,0))
+    par(mar=c(0,0,0,0))
+    plot(xs, xs, type='n', xlim=c(-0.02*max(xs), max(xs)*1.2), ylim=c(ymin, ymax)*0.97,
+         xaxt='n', yaxt='n', frame=F, xlab='', ylab='')
+
+    #horizontal lines for number of patients
+    cat('plotting CNVs..')
+    segments(0, yTicks, max(xs), yTicks, lwd=1, col=rgb(0,0,0,0.05+heavy*0.15))
+    text(-max(xs)*0.02, yTicks[heavy], round(indTicks[heavy], 2), col=rgb(0,0,0,1))
+    text(-max(xs)*0.05, -spaceForLoh/2, 'frequency', srt=90)
+
+    
+    #mark chromosome boundaries
+    addChromosomeLines(c(ymin, ymax*1.02), col=mcri('green', 0.3), lwd=1.5, genome=genome)
+  }
+
+  #polygons for gain/amplification/loss/complete loss
+  if ( !add ) {
+    polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$gain, rep(0, length(xs)))*cnvScale,
+            col=mcri('cyan'), border=mcri('cyan'))
+    polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$amp, rep(0, length(xs)))*cnvScale,
+            col=mcri('blue'), border=mcri('blue'))
+    polygon(c(xs, rev(xs)), -spaceForSNVs-c(meanCNV$cnvRates$loh, rep(0, length(xs)))*cnvScale*spaceForLoh*0.9,
+            col=mcri('green'), border=mcri('green'))
+    polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$loss, rep(0, length(xs)))*cnvScale,
+            col=mcri('orange'), border=mcri('orange'))
+    polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$cl, rep(0, length(xs)))*cnvScale,
+            col=mcri('red'), border=mcri('red'))
+  } else {
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain*cnvScale, col='white', lwd=2.5)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain*cnvScale, col=mcri('blue'), lwd=1)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp*cnvScale, col='white', lwd=2.5)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp*cnvScale, col=mcri('darkblue'), lwd=1)
+    lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh*cnvScale*spaceForLoh, col='white', lwd=2.5)
+    lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh*cnvScale*spaceForLoh, col=mcri('green'), lwd=1)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss*cnvScale, col='white', lwd=2.5)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss*cnvScale, col=mcri('red'), lwd=1)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl*cnvScale, col='white', lwd=2.5)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl*cnvScale, col=mcri('darkred'), lwd=1)
+  }
+
+  #legends
+  if ( !add ) {
+    legend('bottomright', c('gain', 'amplification', 'CNN LOH', 'loss', 'complete loss'), lwd=rep(10, 5),
+           col=mcri(c('cyan', 'blue', 'green', 'orange', 'red')), bg='white')
+  }
+
+  spaceForGenes = 0.15*spaceForSNVs
+
+  cat('plotting mutations..')
+  maxMut = max(meanCNV$snvRates$mutationRate)
+  maxDL = max(meanCNV$doubleLossRates$doubleLossRate)
+  
+  maxSNV = max(maxMut, maxDL)
+  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+    maxSNV = max(maxSNV, meanCNV2$snvRates$mutationRate, meanCNV2$doubleLossRates$doubleLossRate)
+  }
+  
+  indTicks = (1:length(uInd))/length(uInd)
+  indTicks = indTicks[indTicks <= maxSNV]
+  heavy = rep(T, length(indTicks))
+  while ( sum(heavy) > 5 ) heavy[heavy] = rep(c(F,T), length.out = sum(heavy))
+  snvScale = 1/max(indTicks)*(spaceForSNVs - spaceForGenes - 0.2*spaceForSNVs)
+  yTicks = spaceForGenes + indTicks*snvScale
+  yTicks = c(-yTicks, yTicks)
+  indTicks = c(-indTicks, indTicks)
+
+  if ( !add ) {
+    segments(0, yTicks, max(xs), yTicks, lwd=1, col=mcri('cyan', 0.05+heavy*0.15))
+    text(-max(xs)*0.02, yTicks[heavy], round(abs(indTicks[heavy]), 2), col=mcri('cyan'))
+  }
+    
+  meanX = (meanCNV$cnvs[[1]]$CR$x1 + meanCNV$cnvs[[1]]$CR$x2)/2
+  names(meanX) = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
+  SNVgenesX = meanCNV$snvRates$hitGenesX
+  DLgenesX = meanX[names(meanCNV$doubleLossRates$doubleLossRate)]
+  
+  if ( !printGeneNames ) {
+    segments(SNVgenesX, spaceForGenes+meanCNV$snvRates$mutationRate*snvScale,
+             SNVgenesX, spaceForGenes, col=mcri('cyan'), lwd=4)
+    segments(DLgenesX, -spaceForGenes - meanCNV$doubleLossRates$doubleLossRate*snvScale,
+             DLgenesX, -spaceForGenes, col=mcri('orange'), lwd=4)
+  } else {
+    segments(SNVgenesX, spaceForGenes+meanCNV$snvRates$mutationRate*snvScale,
+             SNVgenesX, spaceForGenes, col=mcri('blue'), lwd=1)
+    segments(DLgenesX, -spaceForGenes - meanCNV$doubleLossRates$doubleLossRate*snvScale,
+             DLgenesX, -spaceForGenes, col=mcri('red'), lwd=1)
+  }
+
+  if ( printGeneNames ) {
+    topMutGenes = names(sort(meanCNV$snvRates$mutationRate, decreasing=T)[1:min(10, length(meanCNV$snvRates$mutationRate))])
+    mark = names(meanCNV$snvRates$mutationRate) %in% topMutGenes
+    if ( any(is.na(SNVgenesX[mark])) ) {
+      warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
+      mark[is.na(SNVgenesX)] = F
+    }
+    if ( cosmicDirectory != '' )
+      COSMICgenes = names(getCosmicCensusDensity(cosmicDirectory=cosmicDirectory))
+    else
+      COSMICgenes = c()
+    printGenes = names(meanCNV$snvRates$mutationRate)[mark]
+    text(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.4,
+         printGenes, col=ifelse(printGenes %in% COSMICgenes, mcri('green'), mcri('darkblue')),
+         font=ifelse(printGenes %in% COSMICgenes, 2, 1), cex=0.6)
+    segments(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.6,
+             SNVgenesX[mark], spaceForGenes, col=mcri('darkblue'))
+    
+    topDHGenes = names(sort(meanCNV$doubleLossRates$doubleLossRate, decreasing=T)[1:min(10, length(meanCNV$doubleLossRates$doubleLossRate))])
+    topDHGenes = topDHGenes[topDHGenes != '?']
+    mark = names(meanCNV$doubleLossRates$doubleLossRate) %in% topDHGenes
+    if ( any(is.na(DLgenesX[mark])) ) {
+      warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
+      mark[is.na(DLgenesX)] = F
+    }
+    printGenes = names(meanCNV$doubleLossRates$doubleLossRate)[mark]
+    text(spreadPositions(DLgenesX[mark], max(xs)*0.035), -spaceForGenes*0.4,
+         printGenes, col=ifelse(printGenes %in% COSMICgenes, mcri('green'), mcri('red')),
+         font=ifelse(printGenes %in% COSMICgenes, 2, 1), cex=0.6)
+    segments(spreadPositions(DLgenesX[mark], max(xs)*0.035), -spaceForGenes*0.6,
+             DLgenesX[mark], -spaceForGenes, col=mcri('red'))
+  }
+
+  if ( !add ) {
+    legend('right', c('changing SNV', 'biallelic loss'), col=mcri(c('darkblue', 'red')), lwd=3)
+  }
+  cat('done.\n')
+
+  cat('Setting up output...')
+  genes = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
+  allMutationRates = rep(0, length(genes))
+  names(allMutationRates) = genes
+  use = names(meanCNV$snvRates$mutationRate) %in% names(allMutationRates)
+  allMutationRates[names(meanCNV$snvRates$mutationRate)[use]] = meanCNV$snvRates$mutationRate[use]
+  allDLRates = rep(0, length(genes))
+  names(allDLRates) = genes
+  use = names(meanCNV$doubleLossRates$doubleLossRate) %in% names(allDLRates)
+  allDLRates[names(meanCNV$doubleLossRates$doubleLossRate)[use]] = meanCNV$doubleLossRates$doubleLossRate[use]
+
+  overview = data.frame(chr=xToChr(xs[!delimiter], genome), pos0=round(xToPos(xs[!delimiter], genome)), gene=genes,
+    gainRate=meanCNV$cnvRates$gain[!delimiter], ampRate=meanCNV$cnvRates$amp[!delimiter],
+    lossRate=meanCNV$cnvRates$loss[!delimiter], clRate=meanCNV$cnvRates$cl[!delimiter],
+    lohRate=meanCNV$cnvRates$loh[!delimiter], mutationRate=allMutationRates, doubleLossRate=allDLRates)
+  
+  gains = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$gainMx[!delimiter,])
+  losss = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$lossMx[!delimiter,])
+  amps = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$ampMx[!delimiter,])
+  cls = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$clMx[!delimiter,])
+  lohs = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$lohMx[!delimiter,])
+  mutations = data.frame(gene=rownames(meanCNV$snvRates$hitMx), meanCNV$snvRates$hitMx)
+  DLuse = meanCNV$doubleLossRates$doubleLossRate > 0 & !duplicated(names(meanCNV$doubleLossRates$doubleLossRate))
+  DLs = data.frame(gene=names(meanCNV$doubleLossRates$doubleLossRate[DLuse]),
+    meanCNV$doubleLossRates$doubleLossMx[DLuse,])
+  
+  output = list(overview=overview, gain=gains, loss=losss, amp=amps, lohs=lohs, completeLoss=cls, mutations=mutations, doubleLoss=DLs)
+  cat('done.\n')
+  invisible(output)
+}
+
+
+outputMeanCNV = function(metaData, project, output, subgroup='', inGroup=T, outName='') {
+  plotDirectory = metaData$project[project,]$plotDirectory
+  if ( subgroup != '' ) plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
+  ensureDirectoryExists(plotDirectory)
+
+  cat('printing to csv...')
+  csvFile = paste0(plotDirectory, '/meanCNV.csv')
+  if ( !inGroup ) csvFile = paste0(plotDirectory, '/meanCNVnotInGroup.csv')
+  if ( outName != '' ) csvFile = paste0(outName, '.csv')
+  write.csv(output$overview, csvFile)
+  cat('printing to xls...')
+  xlsFile = paste0(plotDirectory, '/meanCNV.xls')
+  if ( !inGroup ) xlsFile = paste0(plotDirectory, '/meanCNVnotInGroup.xls')
+  if ( outName != '' ) xlsFile = paste0(outName, '.xls')
+  WriteXLS('output', xlsFile)
+    
+  cat('done.\n')
+}
+
+
+getCNVrates = function(metaData, cnvs, sex, individuals, clonalityCut=0.4, cpus=1, genome='hg19') {
+  uInd = unique(individuals)
+  indSamples = lapply(uInd, function(i) which(individuals == i))
+  
+  xs = sort(c((cnvs[[1]]$CR$x1+cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths())))
+  names(xs) = xs
+  chr = xToChr(xs, genome)
+
+  cat('Calculating gain..')
+  gainList = mclapply(cnvs, function(cnv) sapply(xs, function(x) {
+    i = which(cnv$clusters$x1 < x & cnv$clusters$x2 > x)[1]
+    return(((cnv$cluster[i,]$call %in% c('AAB', 'AAA') & cnv$cluster[i,]$clonality > clonalityCut) | cnv$cluster[i,]$M > log2(1 + clonalityCut/2))[1])
+    }), mc.cores=cpus)
+  gainList = lapply(gainList, function(gain) ifelse(is.na(gain), F, gain))
+  gainMx = do.call(cbind, gainList)
+  indGain = apply(gainMx, 1, FUN=function(hasGain) sum(sapply(indSamples, function(is) any(hasGain[is]))))
+  gain = indGain/length(uInd)
+
+  cat('loss..')
+  loss = mclapply(names(cnvs), function(name) sapply(xs, function(x) {
+    cnv = cnvs[[name]]
+    i = which(cnv$clusters$x1 < x & cnv$clusters$x2 > x)[1]
+    return(((cnv$cluster[i,]$call %in% c('A', 'CL') & cnv$cluster[i,]$clonality > clonalityCut) | cnv$cluster[i,]$M < log2(1 - clonalityCut/2))[1] & !((xToChr(x, genome) %in% c('X','Y') & sex[name] == 'male') | xToChr(x, genome) == 'Y'))
+  }), mc.cores=cpus)
+  lossList = lapply(loss, function(loss) ifelse(is.na(loss), F, loss))
+  lossMx = do.call(cbind, lossList)
+  indLoss = apply(lossMx, 1, FUN=function(hasLoss) sum(sapply(indSamples, function(is) any(hasLoss[is]))))
+  loss = indLoss/length(uInd)
+  
+  cat('amplification..')
+  amp = mclapply(cnvs, function(cnv) sapply(xs, function(x) {
+    i = which(cnv$clusters$x1 < x & cnv$clusters$x2 > x)[1]
+    return(((cnv$cluster[i,]$call %in% c('AAAB', 'AAAAB', 'AAAAAB', 'AAAAAAB') & cnv$cluster[i,]$clonality > clonalityCut) | cnv$cluster[i,]$M > log2(1.6))[1])
+    }), mc.cores=cpus)
+  ampList = lapply(amp, function(amp) ifelse(is.na(amp), F, amp))
+  ampMx = do.call(cbind, ampList)
+  indAmp = apply(ampMx, 1, FUN=function(hasAmp) sum(sapply(indSamples, function(is) any(hasAmp[is]))))
+  amp = indAmp/length(uInd)
+  
+  cat('complete loss..')
+  cl = mclapply(names(cnvs), function(name) sapply(xs, function(x) {
+    cnv = cnvs[[name]]
+    i = which(cnv$clusters$x1 < x & cnv$clusters$x2 > x)[1]
+    return(((cnv$cluster[i,]$call == 'CL' & cnv$cluster[i,]$clonality > clonalityCut) | cnv$cluster[i,]$M < log2(0.4))[1] & !((xToChr(x, genome) == 'X' & sex[name] == 'male') | xToChr(x, genome) == 'Y'))
+  }), mc.cores=cpus)
+  clList = lapply(cl, function(cl) ifelse(is.na(cl), F, cl))
+  clMx = do.call(cbind, clList)
+  indCl = apply(clMx, 1, FUN=function(hasCl) sum(sapply(indSamples, function(is) any(hasCl[is]))))
+  cl = indCl/length(uInd)
+
+  cat('CNN LOH..')
+  loh = mclapply(names(cnvs), function(name) sapply(xs, function(x) {
+    cnv = cnvs[[name]]
+    i = which(cnv$clusters$x1 < x & cnv$clusters$x2 > x)[1]
+    return(((cnv$cluster[i,]$call == 'AA' & cnv$cluster[i,]$clonality > clonalityCut) | (abs(cnv$cluster[i,]$M) < 0.1 & cnv$cluster[i,]$f < 0.5 - clonalityCut/2))[1] & !((xToChr(x, genome) == 'X' & sex[name] == 'male') | xToChr(x, genome) == 'Y'))
+  }), mc.cores=cpus)
+  lohList = lapply(loh, function(loh) ifelse(is.na(loh), F, loh))
+  lohMx = do.call(cbind, lohList)
+  indLoh = apply(lohMx, 1, FUN=function(hasLoh) sum(sapply(indSamples, function(is) any(hasLoh[is]))))
+  loh = indLoh/length(uInd)
+
+  
+  genes = xToGene((cnvs[[1]]$CR$x1+cnvs[[1]]$CR$x2)/2, genome=genome,
+    saveDirectory=paste0(metaData$paths$dataDirectory, '/resources'), verbose=F)
+  delimiters = c(0, cumsum(chrLengths()))
+  rownames = c(genes, delimiters)[order(c(cnvs[[1]]$CR$x1, delimiters))]
+  colnames(gainMx) = colnames(ampMx) = colnames(lossMx) = colnames(clMx) = colnames(lohMx) = names(cnvs)
+  rownames(gainMx) = rownames(ampMx) = rownames(lossMx) = rownames(clMx) = rownames(lohMx) = rownames
+
+  return(list(gain=gain, amp=amp, loss=loss, cl=cl, loh=loh, gainMx=gainMx, ampMx=ampMx, lossMx=lossMx, clMx=clMx, lohMx=lohMx))
+}
+
+
+getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus=1) {
+  variants = cleanVariants(variants)
+  SNPs = variants$SNPs
+  samples = names(variants$variants)
+  individuals = metaData$samples[samples,]$INDIVIDUAL
+  uInd = unique(individuals)
+  indSamples = lapply(uInd, function(i) which(individuals == i))
+
+  cat('somatic SNVs')
+  hitX = mclapply(variants$variants, function(q) {
+    cat('.')
+    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
+    return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity))
+  }, mc.cores=cpus)
+  hitInfo = data.frame(x=unlist(lapply(hitX, function(hit) hit$x)), rowname=unlist(lapply(hitX, function(hit) hit$rowname)), severity=unlist(lapply(hitX, function(hit) hit$sev)), stringsAsFactors=F)
+  hitInfo = hitInfo[!duplicated(hitInfo$rowname),]
+  hitInfo$genes = xToGene(hitInfo$x, genome=genome, saveDirectory=paste0(metaData$paths$dataDirectory, '/resources'), verbose=F)
+  xMx = do.call(cbind, lapply(hitX, function(hit) hitInfo$rowname %in% hit$rowname))
+  rownames(xMx) =rownames(hitInfo) = hitInfo$rowname
+  xRate = rowsums(xMx)
+  
+  cat('mutated genes..')
+  hitGenes = mclapply(variants$variants, function(q) {
+    cat('.')
+    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
+    if ( nrow(q) == 0 ) return(c())
+    return(xToGene(q$x, saveDirectory=paste0(metaData$paths$dataDirectory, '/resources'), genome=genome, verbose=F))
+  }, mc.cores=cpus)
+  cat('\n')
+  mutatedGenes = unique(unlist(lapply(hitGenes, unique)))
+  mutatedGenes = mutatedGenes[mutatedGenes != '?']
+  hitMx = do.call(cbind, lapply(hitGenes, function(genes) mutatedGenes %in% genes))
+  rownames(hitMx) = mutatedGenes
+  indHit = apply(hitMx, 1, FUN=function(hasHit) sum(sapply(indSamples, function(is) any(hasHit[is]))))
+  mutationRate = indHit/length(uInd)
+
+  doubleHitGenes = unique(unlist(lapply(hitGenes, function(genes) genes[duplicated(genes)])))
+  doubleHitGenes = doubleHitGenes[doubleHitGenes != '?']
+  doubleHitMx = do.call(cbind, lapply(hitGenes, function(genes) doubleHitGenes %in% genes[duplicated(genes)]))
+  rownames(doubleHitMx) = doubleHitGenes
+  indDoubleHit = apply(doubleHitMx, 1, FUN=function(hasHit) sum(sapply(indSamples, function(is) any(hasHit[is]))))
+  doubleMutationRate = indDoubleHit/length(uInd)
+
+  hitSNPs = SNPs[SNPs$inGene %in% mutatedGenes,]
+  hitGenesX = unlist(mclapply(mutatedGenes, function(gene) mean(hitSNPs[hitSNPs$inGene == gene,]$x), mc.cores=cpus))
+
+  return(list(hitGenesX=hitGenesX, mutationRate=mutationRate, hitMx=hitMx, xRate=xRate, xMx=xMx, hitInfo=hitInfo,
+              doubleHitMx=doubleHitMx, doubleMutationRate=doubleMutationRate))
+}
+
+
+mergeDoubleLoss = function(snvRates, cnvRates, individuals) {
+  lossMx = cnvRates$lossMx
+  clMx = cnvRates$clMx
+  lohMx = cnvRates$lohMx
+  hitMx = snvRates$hitMx
+  doubleHitMx = snvRates$doubleHitMx
+
+  if ( !setequal(colnames(lossMx), colnames(hitMx)) ) {
+    warning('Couldnt do merged snv hits for the double loss analysis, as snv and cnv samples didnt match.')
+    print(colnames(lossMx))
+    print(colnames(hitMx))
+    return(list('doubleLossMx'=clMx, 'doubleLossRate'=cnvRates$cl))
+  }
+
+  lossMx = lossMx + clMx
+  hitUse = rownames(hitMx) %in% rownames(lossMx)
+  lossMx[rownames(hitMx[hitUse,]),] = lossMx[rownames(hitMx[hitUse,]),] + hitMx[hitUse,colnames(lossMx)]
+  lossMx[rownames(hitMx[hitUse,]),] = lossMx[rownames(hitMx[hitUse,]),] + hitMx[hitUse,colnames(lossMx)]*lohMx[rownames(hitMx[hitUse,]),]
+  doubleHitUse = rownames(doubleHitMx) %in% rownames(lossMx)
+  lossMx[rownames(doubleHitMx[doubleHitUse,]),] = lossMx[rownames(doubleHitMx[doubleHitUse,]),] + doubleHitMx[doubleHitUse,colnames(doubleHitMx)]
+
+  doubleLossMx = lossMx > 1
+  rownames(doubleLossMx) = rownames(lossMx)
+
+  uInd = unique(individuals)
+  indSamples = lapply(uInd, function(i) which(individuals == i))
+  indDoubleLoss = apply(doubleLossMx, 1, FUN=function(hasDL) sum(sapply(indSamples, function(is) any(hasDL[is]))))
+  doubleLossRate = indDoubleLoss/length(uInd)
+  names(doubleLossRate) = rownames(lossMx)
+
+  return(list('doubleLossMx'=doubleLossMx, 'doubleLossRate'=doubleLossRate))
+}
+
+
+plotMultipageMutationMatrix =
+  function(metaData, meanCNV, project, meanCNVs=NA, cosmicDirectory='',
+           priorCnvWeight=1, nGenes=30,
+           pages=1, forceRedo=forceRedo, plotFile='') {
+  if ( plotFile == '' )
+    plotFile = paste0(metaData$project[project,]$plotDirectory, '/mutationMatrix.pdf')
+  if ( file.exists(plotFile) & !forceRedo ) return()
+
+  pdf(plotFile, width=20, height=10)
+  for ( page in 1:pages ) {
+    plotMutationMatrix(metaData, meanCNV, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
+                       nGenes=nGenes, skipFirst=(page-1)*nGenes, forceRedo=forceRedo)
+  }
+  dev.off()
+  
+}
+
+cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T) {
+  xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths())))
+  delimiter = xs %in% c(0, cumsum(chrLengths()))
+  
+  samples = colnames(meanCNV$cnvRates$gainMx)
+  individuals = sampleToIndividual(metaData, metaData$samples$NAME)
+  normals = metaData$samples$NORMAL
+  names(individuals) = names(normals) = metaData$samples$NAME
+  hasMatchedNormal = !is.na(findCorrespondingNormal(metaData$samples$NAME, individuals, normals))[samples]
+
+  weightedxMx = t((1+hasMatchedNormal)*t(meanCNV$snvRates$xMx))
+  individuals = sampleToIndividual(metaData, samples)
+  uInd = unique(individuals)
+  indSamples = lapply(uInd, function(i) which(individuals == i))
+  snvGenes = unique(meanCNV$snvRates$hitInfo$genes)
+  geneMx = lapply(snvGenes, function(gene) weightedxMx[meanCNV$snvRates$hitInfo$genes==gene,,drop=F])
+  indMut = sapply(geneMx, function(mx) sum(sapply(indSamples, function(is) {
+    indMx = mx[,is,drop=F]
+    return(min(2,sum(rowSums(indMx) > 0)))
+  })))
+  weightedMutationRate = indMut/length(uInd)
+  names(weightedMutationRate) = snvGenes
+
+
+  #weightedHitMx = t((1+hasMatchedNormal)*t(meanCNV$snvRates$hitMx))
+  #individuals = sampleToIndividual(metaData, samples)
+  #uInd = unique(individuals)
+  #indSamples = lapply(uInd, function(i) which(individuals == i))
+  #indMut = apply(weightedHitMx, 1, FUN=function(weight) sum(sapply(indSamples, function(is) max(weight[is]))))
+  #weightedMutationRate = indMut/length(uInd)
+
+  genes = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
+  allMutationRates = rep(0, length(genes))
+  names(allMutationRates) = genes
+  use = names(weightedMutationRate) %in% names(allMutationRates)
+  allMutationRates[names(weightedMutationRate)[use]] = weightedMutationRate[use]
+  allDLRates = rep(0, length(genes))
+  names(allDLRates) = genes
+  use = names(meanCNV$doubleLossRates$doubleLossRate) %in% names(allDLRates)
+  allDLRates[names(meanCNV$doubleLossRates$doubleLossRate)[use]] = meanCNV$doubleLossRates$doubleLossRate[use]
+
+  gain = meanCNV$cnvRates$gain[!delimiter]
+  amp = meanCNV$cnvRates$amp[!delimiter]
+  loss = meanCNV$cnvRates$loss[!delimiter]
+  cl = meanCNV$cnvRates$cl[!delimiter]
+  loh = meanCNV$cnvRates$loh[!delimiter]
+
+  mutation = allMutationRates
+  
+  doubleLoss = allDLRates
+  names(gain) = names(amp) = names(loss) = names(cl) = names(loh) = names(mutation) = names(doubleLoss) = genes
+
+  isIG = grepl('IG.[VLJC][0-9].*', genes) | grepl('IGH[ADG][0-9].*', genes)
+
+  cnvScore = gain*0.5 + loss*0.5 + amp + cl + loh*0.5
+  cnvWeight = sqrt(mean(mutation)/mean(cnvScore))*priorCnvWeight
+  score = cnvScore*cnvWeight + mutation + doubleLoss*0.5 #DL downweighted, as it is already counted as loss/cl/mutation
+  if ( filterIG ) score = score*(1-isIG)
+
+  return(score)
+}
+
+#This function takes the output from meanCNV, selects the most interesting genes
+#and plots the mutation and CNV status of those genes for all samples.
+plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWeight=1, nGenes=30, filterIG=T,
+                              skipFirst=0, forceRedo=forceRedo, meanCNV2=NA, add=F) {
+  score = cohortGeneScore(metaData, meanCNV, priorCnvWeight=priorCnvWeight, filterIG=filterIG)
+  score[names(score)=='?'] = 0
+  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+    score2 = cohortGeneScore(metaData, meanCNV2, priorCnvWeight=priorCnvWeight, filterIG=filterIG)
+    score = abs(score-score2)
+  }
+  cancerGenes = names(sort(score, decreasing=T)[skipFirst + 1:nGenes])
+
+  xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths())))
+  delimiter = xs %in% c(0, cumsum(chrLengths()))
+
+  gains = meanCNV$cnvRates$gainMx[!delimiter,]
+  losss = meanCNV$cnvRates$lossMx[!delimiter,]
+  amps = meanCNV$cnvRates$ampMx[!delimiter,]
+  cls = meanCNV$cnvRates$clMx[!delimiter,]
+  lohs = meanCNV$cnvRates$lohMx[!delimiter,]
+  mutations = gains*0
+  doubleSNV = gains*0
+  use = rownames(meanCNV$snvRates$hitMx) %in% rownames(gains)
+  mutations[rownames(meanCNV$snvRates$hitMx)[use],] = meanCNV$snvRates$hitMx[use,]
+  use = rownames(meanCNV$snvRates$doubleHitMx) %in% rownames(gains)
+  doubleSNV[rownames(meanCNV$snvRates$doubleHitMx)[use],] = meanCNV$snvRates$doubleHitMx[use,]
+  DLs = meanCNV$doubleLossRates$doubleLossMx
+
+  samples = colnames(gains)
+  samples = samples[order(metaData$samples[samples,]$INDIVIDUAL)]
+  individuals = metaData$samples[samples,]$INDIVIDUAL
+  gains = gains[cancerGenes,samples]
+  losss = losss[cancerGenes,samples]
+  amps = amps[cancerGenes,samples]
+  cls = cls[cancerGenes,samples]
+  lohs = lohs[cancerGenes,samples]
+  mutations = mutations[cancerGenes,samples]
+  doubleSNV = doubleSNV[cancerGenes,samples]
+  DLs = DLs[cancerGenes,samples]
+
+  bgCol = rgb(0.9, 0.9, 0.9)
+  cnvsToCols = function(gains, amps, losss, cls, lohs) {
+    is = 1:(nrow(gains)*ncol(gains))
+    cols = sapply(is, function(i) cnvToCol(gains[i], amps[i], losss[i], cls[i], lohs[i]))
+    return(matrix(cols, nrow=nrow(gains)))
+  }
+  cnvToCol = function(gain, amp, loss, cl, loh) {
+    if ( cl ) return(mcri('blue'))
+    if ( loss ) return(mcri('cyan'))
+    if ( loh ) return(mcri('green'))
+    if ( amp ) return(mcri('darkred'))
+    if ( gain ) return(mcri('red'))
+    return(bgCol)
+  }
+
+  cnvSize = 1
+    
+  x = 1:ncol(gains) + sapply(individuals, function(ind) which(unique(individuals) == ind))/3
+  names(x) = samples
+  y = nrow(gains):1
+  names(y) = cancerGenes
+
+  
+  xmax = max(x+0.5)
+  ymax = max(y+0.5)
+
+  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+    individuals2 = sampleToIndividual(metaData, names(meanCNV2$cnvs))
+    maxX2 = ncol(meanCNV2$cnvRates$gainMx) + length(unique(individuals2))/3
+    if ( add ) x = x + maxX2 + 1
+    else xmax = xmax + maxX2 + 1
+  }
+  
+  squareX = sapply(x, function(X) rep(X, length(y)))
+  squareY = t(sapply(y, function(Y) rep(Y, length(x))))
+  indX = sapply(unique(individuals), function(ind) mean(x[ind == individuals]))
+  cnvCol = cnvsToCols(gains, amps, losss, cls, lohs)
+  frameCol = matrix(ifelse(DLs, mcri('red'), rgb(0,0,0,0)), nrow=nrow(gains))
+  snvCol = matrix(ifelse(mutations, mcri('red'), bgCol), nrow=nrow(gains))
+  doubleSnvCol = matrix(ifelse(doubleSNV, mcri('white'), snvCol), nrow=nrow(gains))
+
+  if ( !add ) {
+    resetMargins()
+    par(mar=c(0,0,0,0))
+    plot(0, type='n', xlim=c(-xmax*0.02, xmax*1.2), ylim=c(-0.05*ymax,ymax*1.05), frame.plot=F, xaxt='n', yaxt='n')
+  }
+  rect(squareX-0.5, squareY-0.5, squareX+0.5, squareY+0.5, col=frameCol, border=F)
+  rect(squareX-0.45, squareY-0.45, squareX+0.45, squareY+0.45, border=F, col=bgCol)
+  if ( add ) segments(min(x)-1.25, 0.5, min(x)-1.25, ymax, lwd=5, col='black')
+
+  boxScale = pmin(1, sqrt(20/length(indX)))
+  indScale = pmin(1, sqrt(20/length(indX)))
+
+  rect(squareX+0.25, squareY-0.25*cnvSize, squareX+0.25+0.15*cnvSize, squareY+0.25*cnvSize, col=cnvCol, border=F)
+  points(squareX-0.15, squareY+0.2, pch=16, col=snvCol, cex=1.5*boxScale)
+  points(squareX-0.15, squareY+0.2, pch=16, col=doubleSnvCol, cex=0.9*boxScale)
+
+  if ( cosmicDirectory != '' )
+    COSMICgenes = names(getCosmicCensusDensity(cosmicDirectory=cosmicDirectory))
+  else
+    COSMICgenes = c()
+  if ( !add ) text(0.3, y, cancerGenes, adj=c(1, 0.5), srt=0, cex=1,
+                   col=ifelse(cancerGenes %in% COSMICgenes, mcri('green'), 'black'),
+                   font=ifelse(cancerGenes %in% COSMICgenes, 2, 1))
+  text(indX, ymax, unique(individuals), srt=30, adj=c(0, 0), cex=indScale)
+  text(x, min(y)-0.5, metaData$samples[samples,]$TIMEPOINT, srt=-30, adj=c(0, 1), cex=boxScale)
+
+  legend('bottomright', c('SNV', '2 SNVs', 'complete loss', 'loss', 'loh', 'gain', 'amp', 'biallelic loss'), col=mcri(c('red', 'red', 'blue', 'cyan', 'green', 'red', 'darkred', 'red')), pch=c(16, 1, 15, 15, 15, 15, 15, 22), pt.cex=c(1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2), pt.lwd=c(1,5,1,1,1,1,3), pt.bg=mcri(c('red', 'white', 'blue', 'cyan', 'green', 'red', 'darkred', 'white')), bg='white')
+ 
+}
+
+
+#takes a meanCNV object of a project and splits it up into two meanCNV objects (returned in a list)
+#one containing the samples in the provided subgroup. the other containing the samples not in the subgroup
+splitMeanCNV = function(metaData, meanCNV, project, subgroup) {
+  samples = names(meanCNV$cnvs)
+  groupSamples = inSubgroup(metaData, project, subgroup, includeNormal=F, onlyDNA=T)
+  groupSamples = samples[samples %in% groupSamples]
+  otherSamples = samples[!(samples %in% groupSamples)]
+  meanCNVinSubgroup = meanCNVoutsideSubgroup = meanCNV
+  
+  individualsIn = sampleToIndividual(metaData, groupSamples)
+  meanCNVinSubgroup$individuals = individualsIn
+  uIndIn = unique(individualsIn)
+  indSamplesIn = lapply(uIndIn, function(i) which(individualsIn == i))
+  individualsOut = sampleToIndividual(metaData, otherSamples)
+  uIndOut = unique(individualsOut)
+  indSamplesOut = lapply(uIndOut, function(i) which(individualsOut == i))
+  meanCNVoutsideSubgroup$individuals = individualsOut
+
+  meanCNVinSubgroup$cnvs = meanCNVinSubgroup$cnvs[groupSamples]
+  meanCNVoutsideSubgroup$cnvs = meanCNVoutsideSubgroup$cnvs[otherSamples]
+  entries =
+    list(list(data='cnvRates', rate='gain', matrix='gainMx'),
+         list(data='cnvRates', rate='amp', matrix='ampMx'),
+         list(data='cnvRates', rate='loss', matrix='lossMx'),
+         list(data='cnvRates', rate='cl', matrix='clMx'),
+         list(data='cnvRates', rate='loh', matrix='lohMx'),
+         list(data='snvRates', rate='mutationRate', matrix='hitMx'),
+         list(data='snvRates', rate='xRate', matrix='xMx'),
+         list(data='snvRates', rate='doubleMutationRate', matrix='doubleHitMx'),
+         list(data='doubleLossRates', rate='doubleLossRate', matrix='doubleLossMx'))
+  for ( entry in entries ) {
+    dat = entry$data
+    mx = entry$matrix
+    meanCNVinSubgroup[[dat]][[mx]] = meanCNVinSubgroup[[dat]][[mx]][,groupSamples]
+    meanCNVoutsideSubgroup[[dat]][[mx]] = meanCNVoutsideSubgroup[[dat]][[mx]][,otherSamples]
+    
+    individualsHitIn = apply(meanCNVinSubgroup[[dat]][[mx]], 1,
+                             function(hasHit) sum(sapply(indSamplesIn, function(is) any(hasHit[is]))))
+    individualsHitOut = apply(meanCNVoutsideSubgroup[[dat]][[mx]], 1,
+                             function(hasHit) sum(sapply(indSamplesOut, function(is) any(hasHit[is]))))
+    meanCNVinSubgroup[[dat]][[entry$rate]] = individualsHitIn/length(uIndIn)
+    meanCNVoutsideSubgroup[[dat]][[entry$rate]] = individualsHitOut/length(uIndOut)
+  }
+
+  return(list('inGroup'=meanCNVinSubgroup, 'outGroup'=meanCNVoutsideSubgroup))
+}
+
+
+#plots the mutation rates over the genome (CNVs and SNVs) to file.
+#also outputs the data from the analysis to a spreadsheet.
+#this version divides the samples of the project by the provided subgroup
+#and highlights differences.
+plotSubgroupCNVtoFile = function(metaData, meanCNV, project, subgroup, cosmicDirectory='', add=F, forceRedo=F, genome='hg19') {
+  plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
+  ensureDirectoryExists(plotDirectory)
+  plotFile = paste0(plotDirectory, '/meanCNVs.pdf')
+
+  cat('Splitting stats by subgroup...')
+  meanCNVs = splitMeanCNV(metaData, meanCNV, project, subgroup)
+  cat('done.\n')
+
+  if ( file.exists(plotFile) & !forceRedo ) return(meanCNVs)
+
+  pdf(plotFile, width=20, height=10)
+  outputOut = plotMeanCNV(metaData, meanCNV=meanCNVs$outGroup, cosmicDirectory=cosmicDirectory,
+                          add=F, printGeneNames=F, meanCNV2=meanCNVs$inGroup, genome=genome)
+  outputIn = plotMeanCNV(metaData, meanCNV=meanCNVs$inGroup, cosmicDirectory=cosmicDirectory,
+                         add=T, printGeneNames=T, genome=genome)
+  legend('topright', c(subgroup, subgroup, subgroup, paste0('not ', subgroup), paste0('not ', subgroup), paste0('not ', subgroup)), col=mcri(c('blue', 'red', 'green', 'cyan', 'orange', 'green')), lwd=c(2, 2, 2, 10, 10, 10), bg='white')
+  dev.off()
+
+  outputMeanCNV(metaData, project, outputIn, subgroup=subgroup, inGroup=T)
+  outputMeanCNV(metaData, project, outputOut, subgroup=subgroup, inGroup=F)
+  return(meanCNVs)
+}
+
+
+plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cosmicDirectory='', priorCnvWeight=1,
+                                      nGenes=30, pages=10, forceRedo=F) {
+  plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
+  ensureDirectoryExists(plotDirectory)
+  plotFile = paste0(plotDirectory, '/mutationMatrix.pdf')
+  if ( file.exists(plotFile) & !forceRedo ) return()
+
+  pdf(plotFile, width=20, height=10)
+  for ( page in 1:pages ) {
+    plotMutationMatrix(metaData, meanCNVs$inGroup, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
+                       nGenes=nGenes, skipFirst=(page-1)*nGenes, meanCNV2=meanCNVs$outGroup)
+    plotMutationMatrix(metaData, meanCNVs$outGroup, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
+                       nGenes=nGenes, skipFirst=(page-1)*nGenes, meanCNV2=meanCNVs$inGroup, add=T)
+  }
+  dev.off()
+  cat('done.\n')
+}
+
+
+#takes a metaData object, a project, and two vectors of subgroups within that project.
+#also a name of the comparison.
+#the samples belong to all groups in subgroups1 are compared to all samples belong to all groups
+#in subgroups2. output is directed to data/plots/projects/@project/@name
+compareGroups = function(metaData, project, subgroups1, subgroups2, name, cosmicDirectory='', cpus=1, forceRedoMean=F,
+  forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
+  samples = inProject(metaData, project, includeNormal=F, onlyDNA=T)
+  individuals = metaData$samples[samples,]$INDIVIDUAL
+
+  saveFile = paste0(metaData$project[project,]$Rdirectory, '/meanCNV.Rdata')
+  if ( file.exists(saveFile) & !forceRedoMean ) {
+    cat('loading analysed cohort data...')
+    load(saveFile)
+    cat('done.\n')
+  }
+  else {
+    variants = getProjectVariants(metaData, project, cpus=cpus)
+    meanCNV = getMeanCNV(metaData, samples, variants, genome=genome)
+    
+    cat('Saving meanCNV...')
+    save(meanCNV, file=saveFile)
+    cat('done.\n')
+  }
+
+  meanCNV1 = meanCNV
+  for ( subgroup in subgroups1 )
+    meanCNV1 = splitMeanCNV(metaData, meanCNV1, project=project, subgroup=subgroup)$inGroup
+  meanCNV2 = meanCNV
+  for ( subgroup in subgroups2 )
+    meanCNV2 = splitMeanCNV(metaData, meanCNV2, project=project, subgroup=subgroup)$inGroup
+  meanCNVboth = splitMeanCNV(metaData, meanCNV, project=project, subgroup=union(subgroups1, subgroups2))$inGroup
+  meanCNVs = list('inGroup'=meanCNV1, 'outGroup'=meanCNV2)
+
+  plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', name)
+  ensureDirectoryExists(plotDirectory)
+
+  plotFile = paste0(plotDirectory, '/meanCNVs.pdf')
+  if ( !file.exists(plotFile) | forceRedoMeanPlot ) {
+    pdf(plotFile, width=20, height=10)
+    outputOut = plotMeanCNV(metaData, meanCNV=meanCNVs$outGroup, cosmicDirectory=cosmicDirectory,
+      add=F, printGeneNames=F, meanCNV2=meanCNVs$inGroup, genome=genome)
+    outputIn = plotMeanCNV(metaData, meanCNV=meanCNVs$inGroup, cosmicDirectory=cosmicDirectory,
+      add=T, printGeneNames=T, genome=genome)
+    legend('topright', c('subgroups1', 'subgroups1', 'subgroups1', 'subgroups2', 'subgroups2', 'subgroups2'), col=mcri(c('blue', 'red', 'green', 'cyan', 'orange', 'green')), lwd=c(2, 2, 2, 10, 10, 10), bg='white')
+    dev.off()
+  }
+  
+  plotMeanCNVtoFile(metaData, project, meanCNVs$inGroup, forceRedo=forceRedoMeanPlot,
+                    plotFile=paste0(plotDirectory, '/meanCNVinGroup.pdf'), genome=genome)
+  plotMeanCNVtoFile(metaData, project, meanCNVs$outGroup, forceRedo=forceRedoMeanPlot,
+                    plotFile=paste0(plotDirectory, '/meanCNVoutGroup.pdf'), genome=genome)
+  
+  plotSubgroupMutationMatrix(metaData, meanCNVs, project, name, cosmicDirectory=cosmicDirectory,
+                             nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
+  plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory,
+                              nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+                              plotFile=paste0(plotDirectory, '/mutationMatrixInGroup.pdf'))
+  plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory,
+                              nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+                              plotFile=paste0(plotDirectory, '/mutationMatrixOutGroup.pdf'))
+
+  cat('Done! Invisible returning mean CNV data.\n')
+  invisible(meanCNV)
+}

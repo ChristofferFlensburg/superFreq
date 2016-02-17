@@ -1,0 +1,20 @@
+Package: superFreq
+Title: Calls and tracks CNAs, SNVs and clones over multiple cancer exomes.
+Version: 0.9
+Authors@R: person("Christoffer", "Flensburg", email = "flensburg.c@wehi.edu.au", role = c("aut", "cre"))
+Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
+    all information across samples and mutation types. The inputs are the bam-files
+    and a preliminary SNV calling in .vcf format. SuperFreq filters and annotates
+    the SNVs, calls CNAs and tracks clones over samples from the same individual.
+    A matched normal improves results, but is not necessary. SuperFreq requireas at
+    least two (preferably 5-10 or more) reference normal samples that do not have to
+    be related to the studied cancer samples, but must be from the same sequencing
+    platform and capture. These are used to improve results through variance of read
+    depth and requrring false SNVs amongst other things. SuperFreq produces ample
+    output in terms of plots and spread sheets, but for identifying properties of
+    the cancer samples and for quality control.
+Depends:
+    R (>= 3.2.1)
+License: What license is it under? Fine question! Something of the open persuasion?
+LazyData: true
+RoxygenNote: 5.0.1
