@@ -115,7 +115,7 @@
 #' }
 superAnalyse = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(),
-  systematicVariance=0.03, maxCov=150, dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC') {
+  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC') {
 
   inputFiles =
     superInputFiles(metaDataFile, captureRegions, normalDirectory, dbSNPdirectory,
@@ -129,7 +129,7 @@ superAnalyse = function(metaDataFile, captureRegions, normalDirectory, Rdirector
 
   runtimeSettings = defaultSuperRuntimeSettings(cpus=cpus, outputToTerminalAsWell=outputToTerminalAsWell)
 
-  parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov)
+  parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut)
 
   downloadSuperFreqDbSNP(dbSNPdirectory)
   downloadSuperFreqCOSMIC(cosmicDirectory)
@@ -200,7 +200,7 @@ superAnalyse = function(metaDataFile, captureRegions, normalDirectory, Rdirector
 #'
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
-  parameters=list('systematicVariance'=0.03, 'maxCov'=150), byIndividual=T) {
+  parameters=defaultSuperParameters(), byIndividual=T) {
   #loadMethods(byIndividual=byIndividual)
 
   if ( !all(c('Rdirectory', 'plotDirectory') %in% names(outputDirectories)) )
@@ -315,13 +315,20 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   if ( class(parameters) != 'list' ) stop('parameters need to be of class list. Dont provide this to analyse() for default settings, otherwise a named list with the parameters.')
   catLog('\nParameters for this run are:\n')
   if ( 'maxCov' %in% names(parameters) &  class(parameters$maxCov) != 'numeric' ) stop('parameter maxCov needs to be numeric.')
-    if ( 'maxCov' %in% names(parameters) )   assign('.maxCov', parameters$maxCov, envir = .GlobalEnv)
+  if ( 'maxCov' %in% names(parameters) )   assign('.maxCov', parameters$maxCov, envir = .GlobalEnv)
   else assign('.maxCov', 150, envir = .GlobalEnv)
   catLog('   maxCov:              ', get('.maxCov', envir = .GlobalEnv), '\n', sep='')
   if ( 'systematicVariance' %in% names(parameters) &  class(parameters$systematicVariance) != 'numeric' ) stop('parameter systematicVariance needs to be numeric.')
   if ( 'systematicVariance' %in% names(parameters) ) assign('.systematicVariance', parameters$systematicVariance, envir = .GlobalEnv)
   else assign('.systematicVariance', 0.03, envir = .GlobalEnv)
   catLog('   systematicVariance:  ', get('.systematicVariance', envir = .GlobalEnv), '\n', sep='')
+
+  if ( 'cloneDistanceCut' %in% names(parameters) &  class(parameters$cloneDistanceCut) != 'numeric' ) stop('parameter cloneDistanceCut needs to be numeric.')
+  if ( 'cloneDistanceCut' %in% names(parameters) ) assign('.cloneDistanceCut', parameters$cloneDistanceCut, envir = .GlobalEnv)
+  else assign('.cloneDistanceCut', -qnorm(0.01), envir = .GlobalEnv)
+  catLog('   cloneDistanceCut:  ', get('.cloneDistanceCut', envir = .GlobalEnv), '\n', sep='')
+
+
   catLog('\n')
 
   #set forceRedo parameters to false unless already specified
@@ -587,7 +594,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   }
 
   #combine SNPs and CNVs into stories of subclones.
-  stories = try(getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, Rdirectory=Rdirectory,
+  stories = try(getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=parameters$cloneDistanceCut, Rdirectory=Rdirectory,
     plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories))
   if ( class(stories) == 'try-error' ) {
     catLog('Error in getStories!\n')
@@ -1090,7 +1097,7 @@ defaultSuperRuntimeSettings = function(cpus='', outputToTerminalAsWell='') {
 #' @details feed the output of this function to analyse, or just call superAnalyse.
 #' @examples
 #' defaultSuperParameters()
-defaultSuperParameters = function(systematicVariance='', maxCov='') {
+defaultSuperParameters = function(systematicVariance='', maxCov='', cloneDistanceCut='') {
   if ( systematicVariance == '' ) {
     cat('Defaulting systematicVariance used to 0.03.\n')
     systematicVariance = 0.03
@@ -1099,8 +1106,12 @@ defaultSuperParameters = function(systematicVariance='', maxCov='') {
     cat('Defaulting maxCov to 150.\n')
     maxCov = 150
   }
+  if ( cloneDistanceCut == '' ) {
+    cat('Defaulting cloneDistanceCut to 2.3.\n')
+    cloneDistanceCut = -qnorm(0.01)
+  }
 
-  return(list(systematicVariance=systematicVariance, maxCov=maxCov))
+  return(list(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut))
 }
 
 

@@ -20,7 +20,8 @@
 #' @importFrom spam norm
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
-getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, Rdirectory, plotDirectory, cpus=1, forceRedo=F) {
+getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
+  Rdirectory, plotDirectory, cpus=1, forceRedo=F) {
   catLog('Setting reference bias..')
   setVariantLoss(normalVariants$variants)
   catLog('done.\n')
@@ -83,7 +84,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       rownames(allStories$stories) = rownames(allStories$errors) = rownames(allStories)
       
       #clusters stories into clones
-      clusteredStories = storiesToCloneStories(allStories, cpus=cpus)
+      clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus)
       germlineCluster = which(apply(clusteredStories$cloneStories$stories + 1e-3 > 1, 1, all) &
         apply(clusteredStories$cloneStories$errors-1e-5 < 0, 1, all))
       rownames(clusteredStories$cloneStories)[germlineCluster] = clusteredStories$cloneStories$call[germlineCluster] = 'germline'
@@ -125,7 +126,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       consistentClusteredStories = mergeStories(consistentClusteredStories, allStories)
 
       #redo clustering of mutations, this time using unfiltered mutations, and no consistency contstraints.
-      clusteredStories = storiesToCloneStories(allStories, cpus=cpus)
+      clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus)
       germlineCluster = which(apply(clusteredStories$cloneStories$stories + 1e-3 > 1, 1, all) &
         apply(clusteredStories$cloneStories$errors-1e-5 < 0, 1, all))
       rownames(clusteredStories$cloneStories)[germlineCluster] = clusteredStories$cloneStories$call[germlineCluster] = 'germline'

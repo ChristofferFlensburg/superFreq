@@ -5,7 +5,8 @@
 \title{Combines variants and CNAs to clonal evolution}
 \usage{
 getStories(variants, normalVariants, cnvs, timeSeries, normals, genome,
-  Rdirectory, plotDirectory, cpus = 1, forceRedo = F)
+  cloneDistanceCut = -qnorm(0.01), Rdirectory, plotDirectory, cpus = 1,
+  forceRedo = F)
 }
 \arguments{
 \item{variants}{variants: The variants.}

@@ -82,12 +82,13 @@ rangesToBindingScore = function(chr, start, end, reference) {
     cat(ch, '..', sep='')
     chStart = start[chr==ch]
     chEnd = end[chr==ch]
+    maxEnd = max(chEnd)
     ranges = lapply(1:length(chStart), function(i) c(chStart[i], chEnd[i]))
     cat('got ', length(ranges), ' ranges.', sep='')
     cat('reference chr..', sep='')
     chRef = reference[[ch]]
     cat('extracting sequences..', sep='')
-    chSeqs = sapply(ranges, function(range) toupper(do.call(paste0, as.list(chRef[(range[1]-100):(range[2]+100)]))))
+    chSeqs = sapply(ranges, function(range) toupper(do.call(paste0, as.list(chRef[max(1,range[1]-100):min(maxEnd, range[2]+100)]))))
     cat('trimming..', sep='')
     chSeqs = gsub('N', '', chSeqs)
     cat('naming..', sep='')

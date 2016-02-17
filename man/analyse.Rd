@@ -5,8 +5,7 @@
 \title{Analyse exomes}
 \usage{
 analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
-  parameters = list(systematicVariance = 0.03, maxCov = 150),
-  byIndividual = T)
+  parameters = defaultSuperParameters(), byIndividual = T)
 }
 \arguments{
 \item{inputFiles}{A named list of input files, containing the entries metaDataFile, vcfFiles, normalDirectory, captureRegionsFile and dbSNPdirectory}

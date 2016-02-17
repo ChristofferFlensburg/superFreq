@@ -208,7 +208,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
     w = pmin(2, pmax(0.1, sqrt(rowMeans(countsOri)/100)))
     maxCorrection = 10
     BScorrectionFactor =
-      mclapply(1:ncol(counts), function(i) {
+      lapply(1:ncol(counts), function(i) {
         col = colnames(counts)[i]
         catLog(col, '..', sep='')
         LFC = log((1+counts[,col])/(annotation$Length))
@@ -262,7 +262,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
           dev.off()
         }
         return(correctionFactor)
-      }, mc.cores=cpus)
+      })
     BScorrectionFactor = do.call(cbind, BScorrectionFactor)
     countsSexLoBS = countsSexLo*BScorrectionFactor
     #maintain total count for each gene. Removed, as it increases interaction between GC and loess corrections.
