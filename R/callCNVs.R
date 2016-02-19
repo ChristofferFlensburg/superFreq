@@ -570,7 +570,7 @@ redoHetCalculations = function(clusters, eFreqs, plot=F, cpus=1) {
     points(Z[1,], pch=4, cex=1.5, lwd=2)
     legend('topright', c('expected from null', 'expected from CNA', 'measured'), col=c('blue', 'red', 'black'),
            lwd = c(1,1,0.001), pt.lwd=c(1,1,2), pt.cex=c(1,1,1.5), pch=c(16,16,4), bg='white')
-    plot(Z[1,], ylim=c(min(Z[1:3,]), max(Z[1:3,])), type='n', xlab='region', ylab='mean log likelihood ratio')
+    plot(Z[1,], ylim=c(min(-0.3, Z[1:3,], na.rm=T), max(0.3, Z[1:3,], na.rm=T)), type='n', xlab='region', ylab='mean log likelihood ratio')
     segments(0,0,1000,0)
     x = 1:ncol(Z)
     points(x-0.05, Z[2,], pch=16, col='blue')

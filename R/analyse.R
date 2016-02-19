@@ -594,8 +594,12 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   }
 
   #combine SNPs and CNVs into stories of subclones.
-  stories = try(getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=parameters$cloneDistanceCut, Rdirectory=Rdirectory,
-    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories))
+  if ( 'cloneDistanceCut' %in% names(parameters) )
+    stories = try(getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=parameters$cloneDistanceCut, Rdirectory=Rdirectory,
+      plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories))
+  else
+    stories = try(getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, Rdirectory=Rdirectory,
+      plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories))
   if ( class(stories) == 'try-error' ) {
     catLog('Error in getStories!\n')
     dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs,

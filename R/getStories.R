@@ -211,7 +211,7 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
   ret = ret[!uncertain,,drop=F]
   indel = grepl('[-\\+]', rownames(ret))
   ret = ret[!indel,,drop=F]
-  if ( any(normal) ) {
+  if ( any(normal) & nrow(ret) > 0 ) {
     presentInNormal = ret$stories[,normal] > ret$errors[,normal] | ret$stories[,normal] > 0.2
     if ( class(presentInNormal) == 'matrix' ) presentInNormal = apply(presentInNormal, 1, any)
     ret = ret[!presentInNormal,,drop=F]
@@ -495,7 +495,7 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
   ret = ret[!notSignificant,,drop=F]
   smallRegion = ret$x2 - ret$x1 < 5e6 & !(ret$call == 'CL' & apply(ret$stories, 1, max) > 0.7)
   ret = ret[!smallRegion,,drop=F]
-  if ( any(normal) ) {
+  if ( any(normal) & nrow(ret) > 0 ) {
     presentInNormal = ret$stories[,normal,drop=F] > ret$errors[,normal,drop=F] | ret$stories[,normal,drop=F] > 0.2
     presentInNormal = apply(presentInNormal, 1, any)
     ret = ret[!presentInNormal,,drop=F]

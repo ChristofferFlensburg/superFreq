@@ -20,7 +20,7 @@ makeFitPlots = function(fit, plotDirectory, genome, forceRedoVolcanoes=F, forceR
     if ( !file.exists(volcanoFile) | forceRedoVolcanoes ) {
       catLog(col, '..', sep='')
       jpeg(volcanoFile, height = 10, width = 15, res=300, units='in')
-      plotVolcano(fit$exonFit, coef=col)
+      try(plotVolcano(fit$exonFit, coef=col))
       dev.off()
     }
   }

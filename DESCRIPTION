@@ -15,6 +15,6 @@ Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
     the cancer samples and for quality control.
 Depends:
     R (>= 3.2.1), WriteXLS, spam, BiocGenerics, GenomicRanges, IRanges, S4Vectors, biomaRt, Rsamtools, R.oo, Rsubread, limma, parallel
-License: What license is it under? Fine question! Something of the open persuasion?
+License: TBD.
 LazyData: true
 RoxygenNote: 5.0.1
