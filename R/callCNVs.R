@@ -556,7 +556,7 @@ redoHetCalculations = function(clusters, eFreqs, plot=F, cpus=1) {
     if ( sum(z[1,]) == 0 ) return(rep(0,5)) 
     return(c(ret, meanRetNull, meanRetAlt, errorRetNull, errorRetAlt))
   }, mc.cores=cpus)
-  Zfreq = do.call(cbind, Zfreq)
+  Zfreq = do.call(cbind, Zfreq) 
   Z[,clusters$cov > 0] = Zfreq
 
   if ( plot ) {
