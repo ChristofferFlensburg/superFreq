@@ -428,10 +428,10 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
 findCorrespondingNormal = function(names, individuals, normals) {
   individuals = individuals[names]
   normals = normals[names]
-  ret = sapply(1:length(names), function(name) {
+  ret = sapply(names, function(name) {
     ind = individuals[name]
     isCancer = !normals[name]
-    hasNormal = any(normals & individuals == ind & 1:length(names) != name)
+    hasNormal = any(normals & individuals == ind & names != name)
     if ( !hasNormal ) return(NA)
     return(names[which(normals & individuals == ind & names != name)[1]]) #fix this to support replicate normals!
   })

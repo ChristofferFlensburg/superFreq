@@ -748,6 +748,12 @@ callTofM = function(call) {
 
 #estimates how likely a certain call is for a given region.
 isCNV = function(cluster, efs, M, f, prior, sigmaCut=3) {
+  if ( cluster$cov > 0 & nrow(efs) == 0 ) {
+    catLog("WARNING, non 0 coverage, but no SNPs in cluster.\n")
+    catLog(unlist(cluster), '\n')
+    warning("non 0 coverage, but no SNPs in cluster.")
+  }
+  
   #set an estimate of the error on the measured MAF in the cluster
   ferr = if ( cluster$cov == 0 ) Inf else cluster$ferr
 
@@ -823,6 +829,7 @@ isCNV = function(cluster, efs, M, f, prior, sigmaCut=3) {
   #decide whether the data fit well enough to make a call
   call = sigma < sigmaCut & clonality > 3*clonalityError
   if ( is.na(call) ) call = F
+  if ( is.na(sigma) ) warning("NA sigma from cluster: ", cluster, ' tested for call with M=', M, ", f=", f)
   return(list(call=call, clonality=clonality, sigma = sigma, clonalityError=clonalityError, pCall=pCall))
 }
 

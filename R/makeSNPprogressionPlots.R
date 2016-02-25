@@ -40,6 +40,11 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     warning('found NA somaticQ in qs of quality progression plot. not plotting.')
     return()
   }
+  if ( !db & all(normal) ) {
+    catLog('Skipping plot of somatic SNVs in individual with only normal samples.\n')
+    return()
+  }
+  
   if ( !nondb ) use = lapply(qs, function(q) q$db & q$somaticP <= 0.1 & q$var > 0)
   if ( !db ) use = lapply(qs[!normal], function(q) q$somaticP > 0.1 & q$var > q$cov*0.1 & q$flag=='')
   use = apply(do.call(cbind, use), 1, any)

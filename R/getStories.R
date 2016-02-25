@@ -82,7 +82,8 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       allStories$stories = as.matrix(rbind(matrix(rep(1, length(qs)), nrow=1), snpStories$stories, cnvStories$stories))
       allStories$errors = as.matrix(rbind(matrix(rep(0, length(qs)), nrow=1), snpStories$errors, cnvStories$errors))
       rownames(allStories$stories) = rownames(allStories$errors) = rownames(allStories)
-      
+      colnames(allStories$stories) = colnames(allStories$errors) = ts
+
       #clusters stories into clones
       clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus)
       germlineCluster = which(apply(clusteredStories$cloneStories$stories + 1e-3 > 1, 1, all) &
@@ -120,6 +121,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       allStories$stories = as.matrix(rbind(matrix(rep(1, length(qs)), nrow=1), snpStories$stories, cnvStories$stories))
       allStories$errors = as.matrix(rbind(matrix(rep(0, length(qs)), nrow=1), snpStories$errors, cnvStories$errors))
       rownames(allStories$stories) = rownames(allStories$errors) = rownames(allStories)
+      colnames(allStories$stories) = colnames(allStories$errors) = ts
 
       #reassign mutations to the consistent clones
       consistentClusteredStories$storyList = lapply(consistentClusteredStories$storyList, function(l) c())

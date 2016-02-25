@@ -60,6 +60,7 @@ makeRiverPlots = function(stories, variants, genome, cpus=1, plotDirectory, forc
     label = storyToLabel(output, variants, genome, maxLength=100)$label
     clonality = as.data.frame(output$stories)
     error = as.data.frame(output$errors)
+    names(chr) = names(start) = names(end) = names(label) = rownames(clonality)
     output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
     output = addAnnotationToOutput(output, variants)
     WriteXLS('output', excelFile)
@@ -136,11 +137,14 @@ storyToLabel = function(stories, variants, genome, maxLength=30) {
 addAnnotationToOutput = function(output, variants) {
   isSNV = grepl('^[0-9]', rownames(output))
   rows = rownames(output)[isSNV]
+  if ( length(rows) == 0 ) return(output)
   severityMx = sapply(variants$variants, function(q) q[rows,]$severity)
+  if ( is.vector(severityMx) ) severityMx = matrix(severityMx, nrow=length(rows))
   mostSevere = apply(severityMx, 1, function(severities) which(severities <= 1.0001*min(severities))[1])
   columns = unique(c('severity', 'type', moreVEPnames()))
   for ( column in columns ) {
     mx = sapply(variants$variants, function(q) q[rows,][,column])
+    if ( is.vector(mx) ) mx = matrix(mx, nrow=length(rows))
     columnValues = mx[cbind(1:nrow(mx), mostSevere)]
     output[[column]] = rep('', nrow(output))
     output[rows,column] = columnValues
@@ -156,8 +160,8 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
     colourPool = mcri(c('black', 'blue', 'red', 'green', 'orange', 'magenta', 'cyan', 'violet', 'lightblue', 'grey', 'darkblue'))
 
   if ( length(sampleOrder) == 1 && sampleOrder == 'default' ) sampleOrder=colnames(cloneStories$stories)
-  cloneStories$stories = cloneStories$stories[,sampleOrder]
-  cloneStories$errors = cloneStories$errors[,sampleOrder]
+  cloneStories$stories = cloneStories$stories[,sampleOrder,drop=F]
+  cloneStories$errors = cloneStories$errors[,sampleOrder,drop=F]
 
   if ( length(excludeClones) > 0 ) {
     cloneTree = excludeClonesFromTree(cloneTree, excludeClones)
@@ -428,10 +432,10 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
   labels = storyToLabel(stories, variants, genome)
   rownames(clonalityMx) = labels$label
 
-  if ( nrow(clonalityMx) > 1000 ) {
+  if ( nrow(clonalityMx) < 1000 ) {
     worked = try(makeHeatmap(clonalityMx, RowSideColors=sideCol, label='clonality'))
     if ( class(worked) == 'try-error' ) {
-      catLog('Too many stories for the built-in heatmap clustering, using default row ordering.\n')
+      catLog('Error in the heatmap. Trying without row/column clustering.\n')
       makeHeatmap(clonalityMx, RowSideColors=sideCol, Colv=NA, Rowv=NA)
     }
   }
@@ -443,6 +447,10 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
 
 
 makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', ...) {
+  if ( nrow(mx) < 2 | ncol(mx) < 2 ) {
+    warning('Not two lines and two columns in the heatmap. skip.')
+    return()
+  }
   if ( maxVal == 'default' ) maxVal = max(mx, na.rm=T)
   if ( minVal == 'default' ) minVal = min(mx, na.rm=T)
   if ( col[1] == 'default' )
