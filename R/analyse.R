@@ -463,15 +463,15 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   timeSeries = metaToTimeSeries(names, individuals, normals)
 
   if ( any(!file.exists(bamFiles)) ) {
-    catLog('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], ', aborting.\n')
-    stop('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], ', aborting.\n')
+    catLog('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
+    warning('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
   }
   bamIndexFiles = paste0(bamFiles, '.bai')
   bamIndexFiles2 = gsub('.bam$', '.bai', bamFiles)
   if ( any(!(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2))) ) {
     missingIndex = !(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2))
-    catLog('Could not find bam index files for:' , bamFiles[missingIndex], ', aborting.\n')
-    stop('Could not find bam index files for:' , bamFiles[missingIndex], ', aborting.\n')
+    catLog('Could not find bam index files for:' , bamFiles[missingIndex], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
+    warning('Could not find bam index files for:' , bamFiles[missingIndex], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
   }
   
   catLog('##################################################################################################\n\n',
