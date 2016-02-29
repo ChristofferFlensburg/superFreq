@@ -46,31 +46,37 @@ getVariant = function(metaData, samples, fillInMissing=F, cpus=1) {
   Rdirs = unique(samplesToRdirs(samples, metaData))
   variants = list('variants'=list(), 'SNPs'=c())
   for ( Rdir in Rdirs ) {
-    try({
-      cat('Loading ', paste0(Rdir, '/allVariants.Rdata'), '...', sep='')
-      load(file=paste0(Rdir, '/allVariants.Rdata'))
-      cat('done.\n')
-      allVariants$variants$variants = cleanVariantRownames(allVariants$variants$variants)
-      allVariants$variants$SNPs = allVariants$variants$SNPs[!duplicated(allVariants$variants$SNPs$x),]
-      names = names(allVariants$variants$variants)
-      names = gsub('[_-]', '.', names)
-      names = names[names %in% samples]
-      names(allVariants$variants$variants) = gsub('[_-]', '.', names(allVariants$variants$variants))
-      allVariants$variants$variants = allVariants$variants$variants[names]
-      #don't bother with variants that arent supported by at least two reads
-      presentVariants = unique(do.call(c, lapply(allVariants$variants$variants, function(q) rownames(q[q$var > 1,]))))
-      allVariants$variants$variants = lapply(allVariants$variants$variants, function(q) q[presentVariants,])
-      if ( length(variants$variants) > 0 ) {
-        if ( fillInMissing ) {
-          variants = fillInMissingVariants(metaData, variants, allVariants$variants, cpus=cpus)
-          allVariants$variants = fillInMissingVariants(metaData, allVariants$variants, variants, cpus=cpus)
+    a =
+      try({
+        catLog('Loading ', paste0(Rdir, '/allVariants.Rdata'), '...', sep='')
+        load(file=paste0(Rdir, '/allVariants.Rdata'))
+        catLog('done.\n')
+        allVariants$variants$variants = cleanVariantRownames(allVariants$variants$variants)
+        allVariants$variants$SNPs = allVariants$variants$SNPs[!duplicated(allVariants$variants$SNPs$x),]
+        names = names(allVariants$variants$variants)
+        names = gsub('[_-]', '.', names)
+        names = names[names %in% samples]
+        if ( length(names) == 0 ) stop('Couldnt find any relevant samples in ', paste0(Rdir, '/allVariants.Rdata'))
+        names(allVariants$variants$variants) = gsub('[_-]', '.', names(allVariants$variants$variants))
+        allVariants$variants$variants = allVariants$variants$variants[names]
+        #don't bother with variants that arent supported by at least two reads
+        presentVariants = unique(do.call(c, lapply(allVariants$variants$variants, function(q) rownames(q[q$var > 1,]))))
+        allVariants$variants$variants = lapply(allVariants$variants$variants, function(q) q[presentVariants,])
+        if ( length(variants$variants) > 0 ) {
+          if ( fillInMissing ) {
+            variants = fillInMissingVariants(metaData, variants, allVariants$variants, cpus=cpus)
+            allVariants$variants = fillInMissingVariants(metaData, allVariants$variants, variants, cpus=cpus)
+          }
+          allVariants$variants = matchVariants(allVariants$variants, variants)
+          variants = matchVariants(variants, allVariants$variants)
+          variants$variants[names] = allVariants$variants$variants
         }
-        allVariants$variants = matchVariants(allVariants$variants, variants)
-        variants = matchVariants(variants, allVariants$variants)
-        variants$variants[names] = allVariants$variants$variants
-      }
-      else variants = allVariants$variants
-    })
+        else variants = allVariants$variants
+      })
+    if ( class(a) == 'try-error' ) {
+      warning('Failed to laod and merge variants from ', Rdir, '. Caught error message: ', a)
+
+    }
   }
   samples = samples[samples %in% names(variants$variants)]
   variants$variants = variants$variants[samples]
@@ -132,89 +138,53 @@ updateScatterPlots = function(metaData, cosmicDirectory='', individuals=NA, forc
   if ( is.na(individuals[1]) ) individuals = metaData$individuals$individual
   
   for ( individual in individuals ) {
-    cat('\n\nDoing', individual, '...\n\n')
     logFile = paste0(metaData$paths$dataDirectory, '/R/individuals/', individual, '/runtimeTracking.log')
     assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
+    catLog('\n\nDoing', individual, '...\n')
     
     
     samples = metaData$samples$NAME[metaData$samples$INDIVIDUAL == individual]
     normals = metaData$samples[samples,]$NORMAL
     names(normals) = samples
-    pairs = list()
-    if ( length(samples) > 1 )
-      for ( i in 2:length(samples) )
-        for ( j in 1:(i-1) )
-          pairs = c(pairs, list(samples[c(j,i)]))
-    
-    redoPairs = list()
-    for ( pair in pairs ) {
-      sampleDir = paste0(metaData$paths$dataDirectory, '/plots/samples/', pair[1])
-      ensureDirectoryExists(sampleDir)
-      freqDir = paste0(sampleDir, '/scatters')
-      ensureDirectoryExists(freqDir)
-      plotDir = paste0(freqDir, '/', pair[2])
-      ensureDirectoryExists(plotDir)
-      if ( forceRedo | length(list.files(plotDir)) == 0 ) redoPairs = c(redoPairs, list(pair))
-    }
-    if ( length(redoPairs) == 0 ) next
-    
+
+    Rdirectory = paste0(metaData$paths$dataDirectory, '/R/individuals/', individual)
+    plotDirectory = paste0(metaData$paths$dataDirectory, '/plots/individuals/', individual)
+
+        
     timePoints = metaData$samples[samples,]$TIMEPOINT
     names(timePoints) = samples
-    plotDirectory = paste0(metaData$paths$dataDirectory, '/plots/individuals/', individual)
     dominantCaptureRegion = names(sort(table(metaData$samples$CAPTUREREGIONS[metaData$samples$INDIVIDUAL == individual]),
       decreasing=T))[1]
     genome = captureRegionsToGenome(dominantCaptureRegion)
-    
-    variants = getIndividualVariants(metaData, individual, cpus=cpus, forceRedo=forceRedoVariants)
-    #output somatic spreadsheet
-    outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedo)
-    variants = runVEP(variants, plotDirectory, cpus=cpus, forceRedo=forceRedo)
-    variants = getMoreVEPinfo(variants, plotDirectory, cosmicDirectory=cosmicDirectory)
 
-    #variants = getAllVEPdata(metaData, variants)
-
-    #make scatter plots
-    makeScatterPlots(variants, samplePairs=redoPairs, timePoints=timePoints, genome=genome,
-                     plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedo)
-    outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedo)
-
-
-    #now do new-variants output
-    indDir = paste0(metaData$paths$dataDirectory, '/plots/individuals/', individual)
-    ensureDirectoryExists(indDir)
-    outfile = paste0(indDir, '/newVariants.xls')
-
-    if ( (!file.exists(outfile) | forceRedo) & length(pairs) > 0 ) {
-      news = list()
-      for ( pair in pairs ) {
-        name1 = substring(gsub('\\.', '', paste0(pair[1], ' to ', pair[2])), 1, 31)
-        name2 = substring(gsub('\\.', '', paste0(pair[2], ' to ', pair[1])), 1, 31)
-        catLog('Looking for new cancer variants in ', name1, '\n')
-        news[[name1]] = newVariants(variants$variants[[pair[1]]], variants$variants[[pair[2]]], variants$SNPs, genome, cpus=cpus)
-        catLog('Looking for new cancer variants in ', name2, '\n')
-        news[[name2]] = newVariants(variants$variants[[pair[2]]], variants$variants[[pair[1]]], variants$SNPs, genome, cpus=cpus)
-      }
-
-      #print to excel
-      catLog('Writing to', outfile, '\n')
-      WriteXLS('news', outfile)
-    }
-
-    #SNP heatmaps
     timeSeries = list(samples)
     names(timeSeries) = individual
-    makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedo)
-
-    #CNV plots
+    if ( length(timeSeries[[1]]) < 2 ) timeSeries = list()
+    
+    variants = getIndividualVariants(metaData, individual, cpus=cpus, forceRedo=forceRedoVariants)
     cnvs = getCNV(metaData, samples)
-    makeCNVplots(cnvs, plotDirectory, genome=genome, forceRedoCNVplots=forceRedo)
-
-    #do a quick version of clonaity tracking, not using the pool of normals
-    #reference bias will be estiamted from the cancer samples instead
-    Rdirectory = paste0(metaData$paths$dataDirectory, '/R/individuals/', individual)
     stories = getStories(variants=variants, normalVariants=variants, cnvs=cnvs, timeSeries=timeSeries,
       normals=normals, genome=genome, Rdirectory=Rdirectory, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedo)
-    makeRiverPlots(stories$stories, variants, genome, cpus=cpus, plotDirectory, forceRedo=forceRedo)
+
+
+
+    outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedo)
+    variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, forceRedoVEP=forceRedo)
+    variants = getMoreVEPinfo(variants, plotDirectory, genome, cosmicDirectory=cosmicDirectory)
+
+    samplePairs = metaToSamplePairs(samples, rep(individual, length(samples)), normals)
+    inds = rep(individual, length(variants$variants))
+    names(inds) = names(variants$variants)
+    
+    outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedo)
+    makeSNPprogressionPlots(variants, timeSeries=timeSeries, normals = normals, plotDirectory=plotDirectory, forceRedo=forceRedo)
+    makeRiverPlots(stories$stories, variants, genome=genome, cpus=cpus, plotDirectory=plotDirectory, forceRedo=forceRedo)
+    makeScatterPlots(variants, samplePairs, timePoints, plotDirectory, genome=genome, cpus=cpus, forceRedo=forceRedo)
+    makeCloneScatterPlots(variants, stories$stories, samplePairs, inds, timePoints,
+                          plotDirectory, genome=genome, cpus=cpus, forceRedo=forceRedo)
+    outputNewVariants(variants, samplePairs, genome, plotDirectory, cpus=cpus, forceRedo=forceRedo)
+
+
     
   }
 
@@ -796,6 +766,7 @@ cleanVariantRownames = function(variants) {
 
   options(scipen = 10)
   variants = lapply(variants, function(q) {
+    q = q[!is.na(q$x),]
     rownames(q) = paste0(q$x, q$variant)
     return(q)
     })

@@ -296,6 +296,8 @@ linkBams = function(metaData, linkCommand = function(sor, link) {paste0('ln -s '
       cat(paste0(sor, ' does not exists!\n'))
 
     sor = paste0(metaData$samples$BAM[row], '.bai')
+    if ( !file.exists(sor) ) sor = gsub('.bam.bai$', '.bai', sor)
+    if ( !file.exists(sor) ) warning('Cant find an index file for ', metaData$samples$BAM[row])
     link = paste0(metaData$paths$dataDirectory, '/bamLinks/samples/', metaData$samples$NAME[row], '.bam.bai')
     if ( file.exists(sor) & !file.exists(link) ) {
       sor = gsub(' ', '\\\\ ', sor)
