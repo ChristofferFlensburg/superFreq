@@ -253,7 +253,7 @@ addSubclone = function(cT, stories, ylims, dodgyness, colourPool=c(), margin=0.0
     usedCols = c(usedCols, colourPool[1])
     names(usedCols)[length(usedCols)] = subClone
     colourPool = colourPool[-1]
-      if ( length(colourPool) == 0 ) colourPool = mcri(c('black', 'blue', 'red', 'green', 'orange', 'magenta', 'cyan', 'violet', 'lightblue', 'grey', 'darkblue'))
+    if ( length(colourPool) == 0 ) colourPool = mcri(c('black', 'blue', 'red', 'green', 'orange', 'magenta', 'cyan', 'violet', 'lightblue', 'grey', 'darkblue'))
     if ( length(cT[[subClone]]) > 0 ) {
       out = addSubclone(cT[[subClone]], stories, range, dodgyness, colourPool, margin, preNorm=norm)
       usedCols = c(usedCols, out$usedCols)
@@ -309,17 +309,17 @@ addStreamSegment = function(x1, x2, y1low, y1high, y2low, y2high, range=c(0,1), 
     xnorm = (x - x1)/(x2-x1)
     r = range[2]
     yShift = (yhigh-ylow)*(1.5/r^2*xnorm^2 - xnorm^3/r^3)^3*4
-    temp = ylow + yShift
+    yShift = ifelse(xnorm < r, yShift, 0)
+    ylow = ylow + yShift
     yhigh = yhigh - yShift
-    ylow = ifelse(xnorm < r, temp, yhigh)
   }
   if ( range[1] > 0 & range[2] == 1 ) {
     xnorm = (x2 - x)/(x2-x1)
     r = (1-range[1])
     yShift = (yhigh-ylow)*(1.5/r^2*xnorm^2 - xnorm^3/r^3)^3*4
-    temp = ylow + yShift
+    yShift = ifelse(xnorm < r, yShift, 0)
+    ylow = ylow + yShift
     yhigh = yhigh - yShift
-    ylow = ifelse(xnorm < r, temp, yhigh)
   }
   if ( dodgyness < 1 )
     polygon(c(x, rev(x)), c(yhigh, rev(pmin(ylow, yhigh))), col=col, border=NA)

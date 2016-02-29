@@ -67,6 +67,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       if ( nrow(somatic) > 65000 ) warning('Truncating .xls somatic variants: too many rows.')
       XLsomatics[[sample]] = somatic[1:min(nrow(somatic), 65000),]
     }
+    names(XLsomatics) = substring(names(XLsomatics), 1, 30)
     catLog('writing to xls...')
     WriteXLS('XLsomatics', outfile)
 

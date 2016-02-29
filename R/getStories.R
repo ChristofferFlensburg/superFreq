@@ -562,13 +562,15 @@ mergeToOneRegion = function(cR, eFreqs) {
   if ( nrow(cR) == 0 )
     return(data.frame(x1=NA, x2=NA, M=0, width=1000, df=10, var=0, cov=0,
                       pHet=0.5, pAlt=0.5, odsHet=0.5, f=NA, ferr=NA))
+  cR$x1[1] = min(cR$x1)
   cR$x2[1] = max(cR$x2)
-  cR$var[1] = sum(cR$var)
-  cR$cov[1] = sum(cR$cov)
+  efs = eFreqs[eFreqs$x1 > cR$x1[1] & eFreqs$x2 < cR$x2[1],]
+  cR$var[1] = sum(efs$var)
+  cR$cov[1] = sum(efs$cov)
   cR$M[1] = sum(cR$M/cR$width^2)/sum(1/cR$width^2)
   cR$width[1] = 1/sqrt(sum(1/cR$width^2))
   cR = cR[1,]
-  cf = correctedFrequency(cR, eFreqs)
+  cf = correctedFrequency(cR, efs)
   cR$f = cf[,'f']
   cR$ferr = cf[,'ferr']
   return(cR)
