@@ -15,7 +15,7 @@ install_github('ChristofferFlensburg/superFreq')
 ?superFreq
 ```
 
-More information is in the manual.
+More information is in the manual. 
 
 # What is the input?
 You need the aligned bam files of the exomes, and a preliminary (liberal) variant calling through for example varScan, mutect, multiSNV or any other similar software.
