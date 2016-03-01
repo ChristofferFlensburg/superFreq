@@ -182,7 +182,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
     leadingNormal = T
     purity[purity==0] = 1
   }
-  stories[stories < cloneStories$errors*2] = 0
+  stories[stories < cloneStories$errors*2 & stories < 0.5] = 0
   if ( normalise ) stories = t(t(stories)/purity)
   if ( !leadingNormal ) {
     stories = cbind(rep(0, nrow(stories)), stories)
