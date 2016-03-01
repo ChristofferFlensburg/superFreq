@@ -346,7 +346,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
   Nsample = ncol(clon)
   Nmut = nrow(clon)
 
-  if ( col[1] == 'default' | !(length(col) %in% c(1,Nmut)) ) {
+  if ( col[1] == 'default' | is.na(col[1]) | is.null(col[1]) | !(length(col) %in% c(1,Nmut)) ) {
     segcol = randomCols(row(clon)[,2:Nsample], a=alpha)
     errcol = randomCols(row(clon), a=alpha)
   }
