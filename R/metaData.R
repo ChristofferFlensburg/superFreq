@@ -375,12 +375,6 @@ linkBams = function(metaData, linkCommand = function(sor, link) {paste0('ln -s '
 
 }
 
-ensureDirectoryExists = function(file) {
-  dir = dirname(file)
-  if ( !file.exists(dir) ) dir.create(dir)
-}
-
-
 batchToAnalysisDirectory = function(batch) {
   warning('Called a hardcoding function: batchToAnalysisDirectory')
   if ( length(batch) > 1 ) sapply(batch, batchToAnalysisDirectory)

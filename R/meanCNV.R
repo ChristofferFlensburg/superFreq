@@ -1,15 +1,8 @@
 projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA=T, clonalityCut=0.4, forceRedoMean=F, forceRedoVariants=F, forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
   samples = inProject(metaData, project, includeNormal=F, onlyDNA=onlyDNA)
-  catLog('Found samples: ')
-  catLog(samples)
-  catLog('\n')
   if  ( length(samples) == 0 ) {
-    samples = inProject(metaData, project, includeNormal=T, onlyDNA=onlyDNA)
-    catLog('No cancer samples in project', project, ', trying to include normals.\n')
-    if  ( length(samples) == 0 ) {
-      warning('No samples to analyse in project', project)
-      return()
-    }
+    warning('No cancer to analyse in project', project)
+    return()
   }
   individuals = metaData$samples[samples,]$INDIVIDUAL
 

@@ -2,9 +2,9 @@ getCNV = function(metaData, samples) {
   Rdirs = unique(samplesToRdirs(samples, metaData))
   cnvs = list()
   for ( Rdir in Rdirs ) {
-    cat('Loading ', paste0(Rdir, '/clusters.Rdata'), '...', sep='')
+    catLog('Loading ', paste0(Rdir, '/clusters.Rdata'), '...', sep='')
     load(file=paste0(Rdir, '/clusters.Rdata'))
-    cat('done.\n')
+    catLog('done.\n')
     names = names(clusters)
     names = gsub('[_-]', '.', names)
     names(clusters) = gsub('[_-]', '.', names(clusters))
@@ -28,9 +28,9 @@ getFit = function(metaData, samples) {
   for ( Rdir in Rdirs ) {
     loadFile = paste0(Rdir, '/fit.Rdata')
     if ( !file.exists(loadFile) ) loadFile = paste0(Rdir, '/fitP.Rdata')
-    cat('Loading ', loadFile, '...', sep='')
+    catLog('Loading ', loadFile, '...', sep='')
     fitName = load(file=loadFile)
-    cat('done.\n')
+    catLog('done.\n')
     if ( fitName == 'fit' ) fitP = fit$fit
     fitNames = gsub('-normal', '', colnames(fitP))
     standardNames = gsub('[_-]', '.', fitNames)
@@ -139,7 +139,7 @@ updateScatterPlots = function(metaData, cosmicDirectory='', individuals=NA, forc
   
   for ( individual in individuals ) {
     logFile = paste0(metaData$paths$dataDirectory, '/R/individuals/', individual, '/runtimeTracking.log')
-    assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
+    assign('catLog', function(...) {catLog(..., file=logFile, append=T); catLog(...)}, envir = .GlobalEnv)
     catLog('\n\nDoing', individual, '...\n')
     
     
@@ -216,7 +216,7 @@ updateCNVplots = function(metaData, forceRedo=F, cpus=1, genome='hg19') {
   }
 
   if ( length(redoPairs) == 0 ) {
-    cat('Scatter plots were already in place.\n')
+    catLog('Scatter plots were already in place.\n')
     return()
   }
   
@@ -227,11 +227,11 @@ updateCNVplots = function(metaData, forceRedo=F, cpus=1, genome='hg19') {
       boring = (variants$variants[[pair[1]]]$var == 0 & variants$variants[[pair[2]]]$var == 0)
       q1 = variants$variants[[pair[1]]][!boring,]
       q2 = variants$variants[[pair[2]]][!boring,]
-      cat('Caculating flagged p-values...')
+      catLog('Caculating flagged p-values...')
       ps=qualityScatter(q1, q2, variants$SNPs, cpus=cpus, verbose=F)
-      cat(' and unflagged...')
+      catLog(' and unflagged...')
       psuf=qualityScatter(q1, q2, variants$SNPs, cpus=cpus, plotFlagged=F, verbose=F)
-      cat('done.\n')
+      catLog('done.\n')
       
       freqDir = paste0(metaData$paths$dataDirectory, '/plots/samples/', pair[1], '/frequencyScatters')
       ensureDirectoryExists(freqDir)
@@ -332,18 +332,18 @@ updateCNVplots = function(metaData, forceRedo=F, cpus=1, genome='hg19') {
       for ( pair in pairs ) {
         name1 = substring(gsub('\\.', '', paste0(pair[1], ' to ', pair[2])), 1, 31)
         name2 = substring(gsub('\\.', '', paste0(pair[2], ' to ', pair[1])), 1, 31)
-        cat('Looking for new cancer variants in ', name1, '\n')
+        catLog('Looking for new cancer variants in ', name1, '\n')
         news[[name1]] = newVariants(variants$variants[[pair[1]]], variants$variants[[pair[2]]], variants$SNPs, genome, cpus=cpus)
-        cat('Looking for new cancer variants in ', name2, '\n')
+        catLog('Looking for new cancer variants in ', name2, '\n')
         news[[name2]] = newVariants(variants$variants[[pair[2]]], variants$variants[[pair[1]]], variants$SNPs, genome, cpus=cpus)
       }
 
       #print to excel
-      cat('Writing to', outfile, '\n')
+      catLog('Writing to', outfile, '\n')
       WriteXLS('news', outfile)
     }
   }
-  cat('Done!\n')
+  catLog('Done!\n')
 
 }
 
@@ -352,7 +352,7 @@ updateCNVplots = function(metaData, forceRedo=F, cpus=1, genome='hg19') {
 ensureDirectoryExists = function(dir, verbose=T) {
   didExist = file.exists(dir)
   if ( !didExist ) {
-    cat('Creating directory', dir, '\n')
+    catLog('Creating directory', dir, '\n')
     dir.create(dir)
   }
   invisible(didExist)
@@ -372,7 +372,7 @@ updateMultisamplePlots = function(metaData, forceRedo=F) {
   }
   
   if ( length(redoInd) == 0 ) {
-    cat('Multisample plots were already in place.\n')
+    catLog('Multisample plots were already in place.\n')
     return()
   }
   
@@ -397,7 +397,7 @@ updateMultisamplePlots = function(metaData, forceRedo=F) {
       catLog('done.\n')
     })
   }
-  cat('Done!\n')
+  catLog('Done!\n')
 
 }
 
@@ -420,7 +420,7 @@ getProjectVariants = function(metaData, project, cpus=1, onlyDNA=T, forceRedo=F)
   saveFile = paste0(metaData$project[project,]$Rdirectory, '/variants.Rdata')
   ensureDirectoryExists(metaData$project[project,]$Rdirectory)
   if ( file.exists(saveFile) & !forceRedo ) {
-    cat('Loading saved project variants...')
+    catLog('Loading saved project variants...')
     load(saveFile)
     return(variants)
   }
@@ -428,6 +428,7 @@ getProjectVariants = function(metaData, project, cpus=1, onlyDNA=T, forceRedo=F)
   samples = inProject(metaData, project, includeNormal=F, onlyDNA=onlyDNA)
   variants = getVariant(metaData, samples, cpus=cpus)
 
+  catLog('Saving project variants to', saveFile, '.\n')
   save(variants, file=saveFile)
   return(variants)
 }
@@ -440,7 +441,7 @@ getAllIndividualVariants = function(metaData, individual, cpus=1, forceRedo=F) {
   saveFile = paste0(metaData$individuals[individual,]$Rdirectory, '/allVariants.Rdata')
   ensureDirectoryExists(metaData$individuals[individual,]$Rdirectory)
   if ( file.exists(saveFile) & !forceRedo ) {
-    cat('Loading saved variants...')
+    catLog('Loading saved variants...')
     load(saveFile)
     return(allVariants)
   }
@@ -491,7 +492,7 @@ getIndividualVariants = function(metaData, individual, cpus=1, forceRedo=F) {
   saveFile = paste0(metaData$individuals[individual,]$Rdirectory, '/variants.Rdata')
   ensureDirectoryExists(metaData$individuals[individual,]$Rdirectory)
   if ( file.exists(saveFile) & !forceRedo ) {
-    cat('Loading saved variants...')
+    catLog('Loading saved variants...')
     load(saveFile)
     return(variants)
   }
@@ -519,7 +520,7 @@ getIndividualSmallVariants = function(metaData, individual, cpus=1, forceRedo=F)
   saveFile = paste0(metaData$individuals[individual,]$Rdirectory, '/smallVariants.Rdata')
   ensureDirectoryExists(metaData$individuals[individual,]$Rdirectory)
   if ( file.exists(saveFile) & !forceRedo ) {
-    cat('Loading saved small variants...')
+    catLog('Loading saved small variants...')
     load(saveFile)
     return(variants)
   }
@@ -556,7 +557,7 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
   
   #if columns not in the same order, have qs1 match the qs2 order.
   if ( !identical(colnames(qs1$variants[[1]]), colnames(qs2$variants[[1]])) ) {
-    cat('Matching order of columns.\n')
+    catLog('Matching order of columns.\n')
     qs1$variants = lapply(qs1$variants, function(q) q[,colnames(qs2$variants[[1]],)])
   }
   
@@ -568,7 +569,7 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
   allVar = q2$variant
   allRownames = rownames(q2)
 
-  cat('Filling in missing variants: Got', length(allRownames), 'variants that need to be present.\n')
+  catLog('Filling in missing variants: Got', length(allRownames), 'variants that need to be present.\n')
 
   for ( i in 1:length(qs1$variants) ) {
     #first find the missing variants
@@ -576,13 +577,13 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
     q = qs1$variants[[i]]
     bam = metaData$samples[names(qs1$variants)[i],]$BAM
     missing = !(allRownames %in% rownames(q))
-    cat('Sample', names(qs1)[i], 'has', sum(missing), 'missing variants.\n')
+    catLog('Sample', names(qs1)[i], 'has', sum(missing), 'missing variants.\n')
     if ( sum(missing) == 0 ) next
 
     #see if the positions of the missing variants are already called in q1 (for other variants)
     #then we can re-use the coverage and set the variant count to 0, dont need to re-check BAM
     positionChecked = allX[missing] %in% q$x
-    cat(sum(positionChecked), 'can be reused from previous analysis.\n')
+    catLog(sum(positionChecked), 'can be reused from previous analysis.\n')
     if ( sum(positionChecked) > 0 )
       q = rbind(q, shareVariants(list(q[q$x %in% allX[missing][positionChecked],], q2[missing,][positionChecked,]))[[1]])
     
@@ -590,14 +591,14 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
 
     #for the remaining variants, we need to check the BAM for q1.
     missing = !(allRownames %in% rownames(q))
-    cat(sum(missing), 'need to be called from bam.\n')
+    catLog(sum(missing), 'need to be called from bam.\n')
     if ( sum(missing) > 0 ) {
       newSNPs = allSNPs[allSNPs$x %in% allX[missing],]
       BQoffset = captureRegionsToBQoffset(metaData$samples[name,]$CAPTUREREGIONS)
       genome = captureRegionsToGenome(metaData$samples[name,]$CAPTUREREGIONS)
       newQ = QCsnps(pileups=importQualityScores(newSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
         SNPs=newSNPs, cpus=cpus)
-      cat('Matching new calls to the missing variants.\n')
+      catLog('Matching new calls to the missing variants.\n')
       newQ = newQ[order(newQ$x, newQ$variant),]
       #fill in empty entry if the right variant wasn't called over the position
       newQ = rbind(newQ, shareVariants(list(newQ, q2[missing,]))[[1]])
@@ -618,7 +619,7 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
         newQ = cbind(newQ, q2[rownames(newQ),missingColumns])
       newQ = newQ[,colnames(q)]
       
-      cat('Adding', nrow(newQ), 'freshly called variants.\n')
+      catLog('Adding', nrow(newQ), 'freshly called variants.\n')
       q = rbind(q, newQ)
     }
     
@@ -627,7 +628,7 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
   }
 
   if ( length(qs1$SNPs) != length(qs2$SNPs) || any(colnames(qs2$SNPs) != colnames(qs1$SNPs)) ) {
-    cat('Matching SNP columns.\n')
+    catLog('Matching SNP columns.\n')
     commonColumns = intersect(colnames(qs1$SNPs), colnames(qs2$SNPs))
     qs1$SNPs = qs1$SNPs[,commonColumns]
     qs2$SNPs = qs2$SNPs[,commonColumns]
@@ -635,7 +636,7 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
   
   
   if ( any(!(qs2$SNPs$x %in% qs1$SNPs$x)) ) {
-    cat('Matching meta-information about variants.\n')
+    catLog('Matching meta-information about variants.\n')
     qs1$SNPs = rbind(qs1$SNPs, qs2$SNPs[!(qs2$SNPs$x %in% qs1$SNPs$x),])
   }
   
