@@ -35,27 +35,31 @@
 #' cohortAnalyseBatch(metaDataFile, outputDirectories, cpus=cpus, genome=genome)
 #'
 #' }
-cohortAnalyseBatch =
-  function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T, clonalityCut=0.4,
-           excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis',
-           forceRedoVariants=F, forceRedoMean=F, forceRedoMatrixPlot=F, forceRedoMeanPlot=F, genome='hg19') {
-    logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
-    assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
-    
-    metaData =
-      makeMetaDataFromBatch(metaDataFile, outputDirectories, analysisName=analysisName,
-                            excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals)
-    createDirectories(metaData)
-    linkBams(metaData)
-    bringAnnotation(metaData, genome)
-    projects = getProjects(metaData, onlyDNA=onlyDNA)
-    for ( project in projects ) {
-      catLog('Cohort analysing', project, '\n')
-      projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut,
-                     forceRedoMean=forceRedoMean, forceRedoVariants=forceRedoVariants, cosmicDirectory=cosmicDirectory,
-                     forceRedoMatrixPlot=forceRedoMatrixPlot, forceRedoMeanPlot=forceRedoMeanPlot, genome=genome)
+cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T, clonalityCut=0.4,
+  excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis',
+  forceRedoVariants=F, forceRedoMean=F, forceRedoMatrixPlot=F, forceRedoMeanPlot=F, genome='hg19') {
+
+  logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
+  assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
+  
+  metaData =
+    makeMetaDataFromBatch(metaDataFile, outputDirectories, analysisName=analysisName,
+                          excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals)
+  createDirectories(metaData)
+  linkBams(metaData)
+  bringAnnotation(metaData, genome)
+  projects = getProjects(metaData, onlyDNA=onlyDNA)
+  for ( project in projects ) {
+    catLog('Cohort analysing', project, '\n')
+    a = try(projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut,
+      forceRedoMean=forceRedoMean, forceRedoVariants=forceRedoVariants, cosmicDirectory=cosmicDirectory,
+      forceRedoMatrixPlot=forceRedoMatrixPlot, forceRedoMeanPlot=forceRedoMeanPlot, genome=genome))
+    if ( class(a) == 'try-error' ) {
+      catLog('Failed project mean CNV for project ', project, ' with error message: ', a, '\n', sep='')
+      warning('Failed project mean CNV for project ', project, ' with error message: ', a)
     }
   }
+}
 
 makeMetaDataFromBatch =
   function(metaDataFile, outputDirectories, analysisName, excludeSamples=c(), excludeIndividuals=c(),

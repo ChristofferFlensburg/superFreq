@@ -705,8 +705,8 @@ splitMeanCNV = function(metaData, meanCNV, project, subgroup) {
   for ( entry in entries ) {
     dat = entry$data
     mx = entry$matrix
-    meanCNVinSubgroup[[dat]][[mx]] = meanCNVinSubgroup[[dat]][[mx]][,groupSamples]
-    meanCNVoutsideSubgroup[[dat]][[mx]] = meanCNVoutsideSubgroup[[dat]][[mx]][,otherSamples]
+    meanCNVinSubgroup[[dat]][[mx]] = meanCNVinSubgroup[[dat]][[mx]][,groupSamples,drop=F]
+    meanCNVoutsideSubgroup[[dat]][[mx]] = meanCNVoutsideSubgroup[[dat]][[mx]][,otherSamples,drop=F]
     
     individualsHitIn = apply(meanCNVinSubgroup[[dat]][[mx]], 1,
                              function(hasHit) sum(sapply(indSamplesIn, function(is) any(hasHit[is]))))
