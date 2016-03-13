@@ -11,7 +11,7 @@ defaultSuperParameters(systematicVariance = "", maxCov = "",
 Returns default parameters
 }
 \details{
-feed the output of this function to analyse, or just call superAnalyse.
+feed the output of this function to analyse, or just call superFreq.
 }
 \examples{
 defaultSuperParameters()

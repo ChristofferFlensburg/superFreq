@@ -1,29 +1,40 @@
+#surely there must be a better way to track versions?
+#' Return the current version of superFreq.
+#' @details this is the version that goes in the logfile.
+#'          First digit means very large changes.
+#'          Second digit means algorithm changes that affects output.
+#'          Third digit is debugging that shouldn't affect output of completed runs.
+#'          1.0.0 will be the version used in the performance testing in the first preprint.
+#' @export
+superVersion = function() return('0.9.1')
+
 
 #' Wrapper to run default superFreq analysis
 #'
 #' @param metaDataFile Character. A path to a tab separated files with headers:
 #'                     BAM: path (absolute or relative from metaData file) to bam file of sample.
+#'                          An index file is required as well.\cr
 #'                     VCF: path (absolute or relative from metaData file) to vcf file of sample.
 #'                          This should include both somatic and germline variants. The variants
 #'                          will undergo further filtering, so it is not a problem if the .vcf
 #'                          includes false positives, although large number of entries in the
-#'                          .vcf increases run time.
+#'                          .vcf increases run time.\cr
 #'                     NAME: unique identifier of the sample. The names will be converted to
 #'                           standard R names, which involves replacing separators (such as space,
-#'                           dash or underscore) with dots.
+#'                           dash or underscore) with dots.\cr
 #'                     INDIVIDUAL: unique identifier of the indiviudal the sample comes from.
 #'                                 This information is used pair up matched normal samples for
 #'                                 somatic mutation filtering, and for identifying germline
 #'                                 heterozygous SNPs. This column is also used to group samples
 #'                                 that should be compared to each other: all samples from the
 #'                                 same individual are analysed together, and mutations are
-#'                                 tracked between the samples.
+#'                                 tracked between the samples.\cr
 #'                     NORMAL: Should be YES if the sample is normal, NO otherwise. A normal
 #'                             sample is assumed to have no somatic mutations. In practice, a
 #'                             tumor burden below a few percent works effectively as a normal,
 #'                             but tumor burdens above 5% in a sample marked as normal can cause
 #'                             severely reduced sensitivity in cancer samples from the same
-#'                             indiviudal.
+#'                             indiviudal.\cr
 #'                     TIMEPOINT: Mostly used as label in plots together with the sample. Can
 #'                                be Diagnosis, Relapse, resistant or similar labels. Does not
 #'                                influence the analyss otherwise. 
@@ -45,30 +56,31 @@
 #' @param forceRedo named list of Booleans. Controls which step are retrieved from previously
 #'                  saved data, and which are redone even if previous results are saved.
 #'                  If a step is forced to be redone, depending downstream steps are also
-#'                  redone. The named entries in the list should be:
-#'                  forceRedoCount: The read counting over capture regions for the samples.
+#'                  redone. The named entries in the list should be:\cr
+#'
+#'                  forceRedoCount: The read counting over capture regions for the samples.\cr
 #'                  forceRedoNormalCount: The read counting over capture regions for the
-#'                                        set of reference normals.
-#'                  forceRedoFit: The differential coverage analysis.
-#'                  forceRedoVolcanoes: Volcano plots of the differential coverage.
-#'                  forceRedoDifferentRegions: Top table output of gained/lost genes/exons.
-#'                  forceRedoSNPs: Deprecated, usually not called.
-#'                  forceRedoVariants: Import and QC of the variants pointed to in the VCF. 
-#'                  forceRedoNormalSNPs: Deprecated, usually not called.
+#'                                        set of reference normals.\cr
+#'                  forceRedoFit: The differential coverage analysis.\cr
+#'                  forceRedoVolcanoes: Volcano plots of the differential coverage.\cr
+#'                  forceRedoDifferentRegions: Top table output of gained/lost genes/exons.\cr
+#'                  forceRedoSNPs: Deprecated, usually not called.\cr
+#'                  forceRedoVariants: Import and QC of the variants pointed to in the VCF. \cr
+#'                  forceRedoNormalSNPs: Deprecated, usually not called.\cr
 #'                  forceRedoNormalVariants: Import and QC of the variants in the set of
-#'                                           reference normals.
+#'                                           reference normals.\cr
 #'                  forceRedoMatchFlag: QC of variants using the set of reference normals.
-#'                                      Somatic SNV are also separated from germline.
-#'                  forceRedoScatters: Scatter plots of the SNV frequencies between samples.
-#'                  forceRedoOutputSomatic: Top tables of somatic SNVs by sample.
+#'                                      Somatic SNV are also separated from germline.\cr
+#'                  forceRedoScatters: Scatter plots of the SNV frequencies between samples.\cr
+#'                  forceRedoOutputSomatic: Top tables of somatic SNVs by sample.\cr
 #'                  forceRedoNewVariants: Top table of new somatic SNVs compared to other
-#'                                        samples.
-#'                  forceRedoSNPprogression: Heatmap of SNV frequencies over multiple samples.
-#'                  forceRedoCNV: Copy number calling.
-#'                  forceRedoCNVplots: Copy number plots.
-#'                  forceRedoSummary: Summary plot of SNVs and CNVs over all samples.
-#'                  forceRedoStories: Clonal tracking of somatic mutations.
-#'                  forceRedoRiver: Plots of the clonal evolution.
+#'                                        samples.\cr
+#'                  forceRedoSNPprogression: Heatmap of SNV frequencies over multiple samples.\cr
+#'                  forceRedoCNV: Copy number calling.\cr
+#'                  forceRedoCNVplots: Copy number plots.\cr
+#'                  forceRedoSummary: Summary plot of SNVs and CNVs over all samples.\cr
+#'                  forceRedoStories: Clonal tracking of somatic mutations.\cr
+#'                  forceRedoRiver: Plots of the clonal evolution.\cr
 #'                  forceRedoVEP: VEP call (Variant Effect Predictor) and COSMIC linking.
 #'
 #'                  The default value is forceRedoNothing(), setting all entries to FALSE.
@@ -101,19 +113,19 @@
 #'
 #' @examples
 #' \dontrun{
-#' inputFiles = superInputFiles(metaData='path/to/metaData.tsv',
-#'                              captureRegions='path/to/captureRegions.bed',
-#'                              normalDirectory='path/to/normalDirectory',
-#'                              dbSNPdirectory='path/to/dbSNPdirectory',
-#'                              reference='path/to/reference.fa')
+#' #minimal example to get it running, assuming data fits the defaults.
+#' #you really want to skim through the other settings before running though.
+#' metaDataFile = 'metaData.tsv'
+#' captureRegions='captureRegions.bed'
+#' normalDirectory = '../referenceNormals'
+#' reference = '../reference/hg19.fa'
+#' Rdirectory = 'R'
+#' plotDirectory='plots'
 #' 
-#' outputDirectories = superOutputDirectories(Rdirectory='where/I/want/to/save/the/data',
-#'                                            plotDirectory='where/the/plots/will/go')
-#' 
-#' data = superAnalyse(inputFiles, outputDirectories)
-#'
+#' data = superFreq(metaDataFile, captureRegions, normalDirectory,
+#'                  Rdirectory, plotDirectory, reference)
 #' }
-superAnalyse = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
+superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(),
   systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC') {
 
@@ -141,6 +153,7 @@ superAnalyse = function(metaDataFile, captureRegions, normalDirectory, Rdirector
   postAnalyseVEP(outputDirectories, inputFiles=inputFiles, cosmicDirectory=cosmicDirectory,
                  cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
 
+  
 }
 
 
@@ -225,6 +238,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
 
   catLog('\n\n\n', as.character(Sys.time()),
          '\n######################################################################\n')
+  catLog('Running superFreq version', superVersion(), '\n')
 
 
   neededInput = c('metaDataFile', 'vcfFiles', 'normalDirectory', 'captureRegionsFile', 'dbSNPdirectory')
@@ -1056,7 +1070,7 @@ requireFileExists = function(file) {
 
 #' Returns default settings 
 #'
-#' @details feed the output of this function to analyse, or just call superAnalyse.
+#' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperSettings()
 defaultSuperSettings = function(genome='', BQoffset='') {
@@ -1075,7 +1089,7 @@ defaultSuperSettings = function(genome='', BQoffset='') {
 
 #' Returns default runtime settings 
 #'
-#' @details feed the output of this function to analyse, or just call superAnalyse.
+#' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperRuntimeSettings()
 defaultSuperRuntimeSettings = function(cpus='', outputToTerminalAsWell='') {
@@ -1094,7 +1108,7 @@ defaultSuperRuntimeSettings = function(cpus='', outputToTerminalAsWell='') {
 
 #' Returns default parameters 
 #'
-#' @details feed the output of this function to analyse, or just call superAnalyse.
+#' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperParameters()
 defaultSuperParameters = function(systematicVariance='', maxCov='', cloneDistanceCut='') {

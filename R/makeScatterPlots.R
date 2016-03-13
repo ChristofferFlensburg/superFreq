@@ -73,7 +73,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
 
 #helper function that generates fancy scatter plots of the frequencies of two samples.
 #Requires two variants objects, and a SNPs object.
-qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main='', xlab='variant frequency: sample1', ylab='variant frequency: sample2', plotFlagged=T, cpus=1, verbose=T, print = F, printRedCut = 0.99, printOnlyNovel=F, plotPosition=F, genome='hg19', xlim=c(0,1), ylim=c(0,1), outputHighlighted=F, frame.plot=F, legend=T, redCut=0.75, forceCol=NA, add=F, GoI=c(), printCex=1, doPlot=T, minSomaticP=0, ignoreFlagsInOne = c('Svr', 'Mv', 'Nab'), ignoreFlagsInBoth = c('Srr'),...) {
+qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main='', xlab='variant frequency: sample1', ylab='variant frequency: sample2', plotFlagged=T, cpus=1, verbose=T, print = F, printRedCut = 0.99, printOnlyNovel=F, plotPosition=F, genome='hg19', xlim=c(0,1), ylim=c(0,1), outputHighlighted=F, frame.plot=F, legend=T, redCut=0.75, forceCol=NA, add=F, GoI=c(), printCex=1, doPlot=T, minSomaticP=0, ignoreFlagsInOne = c('Svr', 'Mv', 'Nab'), ignoreFlagsInBoth = c('Srr'), flagOpacity=0.4, severityWidth=0.5, cosmicWidth=3, ...) {
   use = q1$var > 0 | q2$var > 0
   q1 = q1[use,]
   q2 = q2[use,]
@@ -162,7 +162,10 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
   if ( sum(use) == 0 ) invisible(ps)
   cleanOrder = which(clean&use)[order((red-0.1*db)[clean&use])]
   col = rep('black', length(red))
-  col[!clean&use] = rgb(0.6 + red[!clean&use]*0.4, 0.6+red[!clean&use]*0.2, 0.6)
+  col[!clean&use] =
+    rgb((1-flagOpacity) + red[!clean&use]*flagOpacity,
+        (1-flagOpacity)+red[!clean&use]*flagOpacity/2,
+        (1-flagOpacity))
   col[clean&use] = rgb(red,0,ifelse(db, 0,(1-red)))[clean&use]
   if ( !is.na(forceCol[1]) & length(forceCol) != length(col) ) col = rep(forceCol[1], length(col))
   if ( !is.na(forceCol[1]) & length(forceCol) == length(col) ) col = forceCol
@@ -190,11 +193,11 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
     severity = pmin(q1$severity, q2$severity)
     severe = clean & use & severity <= 11 & !db
     points(freq1[severe], freq2[severe], cex=cex[severe]+(12-severity[severe])/10,
-           lwd=(12-severity[severe])/2, pch=1, col='orange')
+           lwd=(12-severity[severe])*severityWidth, pch=1, col='orange')
     if ( 'isCosmicCensus' %in% names(q1) & 'isCosmicCensus' %in% names(q2) ) {
       isCosmic = (q1$isCosmicCensus | q2$isCosmicCensus) & severe
       points(freq1[isCosmic], freq2[isCosmic], cex=cex[isCosmic]+(12-severity[isCosmic])/10+1,
-             lwd=3, pch=1, col='green')
+             lwd=cosmicWidth, pch=1, col='green')
     }
   }
   

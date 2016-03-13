@@ -41,7 +41,8 @@ cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T
 
   logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
   assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
-  
+  catLog('Running superFreq version', superVersion(), '\n')
+
   metaData =
     makeMetaDataFromBatch(metaDataFile, outputDirectories, analysisName=analysisName,
                           excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals)

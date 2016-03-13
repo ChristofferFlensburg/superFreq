@@ -139,7 +139,9 @@ updateScatterPlots = function(metaData, cosmicDirectory='', individuals=NA, forc
   
   for ( individual in individuals ) {
     logFile = paste0(metaData$paths$dataDirectory, '/R/individuals/', individual, '/runtimeTracking.log')
-    assign('catLog', function(...) {catLog(..., file=logFile, append=T); catLog(...)}, envir = .GlobalEnv)
+    assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
+    catLog('\n\n\n\n\n\n\n#############################################################\n')
+    catLog('Running superFreq version', superVersion(), '\n')
     catLog('\n\nDoing', individual, '...\n')
     
     

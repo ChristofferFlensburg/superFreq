@@ -10,7 +10,7 @@ defaultSuperSettings(genome = "", BQoffset = "")
 Returns default settings
 }
 \details{
-feed the output of this function to analyse, or just call superAnalyse.
+feed the output of this function to analyse, or just call superFreq.
 }
 \examples{
 defaultSuperSettings()

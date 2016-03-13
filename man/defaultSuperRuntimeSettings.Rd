@@ -10,7 +10,7 @@ defaultSuperRuntimeSettings(cpus = "", outputToTerminalAsWell = "")
 Returns default runtime settings
 }
 \details{
-feed the output of this function to analyse, or just call superAnalyse.
+feed the output of this function to analyse, or just call superFreq.
 }
 \examples{
 defaultSuperRuntimeSettings()
