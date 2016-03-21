@@ -6,6 +6,9 @@
 #' @param fastaFile The fasta file.
 #'
 #' @details Adds the bidning strength as a column to the bedfile, saving it as a copy, replacing .bed with .dn.bed
+#'
+#' @importFrom seqinr read.fasta
+#'
 addBindingStrength = function(bedFile, fastaFile, genome='hg19', forceRedo=F) {
   outFile = gsub('.bed$', '.dn.bed', bedFile)
   if ( !forceRedo & file.exists(outFile) ) {
