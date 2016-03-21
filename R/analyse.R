@@ -132,10 +132,10 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   inputFiles =
     superInputFiles(metaDataFile, captureRegions, normalDirectory, dbSNPdirectory,
                     reference)
-  sanityCheckSuperInputFiles(inputFiles)
+  #sanityCheckSuperInputFiles(inputFiles)
 
   outputDirectories = superOutputDirectories(Rdirectory=Rdirectory, plotDirectory=plotDirectory)
-  sanityCheckSuperOutputDirectories(outputDirectories)
+  #sanityCheckSuperOutputDirectories(outputDirectories)
 
   settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset)
 
