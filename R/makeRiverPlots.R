@@ -138,11 +138,12 @@ addAnnotationToOutput = function(output, variants) {
   isSNV = grepl('^[0-9]', rownames(output))
   rows = rownames(output)[isSNV]
   if ( length(rows) == 0 ) return(output)
-  severityMx = sapply(variants$variants, function(q) q[rows,]$severity)
+  severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[rows,]$severity), 110, q[rows,]$severity))
   if ( is.vector(severityMx) ) severityMx = matrix(severityMx, nrow=length(rows))
   mostSevere = apply(severityMx, 1, function(severities) which(severities <= 1.0001*min(severities))[1])
   columns = unique(c('severity', 'type', moreVEPnames()))
   for ( column in columns ) {
+    if ( !(column %in% colnames(variants$variants[[1]])) ) next
     mx = sapply(variants$variants, function(q) q[rows,][,column])
     if ( is.vector(mx) ) mx = matrix(mx, nrow=length(rows))
     columnValues = mx[cbind(1:nrow(mx), mostSevere)]
