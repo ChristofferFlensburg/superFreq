@@ -30,6 +30,7 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', forceRedoVEP=F) {
         call = paste0('vep -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --fork ', cpus)
       if ( genome == 'mm10' ) call = paste0(call, ' --species mus_musculus')
       catLog(call, '\n')
+      call = paste0(call, '\n')
       systemRet = system(call, intern=T)
       if ( !any(grepl('Finished', systemRet)) ) warning('VEP run didnt finish!')
       catLog('Moving back to ', wd, '\n')
