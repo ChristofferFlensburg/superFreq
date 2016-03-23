@@ -456,10 +456,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
 
   catLog('Running voom on exons..')
   png(paste0(diagnosticPlotsDirectory, '/voomVariance.exon.png'), height=10, width=20, res=144, unit='in')
-  voomWeights = voom(countsOri, design=design, plot=T)
+  voomWeights = voomWithQualityWeights(countsOri, design=design, plot=T)
   voomWeights$weights[yes,design[,'normal']==1 & sex == 'female'] = 0
   dev.off()
-  voomCounts = voom(counts, design=design, plot=F)
+  voomCounts = voomWithQualityWeights(counts, design=design, plot=F)
   voomCombined = voomCounts
   voomCombined$weights = voomWeights$weights
   catLog('limma..')
@@ -491,10 +491,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
 
   catLog('Running voom on genes..')
   png(paste0(diagnosticPlotsDirectory, '/voomVariance.exon.png'), height=10, width=20, res=144, unit='in')
-  voomWeights = voom(geneCountsOri, design=design, plot=T)
+  voomWeights = voomWithQualityWeights(geneCountsOri, design=design, plot=T)
   voomWeights$weights[geneYes,design[,'normal']==1 & sex == 'female'] = 0
   dev.off()
-  voomCounts = voom(geneCounts, design=design, plot=F)
+  voomCounts = voomWithQualityWeights(geneCounts, design=design, plot=F)
   voomCombined = voomCounts
   voomCombined$weights = voomWeights$weights
   catLog('limma..')
