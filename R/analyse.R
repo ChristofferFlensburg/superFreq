@@ -104,7 +104,8 @@ superVersion = function() return('0.9.3')
 #'                       is located. If the directory doesn't exist, it will be created and the
 #'                       data will be downloaded. Defaults to superFreqCOSMIC (in the directory
 #'                       where R is run).
-
+#' @param mode Character. The mode to run in. The default 'Exome' is almost always used. An experimental
+#                         'genome' is also allowed, that doesnt do MA correction for counts.
 #'
 #' @details This function runs a full SNV, SNP, CNV and clonality analysis in the input exome data.
 #'          Note that a lot of settings go by default, such as base quality offset (33) and genome (hg19).
@@ -127,7 +128,7 @@ superVersion = function() return('0.9.3')
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(),
-  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC') {
+  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome') {
 
   inputFiles =
     superInputFiles(metaDataFile, captureRegions, normalDirectory, dbSNPdirectory,
@@ -138,6 +139,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   #sanityCheckSuperOutputDirectories(outputDirectories)
 
   settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset)
+  if ( mode == 'genome' ) settings$MAcorrection = F
 
   runtimeSettings = defaultSuperRuntimeSettings(cpus=cpus, outputToTerminalAsWell=outputToTerminalAsWell)
 

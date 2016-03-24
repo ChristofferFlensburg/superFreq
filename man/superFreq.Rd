@@ -9,7 +9,7 @@ superFreq(metaDataFile, captureRegions, normalDirectory, Rdirectory,
   outputToTerminalAsWell = T, forceRedo = forceRedoNothing(),
   systematicVariance = 0.03, maxCov = 150,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
-  cosmicDirectory = "superFreqCOSMIC")
+  cosmicDirectory = "superFreqCOSMIC", mode = "exome")
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -119,6 +119,8 @@ where R is run).}
 is located. If the directory doesn't exist, it will be created and the
 data will be downloaded. Defaults to superFreqCOSMIC (in the directory
 where R is run).}
+
+\item{mode}{Character. The mode to run in. The default 'Exome' is almost always used. An experimental}
 }
 \description{
 Wrapper to run default superFreq analysis

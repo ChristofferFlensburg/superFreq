@@ -391,7 +391,7 @@ readsToPileup = function(reads, pos, BQoffset) {
   }
 
   #look for stuttering in case of deletions/insertions.
-  #this is removed for now, due to not really being needed and cpu-time.
+  #this is removed for now, due to not really being needed and cpu intensive.
   note = rep('', length(call))
   #if ( length(easy) > 2 ) {
   #  stutterLength = 20
