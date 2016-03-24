@@ -322,10 +322,7 @@ addStreamSegment = function(x1, x2, y1low, y1high, y2low, y2high, range=c(0,1), 
     ylow = ylow + yShift
     yhigh = yhigh - yShift
   }
-  if ( dodgyness < 1 )
-    polygon(c(x, rev(x)), c(yhigh, rev(pmin(ylow, yhigh))), col=col, border=NA)
-  else
-    polygon(c(x, rev(x)), c(yhigh, rev(pmin(ylow, yhigh))), col=col, border=NA, density=10, angle=45, lwd=1 + noneg(10-4*dodgyness))
+  polygon(c(x, rev(x)), c(yhigh, rev(pmin(ylow, yhigh))), col=col, border=NA)
 }
 
 excludeClonesFromTree = function(tree, excludeClones) {
