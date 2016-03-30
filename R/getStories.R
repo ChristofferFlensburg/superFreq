@@ -610,9 +610,10 @@ storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
   #if a lot of mutations, merge them in batches, as the algorithm scales as O(N^2)
   #group less in this first pass (minDistance*0.5), and then group as specified last round.
   batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
+  if ( length(storyList) > batchSize ) catLog('Cluster mutations by batch. Remaining clusters: ', sep='')
   while ( length(storyList) > batchSize ) {
     batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
-    catLog(length(storyList), ' stories. Merge batch of ', batchSize, ' separately...', sep='')
+    catLog(length(storyList), '..', sep='')
     first300 = storiesToCloneStories(stories=stories, storyList=storyList[1:batchSize],
       minDistance=minDistance*0.5, cpu=cpus)
     storyList = c(first300$storyList, storyList[(batchSize+1):length(storyList)])

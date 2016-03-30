@@ -577,7 +577,7 @@ normaliseCoverage = function(qs) {
 
 trimVariantsByIndividual = function(variants, individuals) {
   for ( individual in unique(individuals) ) {
-    is = which(individuals == individual)
+    is = names(individuals)[individuals == individual]
     if ( length(is) > 1 )
       checked = apply(sapply(variants$variants[is], function(q) q$cov), 1, sum) > 0
     else
