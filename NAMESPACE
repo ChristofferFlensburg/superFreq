@@ -2,6 +2,7 @@
 
 export(analyse)
 export(cohortAnalyseBatch)
+export(cohortAnalyseBatchContrast)
 export(downloadTemplate)
 export(forceRedoEverything)
 export(forceRedoNothing)

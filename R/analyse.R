@@ -6,7 +6,7 @@
 #'          Third digit is debugging that shouldn't affect output of completed runs.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.3')
+superVersion = function() return('0.9.4')
 
 
 #' Wrapper to run default superFreq analysis

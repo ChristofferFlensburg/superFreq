@@ -768,12 +768,34 @@ plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cos
 }
 
 
-#takes a metaData object, a project, and two vectors of subgroups within that project.
-#also a name of the comparison.
-#the samples belong to all groups in subgroups1 are compared to all samples belong to all groups
-#in subgroups2. output is directed to data/plots/projects/@project/@name
-compareGroups = function(metaData, project, subgroups1, subgroups2, name, cosmicDirectory='', cpus=1, forceRedoMean=F,
+#' Compares sets of individuals for reccuring mutations
+#'
+#' @param metaDataFile character: Path to the metaData.
+#' @param project character: The project containing the subgroups.
+#' @param subgroup1 character: The first subgroup(s).
+#' @param subgroup2 character: The second subgroup(s).
+#' @param name character: The name of the comparison. This names the output directory.
+#' @param clonalityCut numeric: the minimum required clonality to be included in the analysis. Deafult 0.4.
+#' @param cosmicDirectory character: The directory with the COSMIC data.
+#' @param cpus integer: The maximum number of parallel processes.
+#' @param forceRedoMean boolean: Force redo the mean CNAs ans SNVs rates over individuals. Default FALSE.
+#' @param forceRedoMatrixPlot boolean: Force redo the hit matrix plot. Default FALSE.
+#' @param forceRedoMeanPlot boolean: Force redo the mean CNA plot. Default FALSE.
+#' @param genome character: the genome being studied. Default "hg19".
+#'
+#' @details This function runs a cohort analysis, comparing two subgroups (within a project) to each other. See cohortAnalyseBatch for details.
+#'
+#'
+compareGroups = function(metaDataFile, project, subgroups1, subgroups2, name, clonalityCut=0.4, excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cpus=1, forceRedoVariants=F, forceRedoMean=F,
   forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
+
+  metaData =
+    makeMetaDataFromBatch(metaDataFile, outputDirectories, analysisName=analysisName,
+                          excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals)
+  createDirectories(metaData)
+  linkBams(metaData)
+  bringAnnotation(metaData, genome)
+  
   samples = inProject(metaData, project, includeNormal=F, onlyDNA=T)
   individuals = metaData$samples[samples,]$INDIVIDUAL
 
@@ -784,7 +806,7 @@ compareGroups = function(metaData, project, subgroups1, subgroups2, name, cosmic
     catLog('done.\n')
   }
   else {
-    variants = getProjectVariants(metaData, project, cpus=cpus)
+    variants = getProjectVariants(metaData, project, cpus=cpus, forceRedo=forceRedoVariants)
     meanCNV = getMeanCNV(metaData, samples, variants, genome=genome)
     
     catLog('Saving meanCNV...')
@@ -811,23 +833,23 @@ compareGroups = function(metaData, project, subgroups1, subgroups2, name, cosmic
       add=F, printGeneNames=F, meanCNV2=meanCNVs$inGroup, genome=genome)
     outputIn = plotMeanCNV(metaData, meanCNV=meanCNVs$inGroup, cosmicDirectory=cosmicDirectory,
       add=T, printGeneNames=T, genome=genome)
-    legend('topright', c('subgroups1', 'subgroups1', 'subgroups1', 'subgroups2', 'subgroups2', 'subgroups2'), col=mcri(c('blue', 'red', 'green', 'cyan', 'orange', 'green')), lwd=c(2, 2, 2, 10, 10, 10), bg='white')
+    legend('topright', c(subgroups1[1], subgroups1[1], subgroups1[1], subgroups2[1], subgroups2[1], subgroups2[1]), col=mcri(c('blue', 'red', 'green', 'cyan', 'orange', 'green')), lwd=c(2, 2, 2, 10, 10, 10), bg='white')
     dev.off()
   }
   
   plotMeanCNVtoFile(metaData, project, meanCNVs$inGroup, forceRedo=forceRedoMeanPlot,
-                    plotFile=paste0(plotDirectory, '/meanCNVinGroup.pdf'), genome=genome)
+                    plotFile=paste0(plotDirectory, '/meanCNV-', subgroups1[1], '.pdf'), genome=genome)
   plotMeanCNVtoFile(metaData, project, meanCNVs$outGroup, forceRedo=forceRedoMeanPlot,
-                    plotFile=paste0(plotDirectory, '/meanCNVoutGroup.pdf'), genome=genome)
+                    plotFile=paste0(plotDirectory, '/meanCNV-', subgroups2[1], '.pdf'), genome=genome)
   
   plotSubgroupMutationMatrix(metaData, meanCNVs, project, name, cosmicDirectory=cosmicDirectory,
                              nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
   plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory,
                               nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
-                              plotFile=paste0(plotDirectory, '/mutationMatrixInGroup.pdf'))
+                              plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups1[1], '.pdf'))
   plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory,
                               nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
-                              plotFile=paste0(plotDirectory, '/mutationMatrixOutGroup.pdf'))
+                              plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups2[1], '.pdf'))
 
   catLog('Done! Invisible returning mean CNV data.\n')
   invisible(meanCNV)
