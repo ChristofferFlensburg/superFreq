@@ -313,6 +313,9 @@ addStreamSegment = function(x1, x2, y1low, y1high, y2low, y2high, range=c(0,1), 
     yShift = ifelse(xnorm < r, yShift, 0)
     ylow = ylow + yShift
     yhigh = yhigh - yShift
+    x = x[xnorm < r]
+    ylow = ylow[xnorm < r]
+    yhigh = yhigh[xnorm < r]
   }
   if ( range[1] > 0 & range[2] == 1 ) {
     xnorm = (x2 - x)/(x2-x1)
@@ -321,6 +324,9 @@ addStreamSegment = function(x1, x2, y1low, y1high, y2low, y2high, range=c(0,1), 
     yShift = ifelse(xnorm < r, yShift, 0)
     ylow = ylow + yShift
     yhigh = yhigh - yShift
+    x = x[xnorm < r]
+    ylow = ylow[xnorm < r]
+    yhigh = yhigh[xnorm < r]
   }
   polygon(c(x, rev(x)), c(yhigh, rev(pmin(ylow, yhigh))), col=col, border=NA)
 }
