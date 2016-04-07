@@ -217,7 +217,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T) {
   #loadMethods(byIndividual=byIndividual)
-  options(stringsAsFactors = stringsAsFactors)
+  options(stringsAsFactors = F)
   options(scipen = 10)
 
   if ( !all(c('Rdirectory', 'plotDirectory') %in% names(outputDirectories)) )
