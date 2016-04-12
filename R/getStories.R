@@ -612,13 +612,13 @@ storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
   batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
   if ( length(storyList) > batchSize ) catLog('Cluster mutations by batch. Remaining clusters: ', sep='')
   while ( length(storyList) > batchSize ) {
-    batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
     catLog(length(storyList), '..', sep='')
     first300 = storiesToCloneStories(stories=stories, storyList=storyList[1:batchSize],
       minDistance=minDistance*0.5, cpu=cpus)
     storyList = c(first300$storyList, storyList[(batchSize+1):length(storyList)])
+    batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
   }
-
+  
   distance = do.call(rbind, mclapply(1:length(storyList), function(i) c(sapply(1:i, function(j) pairScore(stories, storyList[[i]], storyList[[j]])), rep(0, length(storyList)-i)), mc.cores=cpus))
   distance = distance + t(distance)
   distance = distance + (minDistance+1)*as.numeric(row(distance) == col(distance))

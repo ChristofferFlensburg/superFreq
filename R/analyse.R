@@ -2,11 +2,11 @@
 #' Return the current version of superFreq.
 #' @details this is the version that goes in the logfile.
 #'          First digit means very large changes.
-#'          Second digit means algorithm changes that affects output.
-#'          Third digit is debugging that shouldn't affect output of completed runs.
+#'          Second digit is major changes.
+#'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.4')
+superVersion = function() return('0.9.5')
 
 
 #' Wrapper to run default superFreq analysis
@@ -617,7 +617,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   if ( class(stories) == 'try-error' ) {
     catLog('Error in getStories!\n')
     dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs,
-                               'timeSeries'=timeSeries, 'Rdirectory'=Rdirectory,
+                               'timeSeries'=timeSeries, 'Rdirectory'=Rdirectory, 'normals'=normals,
                                'plotDirectory'=plotDirectory, 'cpus'=cpus, 'forceRedo'=forceRedoStories))
     stop('Error in getStories!')
   }

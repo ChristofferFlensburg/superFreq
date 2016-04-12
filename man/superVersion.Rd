@@ -12,8 +12,8 @@ Return the current version of superFreq.
 \details{
 this is the version that goes in the logfile.
          First digit means very large changes.
-         Second digit means algorithm changes that affects output.
-         Third digit is debugging that shouldn't affect output of completed runs.
+         Second digit is major changes.
+         Third digit is minor changes.
          1.0.0 will be the version used in the performance testing in the first preprint.
 }
 
