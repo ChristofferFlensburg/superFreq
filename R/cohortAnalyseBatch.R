@@ -39,7 +39,7 @@ cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T
   excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis',
   forceRedoVariants=F, forceRedoMean=F, forceRedoMatrixPlot=F, forceRedoMeanPlot=F, genome='hg19') {
 
-  logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
+  logFile = normalizePath(paste0(outputDirectories$Rdirectory, '/runtimeTracking.log'))
   assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
   catLog('Running superFreq version', superVersion(), '\n')
 
@@ -115,7 +115,8 @@ cohortAnalyseBatchContrast = function(metaDataFile, outputDirectories, project, 
   catLog('Running superFreq version', superVersion(), '\n')
 
   metaData =
-    compareGroups(metaDataFile=metaDataFile, project=project, subgroups1=subgroups1, subgroups2=subgroups2,
+    compareGroups(metaDataFile=metaDataFile, outputDirectories=outputDirectories, project=project,
+                  subgroups1=subgroups1, subgroups2=subgroups2,
                   name=name, clonalityCutclonalityCut, excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals,
                   cosmicDirectory=cosmicDirectory, analysisName=analysisName, cpus=cpus, forceRedoVariants=forceRedoVariants,
                   forceRedoMean=forceRedoMean,
@@ -196,4 +197,65 @@ bringAnnotation = function(metaData, genome) {
   toPath = paste0(metaData$paths$dataDirectory, '/resources/ensembl', genome, 'annotation.Rdata')
   if ( file.exists(fromPath) )
     system(paste0('cp ', fromPath, ' ', toPath))
+}
+
+
+#' Merges data from several batches
+#'
+#' @param paths data.frame: One row for each batch to be merged.
+#"                          Columns are metaDataFile and Rdirectory.
+#' @param targetMetaDataFile character: Path to where the merged metaData will be stored.
+#'                           This also affect where a downstream cohort analysis is stored.
+#' @param targetRdirectory character: Path to where the Rdata will be stored.
+#'
+#' @details This function merges the data from multiple batches, setting them up for a joint cohort analysis. Note that this is only for the purpose of a downstream cohort analysis. The output R directory cannot be run as a batch Rdirectory.
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' paths = data.frame('metaDataFile' = c('~/superFreq/myFirstBatch/metaData.txt', '~/superFreq/mySecondBatch/metaData.txt'),
+#'            'Rdirectory'= c('~/superFreq/myFirstBatch/R', '~/superFreq/myFirstBatch/R'))
+#'
+#' targetMetaDataFile = '~/superFreq/mergedAnalysis/metaData.txt'
+#' targetRdirectory = '~/superFreq/mergedAnalysis/R'
+#'
+#' mergedPaths = mergeBatches(paths, targetMetaDataFile, targetRdirectory)
+#'
+#' outputDirectories = list('Rdirectory'=targetRdirectory)
+#' cohortAnalyseBatch(targetMetaDataFile, outputDirectories, cpus=6, genome='hg19')
+#'
+#' }
+mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
+  if ( !('metaDataFile' %in% names(paths)) ) stop('paths need to have an metaDataFile column.')
+  if ( !('Rdirectory' %in% names(paths)) ) stop('paths need to have an Rdirectory column.')
+
+  #merge metaData files.
+  metaDatas = lapply(paths$metaDataFile, function(metaDataFile) importSampleMetaData(metaDataFile))
+  #fill in missing columns with blanks.
+  columns = Reduce(union, lapply(metaDatas, names))
+  metaDatas = lapply(metaDatas, function(metaData) {
+    if ( all(columns %in% names(metaData)) ) return(metaData)
+    missingColumns = lapply(setdiff(columns, names(metaData)), function(a) rep('', nrow(metaData)))
+    names(missingColumns) = setdiff(columns, names(metaData))
+    metaData = cbind(metaData, do.call(data.frame, missingColumns))
+  })
+  #merge and write to file
+  metaData = do.call(rbind, metaDatas)
+  write.table(metaData, file=targetMetaDataFile, quote=F)
+
+  #merge data
+  datas = lapply(paths$Rdirectory, function(Rdirectory) loadData(Rdirectory))
+  #merge piece by piece
+  variants = do.call(c, lapply(datas, function(d) d$allVariants$variants$variants))
+  SNPs = do.call(rbind, lapply(datas, function(d) d$allVariants$variants$SNPs))
+  SNPs = SNPs[!duplicated(rownames(SNPs)),]
+  allVariants = list('variants'=list('variants'=variants, 'SNPs'=SNPs))
+  ensureDirectoryExists(targetRdirectory)
+  save(allVariants, file=paste0(targetRdirectory, '/allVariants.Rdata'))
+
+  clusters = do.call(c, lapply(datas, function(d) d$clusters))
+  save(clusters, file=paste0(targetRdirectory, '/clusters.Rdata'))
+
+  fit = list('sex'= do.call(c, lapply(datas, function(d) d$fit$exonFit$sex)))
 }

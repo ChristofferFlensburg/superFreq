@@ -18,7 +18,7 @@ outputNewVariants = function(variants, pairs, genome, directory, cpus=1, forceRe
 }
 
 #helper function that isolates the significantly different variants
-newVariants = function(q1, q2, SNPs, genome, cpus=1, ps=NA) {
+newVariants = function(q1, q2, SNPs, genome='hg19', cpus=1, ps=NA) {
   common = intersect(rownames(q1), rownames(q2))
   common = common[!is.na(common)]
   single = rownames(q2)[!(rownames(q2) %in% rownames(q1))]
@@ -88,9 +88,9 @@ newVariants = function(q1, q2, SNPs, genome, cpus=1, ps=NA) {
     germlineLike=ifelse(is.na(q1$germline[toReturn]), 'na', ifelse(q1$germline[toReturn], 'YES', '')),
     row.names=rownames(q1)[toReturn])
 
-  if ( all(moreVEPnames() %in% names(q2)) ) {
+  if ( all(moreVEPnames(genome=genome) %in% names(q2)) ) {
     catLog('Adding more VEP info..')
-    ret = cbind(ret, q2[toReturn,moreVEPnames()])
+    ret = cbind(ret, q2[toReturn,moreVEPnames(genome=genome)])
     catLog('done.\n')
   }
 

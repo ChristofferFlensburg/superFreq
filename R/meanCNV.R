@@ -65,9 +65,10 @@ getMeanCNV = function(metaData, samples, variants, genome=genome, clonalityCut=0
   indSamples = lapply(uInd, function(i) which(individuals == i))
   cnvs = getCNV(metaData, samples)
     
-  fits = getFit(metaData, samples)
-  sex = sapply(fits, function(fit) fit$sex)
-  names(sex) = samples
+  #fits = getFit(metaData, samples)
+  sex = ifelse(sapply(1:length(cnvs), function(i) mean(cnvs[[i]]$clusters[xToChr(cnvs[[i]]$clusters$x1)=='X',]$M)-mean(cnvs[[i]]$clusters[xToChr(cnvs[[i]]$clusters$x1)=='Y',]$M)) > 3, 'male', 'female')
+  if ( any(is.na(sex)) ) sex[is.na(sex)] = 'female'
+  names(sex) = names(cnvs)
     
   cnvRates = getCNVrates(metaData, cnvs, sex, individuals, clonalityCut=clonalityCut, cpus=cpus, genome=genome)
     
@@ -563,7 +564,7 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T) {
 #This function takes the output from meanCNV, selects the most interesting genes
 #and plots the mutation and CNV status of those genes for all samples.
 plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWeight=1, nGenes=30, filterIG=T,
-                              skipFirst=0, forceRedo=forceRedo, meanCNV2=NA, add=F) {
+                              skipFirst=0, forceRedo=F, meanCNV2=NA, add=F) {
   score = cohortGeneScore(metaData, meanCNV, priorCnvWeight=priorCnvWeight, filterIG=filterIG)
   score[names(score)=='?'] = 0
   if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
@@ -575,30 +576,30 @@ plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWei
   xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths())))
   delimiter = xs %in% c(0, cumsum(chrLengths()))
 
-  gains = meanCNV$cnvRates$gainMx[!delimiter,]
-  losss = meanCNV$cnvRates$lossMx[!delimiter,]
-  amps = meanCNV$cnvRates$ampMx[!delimiter,]
-  cls = meanCNV$cnvRates$clMx[!delimiter,]
-  lohs = meanCNV$cnvRates$lohMx[!delimiter,]
+  gains = meanCNV$cnvRates$gainMx[!delimiter,,drop=F]
+  losss = meanCNV$cnvRates$lossMx[!delimiter,,drop=F]
+  amps = meanCNV$cnvRates$ampMx[!delimiter,,drop=F]
+  cls = meanCNV$cnvRates$clMx[!delimiter,,drop=F]
+  lohs = meanCNV$cnvRates$lohMx[!delimiter,,drop=F]
   mutations = gains*0
   doubleSNV = gains*0
   use = rownames(meanCNV$snvRates$hitMx) %in% rownames(gains)
-  mutations[rownames(meanCNV$snvRates$hitMx)[use],] = meanCNV$snvRates$hitMx[use,]
+  mutations[rownames(meanCNV$snvRates$hitMx)[use],] = meanCNV$snvRates$hitMx[use,,drop=F]
   use = rownames(meanCNV$snvRates$doubleHitMx) %in% rownames(gains)
-  doubleSNV[rownames(meanCNV$snvRates$doubleHitMx)[use],] = meanCNV$snvRates$doubleHitMx[use,]
+  doubleSNV[rownames(meanCNV$snvRates$doubleHitMx)[use],] = meanCNV$snvRates$doubleHitMx[use,,drop=F]
   DLs = meanCNV$doubleLossRates$doubleLossMx
 
   samples = colnames(gains)
   samples = samples[order(metaData$samples[samples,]$INDIVIDUAL)]
   individuals = metaData$samples[samples,]$INDIVIDUAL
-  gains = gains[cancerGenes,samples]
-  losss = losss[cancerGenes,samples]
-  amps = amps[cancerGenes,samples]
-  cls = cls[cancerGenes,samples]
-  lohs = lohs[cancerGenes,samples]
-  mutations = mutations[cancerGenes,samples]
-  doubleSNV = doubleSNV[cancerGenes,samples]
-  DLs = DLs[cancerGenes,samples]
+  gains = gains[cancerGenes,samples,drop=F]
+  losss = losss[cancerGenes,samples,drop=F]
+  amps = amps[cancerGenes,samples,drop=F]
+  cls = cls[cancerGenes,samples,drop=F]
+  lohs = lohs[cancerGenes,samples,drop=F]
+  mutations = mutations[cancerGenes,samples,drop=F]
+  doubleSNV = doubleSNV[cancerGenes,samples,drop=F]
+  DLs = DLs[cancerGenes,samples,drop=F]
 
   bgCol = rgb(0.9, 0.9, 0.9)
   cnvsToCols = function(gains, amps, losss, cls, lohs) {
@@ -771,6 +772,7 @@ plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cos
 #' Compares sets of individuals for reccuring mutations
 #'
 #' @param metaDataFile character: Path to the metaData.
+#' @param outputDirectories A named list of output directories, containing the entry Rdirectory and plotDirectory where the saved data and plots will be stored respectively.
 #' @param project character: The project containing the subgroups.
 #' @param subgroup1 character: The first subgroup(s).
 #' @param subgroup2 character: The second subgroup(s).
@@ -786,7 +788,7 @@ plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cos
 #' @details This function runs a cohort analysis, comparing two subgroups (within a project) to each other. See cohortAnalyseBatch for details.
 #'
 #'
-compareGroups = function(metaDataFile, project, subgroups1, subgroups2, name, clonalityCut=0.4, excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cpus=1, forceRedoVariants=F, forceRedoMean=F,
+compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, subgroups2, name, clonalityCut=0.4, excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cpus=1, forceRedoVariants=F, forceRedoMean=F,
   forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
 
   metaData =

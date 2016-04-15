@@ -4,7 +4,7 @@
 \alias{moreVEPnames}
 \title{internal function}
 \usage{
-moreVEPnames()
+moreVEPnames(genome = "hg19")
 }
 \description{
 internal function

@@ -684,6 +684,8 @@ captureRegionsToNormalPath = function(captureRegions) {
   if ( captureRegions == 'TrueSeq' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/Illumina')
   if ( captureRegions == 'RNA' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/RNA')
   if ( captureRegions == 'kinome' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/kinome')
+  if ( captureRegions == 'genome' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/genome')
+  if ( captureRegions == 'siblingMUD' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/siblingMUD')
   warning(paste0('Dont know a normal path for capture regions ', captureRegions))
   return('')
 }
@@ -693,6 +695,8 @@ captureRegionsToBQoffset = function(captureRegions) {
   if ( captureRegions == 'TrueSeq' ) return(64)
   if ( captureRegions == 'RNA' ) return(33)
   if ( captureRegions == 'kinome' ) return(33)
+  if ( captureRegions == 'genome' ) return(33)
+  if ( captureRegions == 'siblingMUD' ) return(33)
   warning(paste0('Dont know a BQoffset for capture regions ', captureRegions))
   return('')
 }
@@ -702,6 +706,8 @@ captureRegionsToGenome = function(captureRegions) {
   if ( captureRegions == 'TrueSeq' ) return('hg19')
   if ( captureRegions == 'RNA' ) return('hg19')
   if ( captureRegions == 'kinome' ) return('hg19')
+  if ( captureRegions == 'genome' ) return('hg19')
+  if ( captureRegions == 'siblingMUD' ) return('hg19')
   warning(paste0('Dont know a genome for capture regions ', captureRegions))
   return('')
 }

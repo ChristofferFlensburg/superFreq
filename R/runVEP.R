@@ -287,7 +287,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
     catLog(name, '.. ')
     if ( sum(variants$variants[[name]]$somaticP > 0 & !is.na(variants$variants[[name]]$somaticP)) == 0 ) {
       catLog('no somatic variants.\n')
-      variants$variants[[name]] = addNullAnnotation(variants$variants[[name]])
+      variants$variants[[name]] = addNullAnnotation(variants$variants[[name]], genome=genome)
       next
     }
     else {
@@ -339,21 +339,66 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
         if ( any(grepl('DOMAINS=', strs)) ) return(gsub('\\,.*$', '', gsub('^DOMAINS=', '', strs[grep('DOMAINS=',strs)[1]])))
         else return('')
       })
-      cosmic = sapply(secondLastCol, function(strs) {
-        if ( any(grepl('COSM', strs)) ) return(strs[grep('COSM',strs)[1]])
-        else return('')
-      })
-      cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory)
-      isCosmicCensus = cosmicCounts$found
-      cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory, onlyCensus=F)
-      cosmicVariantDensity = cosmicCounts$variantDensity
-      cosmicGeneDensity = cosmicCounts$geneDensity
 
-      censusDensity = getCosmicCensusDensity(cosmicDirectory=cosmicDirectory)
-      noHitCensus = !isCosmicCensus & symbol %in% names(censusDensity) & sev <= 11
-      if ( any(noHitCensus) ) {
-        isCosmicCensus[noHitCensus] = T
-        cosmicGeneDensity[noHitCensus] = censusDensity[symbol[noHitCensus]]
+      if ( genome == 'hg19' ) {
+        cosmic = sapply(secondLastCol, function(strs) {
+          if ( any(grepl('COSM', strs)) ) return(strs[grep('COSM',strs)[1]])
+          else return('')
+        })
+        cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory)
+        isCosmicCensus = cosmicCounts$found
+        cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory, onlyCensus=F)
+        cosmicVariantDensity = cosmicCounts$variantDensity
+        cosmicGeneDensity = cosmicCounts$geneDensity
+        
+        censusDensity = getCosmicCensusDensity(cosmicDirectory=cosmicDirectory)
+        noHitCensus = !isCosmicCensus & symbol %in% names(censusDensity) & sev <= 11
+        if ( any(noHitCensus) ) {
+          isCosmicCensus[noHitCensus] = T
+          cosmicGeneDensity[noHitCensus] = censusDensity[symbol[noHitCensus]]
+        }
+      }
+      if ( genome == 'mm10' ) {
+        CCGDdata = read.table(paste0(cosmicDirectory, '/CCGD_export.csv'), sep=',', header=T, stringsAsFactors=F)
+
+        censusGenes = unique(CCGDdata$Mouse.Symbol)
+        isCCGD = symbol %in% censusGenes
+
+        CCGDsummary = sapply(censusGenes, function(gene) {
+          subData = CCGDdata[CCGDdata$Mouse.Symbol == gene,]
+          studies = subData$Studies[1]
+          humanGene = subData$Human.Symbol[1]
+          
+          cancerTypes = sort(table(subData$Cancer.Type), decreasing=T)
+          names(cancerTypes) = gsub(' Cancer', '',names(cancerTypes))
+          cancerTypes = gsub(';$','',do.call(paste0, as.list(paste0(names(cancerTypes), ":", cancerTypes, ';'))))
+
+          isInCosmic = subData$COSMIC[1] == 'Yes'
+          isInCGC = subData$CGC[1] == 'Yes'
+
+          ranks = table(c('A', 'B', 'C', 'D', subData$Relative.Rank))
+          ranks[c('A', 'B', 'C', 'D')] = ranks[c('A', 'B', 'C', 'D')] - 1
+          names(ranks) = gsub(' Cancer', '',names(ranks))
+          ranks = gsub(';$','',do.call(paste0, as.list(paste0(names(ranks), ":", ranks, ';'))))
+
+          return(c('studies'=studies, 'cancerTypes'=cancerTypes, 'cosmic'=isInCosmic,
+                   'cgc'=isInCGC, 'ranks'=ranks, 'humanGene'=humanGene))
+        })
+        CCGDsummary = as.data.frame(t(CCGDsummary), stringsAsFactors=F)
+        rownames(CCGDsummary) = censusGenes
+        CCGDsummary$studies = as.numeric(CCGDsummary$studies)
+        CCGDsummary$cosmic = as.logical(CCGDsummary$cosmic)
+        CCGDsummary$cgc = as.logical(CCGDsummary$cgc)
+        
+        q$CCGDstudies = rep(0, nrow(q))
+        q$CCGDcancerTypes = rep('', nrow(q))
+        q$CCGDcosmic = rep(F, nrow(q))
+        q$CCGDcgc = rep(F, nrow(q))
+        q$CCGDranks = rep('', nrow(q))
+        
+
+            
+            
       }
       
       namevar = var
@@ -399,7 +444,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
       }
       
       #add effect and severity to q
-      variants$variants[[name]] = addNullAnnotation(variants$variants[[name]])
+      variants$variants[[name]] = addNullAnnotation(variants$variants[[name]], genome=genome)
       
       variants$variants[[name]][qNames,]$severity = sevScore
       variants$variants[[name]][qNames,]$type = mostSev
@@ -421,7 +466,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
   return(variants)
 }
 
-addNullAnnotation = function(q) {
+addNullAnnotation = function(q, genome='hg19') {
   q$severity = rep(100, nrow(q))
   q$type = rep('unknown', nrow(q))
   q$polyPhen = rep('', nrow(q))
@@ -431,17 +476,30 @@ addNullAnnotation = function(q) {
   q$AAbefore = rep('', nrow(q))
   q$AAafter = rep('', nrow(q))
   q$domain = rep('', nrow(q))
-  q$cosmic = rep('', nrow(q))
-  q$isCosmicCensus = rep(F, nrow(q))
-  q$cosmicVariantMPM = rep(0, nrow(q))
-  q$cosmicGeneMPMPB = rep(0, nrow(q))
+  if ( genome == 'hg19' ) {
+    q$cosmic = rep('', nrow(q))
+    q$isCosmicCensus = rep(F, nrow(q))
+    q$cosmicVariantMPM = rep(0, nrow(q))
+    q$cosmicGeneMPMPB = rep(0, nrow(q))
+  }
+  if ( genome == 'mm10' ) {
+    q$isCCGD = rep(F, nrow(q))
+    q$CCGDstudies = rep(0, nrow(q))
+    q$CCGDcancerTypes = rep('', nrow(q))
+    q$CCGDcosmic = rep(F, nrow(q))
+    q$CCGDcgc = rep(F, nrow(q))
+    q$CCGDranks = rep('', nrow(q))
+  }
   return(q)
 }
 
 #' internal function
 #'
 #' @details Just remembers which columns are added by getMoreVEPinfo
-moreVEPnames = function() c('polyPhen', 'sift', 'exon', 'AApos', 'AAbefore', 'AAafter', 'domain', 'cosmic', 'isCosmicCensus', 'cosmicVariantMPM', 'cosmicGeneMPMPB')
+moreVEPnames = function(genome='hg19') {
+  if ( genome == 'hg19' ) return(c('polyPhen', 'sift', 'exon', 'AApos', 'AAbefore', 'AAafter', 'domain', 'cosmic', 'isCosmicCensus', 'cosmicVariantMPM', 'cosmicGeneMPMPB'))
+  if ( genome == 'mm10' ) return(c('polyPhen', 'sift', 'exon', 'AApos', 'AAbefore', 'AAafter', 'domain', 'isCCGD', 'CCGDstudies', 'CCGDcancerTypes', 'CCGDcosmic', 'CCGDcgc', 'CCGDranks'))
+}  
 
 
 

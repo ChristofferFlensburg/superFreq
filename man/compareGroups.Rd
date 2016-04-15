@@ -4,14 +4,17 @@
 \alias{compareGroups}
 \title{Compares sets of individuals for reccuring mutations}
 \usage{
-compareGroups(metaDataFile, project, subgroups1, subgroups2, name,
-  clonalityCut = 0.4, excludeSamples = c(), excludeIndividuals = c(),
-  cosmicDirectory = "", analysisName = "cohortAnalysis", cpus = 1,
-  forceRedoVariants = F, forceRedoMean = F, forceRedoMeanPlot = F,
-  forceRedoMatrixPlot = F, genome = "hg19")
+compareGroups(metaDataFile, outputDirectories, project, subgroups1, subgroups2,
+  name, clonalityCut = 0.4, excludeSamples = c(),
+  excludeIndividuals = c(), cosmicDirectory = "",
+  analysisName = "cohortAnalysis", cpus = 1, forceRedoVariants = F,
+  forceRedoMean = F, forceRedoMeanPlot = F, forceRedoMatrixPlot = F,
+  genome = "hg19")
 }
 \arguments{
 \item{metaDataFile}{character: Path to the metaData.}
+
+\item{outputDirectories}{A named list of output directories, containing the entry Rdirectory and plotDirectory where the saved data and plots will be stored respectively.}
 
 \item{project}{character: The project containing the subgroups.}
 

@@ -1,6 +1,6 @@
 
 #takes the subclone evolution from the stories and plots rivers, showing which events are aprt of which subclone.
-makeRiverPlots = function(stories, variants, genome, cpus=1, plotDirectory, forceRedo=F) {
+makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirectory, forceRedo=F) {
   if ( length(stories) == 0 ) return
   riverDirectory = paste0(plotDirectory, '/rivers/')
   if ( !file.exists(riverDirectory) ) dir.create(riverDirectory)
@@ -62,7 +62,7 @@ makeRiverPlots = function(stories, variants, genome, cpus=1, plotDirectory, forc
     error = as.data.frame(output$errors)
     names(chr) = names(start) = names(end) = names(label) = rownames(clonality)
     output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
-    output = addAnnotationToOutput(output, variants)
+    output = addAnnotationToOutput(output, variants, genome=genome)
     WriteXLS('output', excelFile)
 
     if ( length(stories[[ts]]$clusters$storyList) > length(stories[[ts]]$consistentClusters$storyList) ) {
@@ -81,7 +81,7 @@ makeRiverPlots = function(stories, variants, genome, cpus=1, plotDirectory, forc
       clonality = as.data.frame(output$stories)
       error = as.data.frame(output$errors)
       output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
-      output = addAnnotationToOutput(output, variants)
+      output = addAnnotationToOutput(output, variants, genome=genome)
       WriteXLS('output', excelFile)
     }
 
@@ -134,14 +134,14 @@ storyToLabel = function(stories, variants, genome, maxLength=30) {
   return(data.frame(label=label, colour=colour, font=font, severity=severity, stringsAsFactors=F))
 }
 
-addAnnotationToOutput = function(output, variants) {
+addAnnotationToOutput = function(output, variants, genome='hg19') {
   isSNV = grepl('^[0-9]', rownames(output))
   rows = rownames(output)[isSNV]
   if ( length(rows) == 0 ) return(output)
   severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[rows,]$severity), 110, q[rows,]$severity))
   if ( is.vector(severityMx) ) severityMx = matrix(severityMx, nrow=length(rows))
   mostSevere = apply(severityMx, 1, function(severities) which(severities <= 1.0001*min(severities))[1])
-  columns = unique(c('severity', 'type', moreVEPnames()))
+  columns = unique(c('severity', 'type', moreVEPnames(genome=genome)))
   for ( column in columns ) {
     if ( !(column %in% colnames(variants$variants[[1]])) ) next
     mx = sapply(variants$variants, function(q) q[rows,][,column])
