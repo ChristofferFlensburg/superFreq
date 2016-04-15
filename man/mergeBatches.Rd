@@ -2,7 +2,7 @@
 % Please edit documentation in R/cohortAnalyseBatch.R
 \name{mergeBatches}
 \alias{mergeBatches}
-\title{Merges data from several batches}
+\title{Merges data from several batches for cohort analysis}
 \usage{
 mergeBatches(paths, targetMetaDataFile, targetRdirectory)
 }
@@ -15,7 +15,7 @@ This also affect where a downstream cohort analysis is stored.}
 \item{targetRdirectory}{character: Path to where the Rdata will be stored.}
 }
 \description{
-Merges data from several batches
+Merges data from several batches for cohort analysis
 }
 \details{
 This function merges the data from multiple batches, setting them up for a joint cohort analysis. Note that this is only for the purpose of a downstream cohort analysis. The output R directory cannot be run as a batch Rdirectory.

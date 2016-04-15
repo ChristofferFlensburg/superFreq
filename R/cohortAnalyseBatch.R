@@ -200,7 +200,7 @@ bringAnnotation = function(metaData, genome) {
 }
 
 
-#' Merges data from several batches
+#' Merges data from several batches for cohort analysis
 #'
 #' @param paths data.frame: One row for each batch to be merged.
 #"                          Columns are metaDataFile and Rdirectory.
@@ -231,7 +231,7 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
   if ( !('Rdirectory' %in% names(paths)) ) stop('paths need to have an Rdirectory column.')
 
   #merge metaData files.
-  metaDatas = lapply(paths$metaDataFile, function(metaDataFile) importSampleMetaData(metaDataFile))
+  metaDatas = lapply(as.character(paths$metaDataFile), function(metaDataFile) importSampleMetaData(metaDataFile))
   #fill in missing columns with blanks.
   columns = Reduce(union, lapply(metaDatas, names))
   metaDatas = lapply(metaDatas, function(metaData) {
@@ -245,7 +245,7 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
   write.table(metaData, file=targetMetaDataFile, quote=F)
 
   #merge data
-  datas = lapply(paths$Rdirectory, function(Rdirectory) loadData(Rdirectory))
+  datas = lapply(as.character(paths$Rdirectory), function(Rdirectory) loadData(Rdirectory))
   #merge piece by piece
   variants = do.call(c, lapply(datas, function(d) d$allVariants$variants$variants))
   SNPs = do.call(rbind, lapply(datas, function(d) d$allVariants$variants$SNPs))
