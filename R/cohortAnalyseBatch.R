@@ -220,7 +220,7 @@ bringAnnotation = function(metaData, genome) {
 #' targetMetaDataFile = '~/superFreq/mergedAnalysis/metaData.txt'
 #' targetRdirectory = '~/superFreq/mergedAnalysis/R'
 #'
-#' mergedPaths = mergeBatches(paths, targetMetaDataFile, targetRdirectory)
+#' mergeBatches(paths, targetMetaDataFile, targetRdirectory)
 #'
 #' outputDirectories = list('Rdirectory'=targetRdirectory)
 #' cohortAnalyseBatch(targetMetaDataFile, outputDirectories, cpus=6, genome='hg19')
@@ -229,6 +229,9 @@ bringAnnotation = function(metaData, genome) {
 mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
   if ( !('metaDataFile' %in% names(paths)) ) stop('paths need to have an metaDataFile column.')
   if ( !('Rdirectory' %in% names(paths)) ) stop('paths need to have an Rdirectory column.')
+
+  assign('catLog', function(...) {cat(...)}, envir = .GlobalEnv)
+  catLog('Running superFreq version', superVersion(), '\n')
 
   #merge metaData files.
   metaDatas = lapply(as.character(paths$metaDataFile), function(metaDataFile) importSampleMetaData(metaDataFile))
@@ -242,7 +245,7 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
   })
   #merge and write to file
   metaData = do.call(rbind, metaDatas)
-  write.table(metaData, file=targetMetaDataFile, quote=F)
+  write.table(metaData, file=targetMetaDataFile, sep='\t', quote=F, row.names=F)
 
   #merge data
   datas = lapply(as.character(paths$Rdirectory), function(Rdirectory) loadData(Rdirectory))

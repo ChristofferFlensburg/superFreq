@@ -28,7 +28,7 @@ paths = data.frame('metaDataFile' = c('~/superFreq/myFirstBatch/metaData.txt', '
 targetMetaDataFile = '~/superFreq/mergedAnalysis/metaData.txt'
 targetRdirectory = '~/superFreq/mergedAnalysis/R'
 
-mergedPaths = mergeBatches(paths, targetMetaDataFile, targetRdirectory)
+mergeBatches(paths, targetMetaDataFile, targetRdirectory)
 
 outputDirectories = list('Rdirectory'=targetRdirectory)
 cohortAnalyseBatch(targetMetaDataFile, outputDirectories, cpus=6, genome='hg19')
