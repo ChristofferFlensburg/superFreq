@@ -245,7 +245,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
                             ylab='~log(1+read depth)', verbose=F)
           points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
-          addChromosomeLines(ylim=ylim, col=mcri('green'))
+          addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
           legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
           dev.off()
         }
@@ -257,7 +257,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
                             ylab='~log(1+read depth)', verbose=F)
           points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
-          addChromosomeLines(ylim=ylim, col=mcri('green'))
+          addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
           legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
           dev.off()
         }
@@ -323,7 +323,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
                             xlab='genome', ylab='~log(1+read depth)', verbose=F)
           points(annotationToX(annotation, genome), (regionDN-mean(regionDN))/1.5 + mean(ylim), cex=w/2,
                  pch=16, col=mcri('orange', 0.5))
-          addChromosomeLines(ylim=ylim, col=mcri('green'))
+          addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
           legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
           dev.off()
         }
