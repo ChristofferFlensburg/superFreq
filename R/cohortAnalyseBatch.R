@@ -36,7 +36,7 @@
 #'
 #' }
 cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T, clonalityCut=0.4,
-  excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis',
+  excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cnvWeight=1,
   forceRedoVariants=F, forceRedoMean=F, forceRedoMatrixPlot=F, forceRedoMeanPlot=F, genome='hg19') {
 
   logFile = normalizePath(paste0(outputDirectories$Rdirectory, '/runtimeTracking.log'))
@@ -52,9 +52,9 @@ cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T
   projects = getProjects(metaData, onlyDNA=onlyDNA)
   for ( project in projects ) {
     catLog('Cohort analysing', project, '\n')
-    a = try(projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut,
-      forceRedoMean=forceRedoMean, forceRedoVariants=forceRedoVariants, cosmicDirectory=cosmicDirectory,
-      forceRedoMatrixPlot=forceRedoMatrixPlot, forceRedoMeanPlot=forceRedoMeanPlot, genome=genome))
+    a = projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut,
+      forceRedoMean=forceRedoMean, forceRedoVariants=forceRedoVariants, cosmicDirectory=cosmicDirectory, cnvWeight=cnvWeight,
+      forceRedoMatrixPlot=forceRedoMatrixPlot, forceRedoMeanPlot=forceRedoMeanPlot, genome=genome)
     if ( class(a) == 'try-error' ) {
       catLog('Failed project mean CNV for project ', project, ' with error message: ', a, '\n', sep='')
       warning('Failed project mean CNV for project ', project, ' with error message: ', a)

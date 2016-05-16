@@ -254,7 +254,7 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
 
   outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedo)
   variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, forceRedoVEP=forceRedo)
-  variants = getMoreVEPinfo(variants, plotDirectory, genome, cosmicDirectory=cosmicDirectory)
+  variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
   allVariants = data$allVariants
   allVariants$variants = variants
 
@@ -265,7 +265,7 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
 
   outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=T)
   makeSNPprogressionPlots(variants, timeSeries=timeSeries, normals = normals, plotDirectory=plotDirectory,
-                          genome=genome, forceRedo=T)
+                          genome=genome, forceRedo=T, maxRowCluster=2000)
   makeRiverPlots(data$stories$stories, variants, genome=genome, cpus=cpus, plotDirectory=plotDirectory, forceRedo=T)
   makeScatterPlots(variants, samplePairs, timePoints, plotDirectory, genome=genome, cpus=cpus, forceRedo=T)
   makeCloneScatterPlots(variants, data$stories$stories, samplePairs, individuals, timePoints,

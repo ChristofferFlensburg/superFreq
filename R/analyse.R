@@ -152,7 +152,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
                  runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T)
 
-  postAnalyseVEP(outputDirectories, inputFiles=inputFiles, cosmicDirectory=cosmicDirectory,
+  postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory,
                  cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
 
   
