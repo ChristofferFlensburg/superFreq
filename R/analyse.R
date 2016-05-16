@@ -626,7 +626,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   stories = stories$stories
 
   #do multi-sample heatmaps and frequency progression
-  progression = try(makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression))
+  progression = try(makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression, genome=genome))
   if ( class(progression) == 'try-error' ) {
     catLog('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.\n')
     warning('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.')

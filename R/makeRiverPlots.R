@@ -91,16 +91,16 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
 
 #helper function converting internal event names to informative labels for the plots.
 storyToLabel = function(stories, variants, genome, maxLength=30) {
-  SNPs = variants$SNPs
   call = stories$call
   isSNP = grepl('[0-9]', call)
   label = rep('', nrow(stories))
   font = rep(1, nrow(stories))
   colour = rep('black', nrow(stories))
   severity = rep(100, nrow(stories))
-  SNPs = SNPs[SNPs$x %in% stories$x1,]
-  SNPs = SNPs[as.character(stories$x1[isSNP]),]
-  gene = SNPs$inGene
+
+  q = variants$variants[[1]]
+  q = q[q$x %in% stories$x1[isSNP],]  
+  gene = q[stories$call,]$inGene
   if ( 'severity' %in% names(variants$variants[[1]]) & any(isSNP) ) {
     severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[call[isSNP],]$severity), 100, q[call[isSNP],]$severity))
     if ( sum(isSNP) == 1 ) severityMx = matrix(severityMx, nrow=sum(isSNP))

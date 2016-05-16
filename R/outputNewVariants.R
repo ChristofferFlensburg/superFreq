@@ -63,7 +63,7 @@ newVariants = function(q1, q2, SNPs, genome='hg19', cpus=1, ps=NA) {
     end=xToPos(q1$x[toReturn], genome),
     reference=q1$reference[toReturn],
     variant=q1$variant[toReturn],
-    inGene=SNPs[as.character(q1$x[toReturn]),]$inGene,
+    inGene=q1$inGene[toReturn],
     severity=severity,
     effect= effect,
     f1=q1$var[toReturn]/q1$cov[toReturn],

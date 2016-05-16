@@ -82,7 +82,7 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
   q = do.call(rbind, variantsBI)
   q = q[!duplicated(q$x),]
   q = q[order(q$x),]
-  inGene = xToGene(q$x, saveDirectory=Rdirectory)
+  inGene = xToGene(q$x, saveDirectory=Rdirectory, genome=genome)
   names(inGene) = q$x
   SNPs = data.frame(x=q$x, chr=xToChr(q$x, genome), start=xToPos(q$x, genome), end=xToPos(q$x, genome),
                     inGene=inGene, reference=q$reference, variant=q$variant, db=q$db)
@@ -224,7 +224,11 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19') {
       flatFile = paste0(dir,'/ds_flat_ch', chr, '.dbSNP')
       if ( !file.exists(flatFile) ) {
         catLog('Chromosome ', chr, ': no SNP file found at', flatFile,'. Marking all as not dbSNP.\n', sep='')
-        stop('dbSNP file not found!')
+        if ( chr %in% c('M', 'MT') ) {
+          warning(' mitochondrial dbSNP file not found!')
+          next
+        }
+        else stop('dbSNP file not found!')
       }
       db = read.table(flatFile, header = T, fill=T)
       catLog('extracting positions..')

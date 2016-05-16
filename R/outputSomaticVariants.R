@@ -39,7 +39,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
         end=end,
         reference=reference,
         variant=variant,
-        inGene=gsub('.+:', '', SNPs[as.character(q$x),]$inGene),
+        inGene=gsub('.+:', '', q$inGene),
         severity=if ( 'severity' %in% names(q) ) q$severity else rep('na', nrow(q)),
         effect=if ( 'type' %in% names(q) ) q$type else rep('notChecked', nrow(q)),
         f=q$var/q$cov,

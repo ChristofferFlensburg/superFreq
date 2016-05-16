@@ -17,6 +17,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
       q2 = variants$variants[[pair[2]]][!boring,]
 
       if ( !('inGene' %in% names(q1)) ) {
+        warning('importing gene names from SNPs in scatter plots')
         q1$inGene = variants$SNPs[as.character(q1$x),]$inGene
         q2$inGene = variants$SNPs[as.character(q2$x),]$inGene
       }
@@ -289,6 +290,7 @@ makeCloneScatterPlots = function(variants, stories, samplePairs, individuals, ti
       q2 = q2[keepVariants,]
 
       if ( !('inGene' %in% names(q1)) ) {
+        warning('importing gene names from SNPs in clone scatter')
         q1$inGene = variants$SNPs[as.character(q1$x),]$inGene
         q2$inGene = variants$SNPs[as.character(q2$x),]$inGene
       }

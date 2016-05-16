@@ -660,9 +660,9 @@ plotMA = function(x, y, col=mcri('darkblue'), libNorm = F, span=0.2, medianSigma
   axis(2, at=c(log2(0.1), -1, 0,1,log2(10)), labels=c('log2(0.1)', '-1', '0', '1', 'log2(10)'), cex.axis=1)
     
   if ( loess ) {
-    if ( verbose ) cat('Calculating loess fit...')
+    if ( verbose ) catLog('Calculating loess fit...')
     lo = loess(M~A, data.frame(M, A), control=loess.control(trace.hat = 'approximate'), span=span)
-    if ( verbose ) cat('done.\n')
+    if ( verbose ) catLog('done.\n')
     As = min(A) + (0:100)/100*(max(A) - min(A))
     lines(As, predict(lo, As), col=mcri('orange'), lwd=6)
   }
@@ -694,7 +694,7 @@ plotMA = function(x, y, col=mcri('darkblue'), libNorm = F, span=0.2, medianSigma
 #'
 plotColourScatter = function(x, y, xlab='', ylab='', col=mcri('darkblue'), main='cor',
   add=F, cex=1,verbose=T,...) {
-  if ( verbose ) cat('Correlation is ', cor(x,y), '.\n', sep='')
+  if ( verbose ) catLog('Correlation is ', cor(x,y), '.\n', sep='')
   if ( main == 'cor' ) main = paste('Correlation is', signif(cor(x,y), 2))
   if ( !add ) plot(x, y, cex=cex*0.6, pch=16, xlab=xlab, ylab=ylab,
                    col=col, main=main, ...)

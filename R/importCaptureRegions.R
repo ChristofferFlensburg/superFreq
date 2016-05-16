@@ -221,9 +221,9 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
     }
     else stop('hg19 and mm10 are the only supported genomes atm, sorry. :(')
     
-    maxLength = 50000
+    maxLength = 1000
     if ( length(chr) > maxLength ) {
-      if ( verbose ) catLog('by batch.')
+      if ( verbose ) catLog('by batch of', maxLength, '.')
       bm = getBM(attributes=c('chromosome_name', 'start_position', 'end_position', symbolName, ensemblName, biotype), filters = c('chromosome_name', 'start', 'end'),
         value=list(chr[1:maxLength], pos[1:maxLength]-1000, pos[1:maxLength]+1000), mart=mart)
       chr = chr[-(1:maxLength)]

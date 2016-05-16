@@ -203,9 +203,17 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
   clonalityError[which(is.na(clonalityError) | is.infinite(clonalityError), arr.ind=T)] = 10
   ret$stories = clonality
   ret$errors = clonalityError
-
+  
   colnames(ret$stories) = colnames(ret$errors) = names(somaticQs)
-  if ( !filter ) return(ret)
+  if ( !filter ) {
+    if ( any(normal) & nrow(ret) > 0 ) {
+      presentInNormal = ret$stories[,normal] > ret$errors[,normal] | ret$stories[,normal] > 0.2
+      if ( class(presentInNormal) == 'matrix' ) presentInNormal = apply(presentInNormal, 1, any)
+      ret = ret[!presentInNormal,,drop=F]
+      catLog('Filtered ', sum(presentInNormal), ' present in normal stories.\n', sep='')
+    }
+    return(ret)
+  }
   
   allSmall = rowSums(is.na(ret$errors) | ret$stories - ret$errors*2 < 0 | ret$errors > 0.2) == ncol(ret$stories)
   ret = ret[!allSmall,,drop=F]

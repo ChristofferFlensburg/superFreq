@@ -152,7 +152,7 @@ typeToSeverity = function(type) {
   if ( grepl('intergenic_variant', type) ) return(34)
   
   if ( grepl('unknown', type) ) return(100)
-  cat('Dont know about the mutation type: ', type, '\n')
+  catLog('Dont know about the mutation type: ', type, '\n')
   return(100)
 }
 
@@ -223,11 +223,12 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
     return()
   }
   
-  if ( 'cosmic' %in% names(data$allVariants$variants$variants[[1]]) & !forceRedo ) return()
+  if ( genome == 'hg19' & 'cosmic' %in% names(data$allVariants$variants$variants[[1]]) & !forceRedo ) return()
+  if ( genome == 'mm10' & 'isCCGD' %in% names(data$allVariants$variants$variants[[1]]) & !forceRedo ) return()
 
   backup = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
   if ( !file.exists(backup) ) {
-    cat('Backing up variants (in case the vep run goes wrong) to', backup, '\n')
+    catLog('Backing up variants (in case the vep run goes wrong) to', backup, '\n')
     allVariantsPreVEP = data$allVariants
     if ( !is.null(allVariantsPreVEP) )
       save('allVariantsPreVEP', file=backup)
@@ -258,12 +259,13 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
   allVariants$variants = variants
 
   allVariantSaveFile = paste0(Rdirectory, '/allVariants.Rdata')
-  cat('Saving fully annotated variants to', allVariantSaveFile, '...')
+  catLog('Saving fully annotated variants to', allVariantSaveFile, '...')
   save('allVariants', file=allVariantSaveFile)
-  cat('done.\n')
+  catLog('done.\n')
 
   outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=T)
-  makeSNPprogressionPlots(variants, timeSeries=timeSeries, normals = normals, plotDirectory=plotDirectory, forceRedo=T)
+  makeSNPprogressionPlots(variants, timeSeries=timeSeries, normals = normals, plotDirectory=plotDirectory,
+                          genome=genome, forceRedo=T)
   makeRiverPlots(data$stories$stories, variants, genome=genome, cpus=cpus, plotDirectory=plotDirectory, forceRedo=T)
   makeScatterPlots(variants, samplePairs, timePoints, plotDirectory, genome=genome, cpus=cpus, forceRedo=T)
   makeCloneScatterPlots(variants, data$stories$stories, samplePairs, individuals, timePoints,
@@ -358,7 +360,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
           cosmicGeneDensity[noHitCensus] = censusDensity[symbol[noHitCensus]]
         }
       }
-      if ( genome == 'mm10' ) {
+      if ( genome == 'mm10' & FALSE ) {
         CCGDdata = read.table(paste0(cosmicDirectory, '/CCGD_export.csv'), sep=',', header=T, stringsAsFactors=F)
 
         censusGenes = unique(CCGDdata$Mouse.Symbol)
@@ -390,11 +392,11 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
         CCGDsummary$cosmic = as.logical(CCGDsummary$cosmic)
         CCGDsummary$cgc = as.logical(CCGDsummary$cgc)
         
-        q$CCGDstudies = rep(0, nrow(q))
-        q$CCGDcancerTypes = rep('', nrow(q))
-        q$CCGDcosmic = rep(F, nrow(q))
-        q$CCGDcgc = rep(F, nrow(q))
-        q$CCGDranks = rep('', nrow(q))
+        #q$CCGDstudies = rep(0, nrow(q))
+        #q$CCGDcancerTypes = rep('', nrow(q))
+        #q$CCGDcosmic = rep(F, nrow(q))
+        #q$CCGDcgc = rep(F, nrow(q))
+        #q$CCGDranks = rep('', nrow(q))
         
 
             
@@ -436,10 +438,12 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
           AAbeforeRet[IDI] = AAbefore[i]
           AAafterRet[IDI] = AAafter[i]
           domainRet[IDI] = domain[i]
-          cosmicRet[IDI] = cosmic[i]
-          isCosmicCensusRet[IDI] = isCosmicCensus[i]
-          cosmicVariantDensityRet[IDI] = cosmicVariantDensity[i]
-          cosmicGeneDensityRet[IDI] = cosmicGeneDensity[i]
+          if ( genome == 'hg19' ) {
+            cosmicRet[IDI] = cosmic[i]
+            isCosmicCensusRet[IDI] = isCosmicCensus[i]
+            cosmicVariantDensityRet[IDI] = cosmicVariantDensity[i]
+            cosmicGeneDensityRet[IDI] = cosmicGeneDensity[i]
+          }
         }
       }
       
@@ -455,11 +459,13 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
       variants$variants[[name]][qNames,]$AAbefore = AAbeforeRet
       variants$variants[[name]][qNames,]$AAafter = AAafterRet
       variants$variants[[name]][qNames,]$domain = domainRet
-      variants$variants[[name]][qNames,]$cosmic = cosmicRet
-      variants$variants[[name]][qNames,]$isCosmicCensus = isCosmicCensusRet
-      variants$variants[[name]][qNames,]$cosmicVariantMPM = cosmicVariantDensityRet
-      variants$variants[[name]][qNames,]$cosmicGeneMPMPB = cosmicGeneDensityRet
-      catLog(length(mostSev), 'VEPed variants.\n')
+      if ( genome == 'hg19' ) {
+        variants$variants[[name]][qNames,]$cosmic = cosmicRet
+        variants$variants[[name]][qNames,]$isCosmicCensus = isCosmicCensusRet
+        variants$variants[[name]][qNames,]$cosmicVariantMPM = cosmicVariantDensityRet
+        variants$variants[[name]][qNames,]$cosmicGeneMPMPB = cosmicGeneDensityRet
+      }
+        catLog(length(mostSev), 'VEPed variants.\n')
     }
   }
   catLog('done.\n')

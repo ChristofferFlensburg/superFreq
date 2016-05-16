@@ -959,3 +959,12 @@ postWidth = function(fit) {
   fit$postWidth = postWidths
   return(fit)
 }
+
+
+topXRank = function(fit, coef=1, number=10) {
+  fit = subsetFit(fit, rows=order(fit$XRank)[1:number], cols=coef)
+  out = data.frame('gene' = rownames(fit), 'LFC'=as.numeric(fit$coefficient),
+    'best.guess' = as.numeric(fit$best.guess), 'p.value' = as.numeric(fit$p.value),
+    'FDR'=p.adjust(fit$p.value, method='fdr') ,'XRank' = as.numeric(fit$XRank), stringsAsFactors=F)
+  invisible(out)
+}

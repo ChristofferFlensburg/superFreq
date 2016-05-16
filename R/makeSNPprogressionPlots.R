@@ -2,7 +2,7 @@
 
 #prints heatmaps and line plots of the frequency of the SNVs in the samples of the same individual
 #also outputs the results to excel files.
-makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, cpus=1, forceRedo=F) {
+makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', cpus=1, forceRedo=F) {
   msDirectory = paste0(plotDirectory, '/multiSample')
   if ( length(timeSeries) == 0 ) return()
   if ( !file.exists(msDirectory) ) dir.create(msDirectory)
@@ -15,9 +15,9 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
     if ( !file.exists(outfile) | forceRedo ) {
       catLog('Plotting SNP progression to ', outfile, '...\n', sep='')
       pdf(outfile, width = 15, height=10)
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs')
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs')
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome)
       dev.off()
       catLog('done.\n')
     }
@@ -26,7 +26,7 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
 
 
 #helper function that does all the work for the frequency progression plots.
-qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', main='', colMode='default', nCol=200, filterConstant=T, linePlot=T) {
+qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', main='', colMode='default', nCol=200, filterConstant=T, linePlot=T, genome='hg19') {
   if ( !filterConstant  && !(('severity' %in% names(qs[[1]])) && !any(is.na(qs[[1]]$severity))) ) {
     catLog('Skipping unfiltered snp progression without VEP information.\n')
     return()
@@ -79,8 +79,10 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
   }
 
   SNPs = SNPs[SNPs$x %in% qs[[1]]$x,]
-  gene = paste0(gsub('.+:', '', SNPs[as.character(qs[[1]]$x),]$inGene), ' (', SNPs[as.character(qs[[1]]$x),]$chr, ')')
-  if ( db ) gene = SNPs[as.character(qs[[1]]$x),]$chr
+  gene = qs[[1]]$inGene
+  #gene = paste0(gsub('.+:', '', SNPs[as.character(qs[[1]]$x),]$inGene), ' (', SNPs[as.character(qs[[1]]$x),]$chr, ')')
+  #if ( db ) gene = SNPs[as.character(qs[[1]]$x),]$chr
+  if ( db ) gene = xToChr(qs[[1]]$x, genome=genome)
   
   catLog('colours..')
   dof = max(20, sum(rowSums(fs) > 0 & rowSums(fs) < ncol(fs)))
@@ -156,10 +158,10 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     if ( excelFile != '' ) {
       catLog('Output plotted variants to', excelFile, '...')    
       multiSampleData = data.frame(
-        'gene'=gsub('.+:', '', SNPs[as.character(qs[[1]]$x[doColour]),]$inGene),
-        'chr'=SNPs[as.character(qs[[1]]$x[doColour]),]$chr,
-        'start'=xToPos(qs[[1]]$x[doColour]),
-        'end'=xToPos(qs[[1]]$x[doColour]),
+        'gene'=gsub('.+:', '', qs[[1]]$inGene[doColour]),
+        'chr'=xToChr(qs[[1]]$x[doColour],genome=genome),
+        'start'=xToPos(qs[[1]]$x[doColour],genome=genome),
+        'end'=xToPos(qs[[1]]$x[doColour],genome=genome),
         'reference'=qs[[1]]$reference[doColour],
         'variant'=qs[[1]]$variant[doColour],
         'f'=fs[doColour,],
@@ -181,6 +183,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
       if ( nrow(multiSampleData) <= 65000 )
         WriteXLS('multiSampleData', excelFile)
       else {
+        warning('truncating .xls output to 65k rows in multisample.')
         multiSampleData = multiSampleData[order(multiSampleData$severity)[1:65000],]
         WriteXLS('multiSampleData', excelFile)
       }
