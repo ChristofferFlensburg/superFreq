@@ -4,8 +4,9 @@
 \alias{superInputFiles}
 \title{sets up and checks the input files for superFreq}
 \usage{
-superInputFiles(metaData = "", captureRegions = "", normalDirectory = "",
-  dbSNPdirectory = "", reference = "", normalCoverageDirectory = "")
+superInputFiles(metaDataFile = "", captureRegions = "",
+  normalDirectory = "", dbSNPdirectory = "", reference = "",
+  normalCoverageDirectory = "")
 }
 \description{
 sets up and checks the input files for superFreq

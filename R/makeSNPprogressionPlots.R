@@ -2,7 +2,7 @@
 
 #prints heatmaps and line plots of the frequency of the SNVs in the samples of the same individual
 #also outputs the results to excel files.
-makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', maxRowCluster=1000, cpus=1, forceRedo=F) {
+makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', maxRowCluster=1500, cpus=1, forceRedo=F) {
   msDirectory = paste0(plotDirectory, '/multiSample')
   if ( length(timeSeries) == 0 ) return()
   if ( !file.exists(msDirectory) ) dir.create(msDirectory)
@@ -19,6 +19,11 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster)
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster)
       dev.off()
+      pdf(gsub('.pdf$', '.sunset.pdf', outfile), outfile, width = 15, height=10)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset')
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset')
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster, colMode='sunset')
+      dev.off()
       catLog('done.\n')
     }
   }
@@ -26,7 +31,7 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
 
 
 #helper function that does all the work for the frequency progression plots.
-qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', main='', colMode='default', nCol=200, filterConstant=T, linePlot=T, genome='hg19', maxRowCluster=1000) {
+qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', main='', colMode='default', nCol=200, filterConstant=T, linePlot=T, genome='hg19', maxRowCluster=1500) {
   if ( !filterConstant  && !(('severity' %in% names(qs[[1]])) && !any(is.na(qs[[1]]$severity))) ) {
     catLog('Skipping unfiltered snp progression without VEP information.\n')
     return()
@@ -37,7 +42,11 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     return()
   }
   if ( any(sapply(qs, function(q) any(is.na(q$somaticP)))) ) {
-    warning('found NA somaticQ in qs of quality progression plot. not plotting.')
+    warning('found NA somaticQ in qs of quality progression plot.')
+    qs = lapply(qs, function(q) {
+      q$somaticP[is.na(q$somaticP)] = 0
+      return(q)
+      })
     return()
   }
   if ( !db & all(normal) ) {
@@ -138,7 +147,8 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     }
     fs[is.na(fs)] = -0.02
     if ( length(rG) > 0 ) {
-      legend('right', rG, col = rGcol, lwd=10, bg='white')
+      legCex = pmin(1, pmax(0.5, 45/length(rG)))
+      legend('right', rG, col = rGcol, lwd=10, bg='white', cex=legCex)
     }
     fs = fs[,clusterOrder[[2]]]
     N = ncol(fs)
@@ -150,8 +160,10 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
                col(fs)[doColour, 2:N], fs[doColour, 2:N],
                lwd=(weight[doColour]+importance[doColour]), col=RSC)
       text(1:N, 1.02, colnames(fs), cex=0.7)
-      if ( length(rG) > 0 )
-        legend('right', rG, col = rGcol, lwd=10, bg='white')
+      if ( length(rG) > 0 ) {
+        legCex = pmin(1, pmax(0.5, 45/length(rG)))
+        legend('right', rG, col = rGcol, lwd=10, bg='white', cex=legCex)
+      }
     }
     catLog('done!\n')
     

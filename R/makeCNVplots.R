@@ -1,6 +1,6 @@
 
 #plots the CNV calls and clonalities, and the underlying coverage and frequencies that the calls are based on.
-makeCNVplots = function(cnvs, plotDirectory, genome='hg19', forceRedoCNVplots=F) {
+makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedoCNVplots=F) {
   CNVplotDirectory = paste0(plotDirectory, '/CNV/')
   if ( !file.exists(CNVplotDirectory) ) dir.create(CNVplotDirectory)
   for ( name in names(cnvs) ) {
@@ -8,18 +8,30 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', forceRedoCNVplots=F)
     if ( !file.exists(dirname) ) dir.create(dirname)
 
     #plot individual capture regions
-    filename = paste0(dirname, '/captureRegions.png')
+    if ( plotPDF )
+      filename = paste0(dirname, '/captureRegions.pdf')
+    else
+      filename = paste0(dirname, '/captureRegions.png')
     if ( !file.exists(filename) | forceRedoCNVplots ) {
       catLog('Plotting CNVs to ', dirname, '.\n', sep='')
-      png(filename, width=20, height=10, res=300, units='in')
+      if ( plotPDF )
+        pdf(filename, width=20, height=10)
+      else
+        png(filename, width=20, height=10, res=300, units='in')
       plotCR(cnvs[[name]]$CR, errorBars=F, genome=genome)
       dev.off()
     }
 
     #plot merged regions
-    filename = paste0(dirname, '/CNVcalls.png')
+    if ( plotPDF )
+      filename = paste0(dirname, '/CNVcalls.pdf')
+    else
+      filename = paste0(dirname, '/CNVcalls.png')
     if ( !file.exists(filename) | forceRedoCNVplots ) {
-      png(filename, width=20, height=10, res=300, units='in')
+      if ( plotPDF )
+        pdf(filename, width=20, height=10)
+      else
+        png(filename, width=20, height=10, res=300, units='in')
       plotCR(cnvs[[name]]$clusters, genome=genome)
       dev.off()
     }
@@ -27,23 +39,38 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', forceRedoCNVplots=F)
     
 
     #plot both
-    filename = paste0(dirname, '/combined.png')
+    if ( plotPDF )
+      filename = paste0(dirname, '/combined.pdf')
+    else
+      filename = paste0(dirname, '/combined.png')
     if ( !file.exists(filename) | forceRedoCNVplots ) {
-      png(filename, width=20, height=10, res=300, units='in')
-        plotCR(cnvs[[name]]$clusters, errorBars=F, genome=genome, alpha=0)
-        plotCR(cnvs[[name]]$CR, errorBars=F, genome=genome, alpha=0.1, add=T, moveHet=F)
-        plotCR(cnvs[[name]]$clusters, errorBars=T, genome=genome, add=T)
+      if ( plotPDF )
+        pdf(filename, width=20, height=10)
+      else
+        png(filename, width=20, height=10, res=300, units='in')
+      plotCR(cnvs[[name]]$clusters, errorBars=F, genome=genome, alpha=0)
+      plotCR(cnvs[[name]]$CR, errorBars=F, genome=genome, alpha=0.1, add=T, moveHet=F)
+      plotCR(cnvs[[name]]$clusters, errorBars=T, genome=genome, add=T)
       dev.off()
     }
-    outerFilename = paste0(CNVplotDirectory, '/', name, '.png')
+    if ( plotPDF )
+      outerFilename = paste0(CNVplotDirectory, '/', name, '.pdf')
+    else
+      outerFilename = paste0(CNVplotDirectory, '/', name, '.png')
     if ( !file.exists(outerFilename) | forceRedoCNVplots ) {
       system(paste0('cp ', gsub(' ', '\\\\ ',filename), ' ', gsub(' ', '\\\\ ',outerFilename)), intern=T)
     }
 
     for( chr in names(chrLengths(genome)) ) {
-      filename = paste0(dirname, '/chr', chr, '.png')
+      if ( plotPDF )
+        filename = paste0(dirname, '/chr', chr, '.pdf')
+      else
+        filename = paste0(dirname, '/chr', chr, '.png')
       if ( !file.exists(filename) | forceRedoCNVplots ) {
-        png(filename, width=20, height=10, res=300, units='in')
+        if ( plotPDF )
+          pdf(filename, width=20, height=10)
+        else
+          png(filename, width=20, height=10, res=300, units='in')
         plotCR(cnvs[[name]]$clusters, errorBars=F, genome=genome, chr=chr, alpha=0)
         plotCR(cnvs[[name]]$CR, errorBars=F, genome=genome, chr=chr, alpha=0.3, add=T)
         plotCR(cnvs[[name]]$clusters, errorBars=T, genome=genome, chr=chr, add=T)

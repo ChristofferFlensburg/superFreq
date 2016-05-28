@@ -4,7 +4,7 @@
 \alias{xToGene}
 \title{find the gene closest to the genomic coordinate x}
 \usage{
-xToGene(x, genome = "hg19", saveDirectory = "", verbose = T)
+xToGene(x, captureRegions, genome = "hg19")
 }
 \description{
 find the gene closest to the genomic coordinate x

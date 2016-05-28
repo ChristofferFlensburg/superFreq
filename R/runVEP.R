@@ -262,6 +262,12 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
   catLog('Saving fully annotated variants to', allVariantSaveFile, '...')
   save('allVariants', file=allVariantSaveFile)
   catLog('done.\n')
+  storiesSaveFile = paste0(Rdirectory, '/stories.Rdata')
+  catLog('Replacing fully annotated variants in', storiesSaveFile, '...')
+  load(storiesSaveFile)
+  stories$variants = variants
+  save('stories', file=storiesSaveFile)
+  catLog('done.\n')
 
   outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=T)
   makeSNPprogressionPlots(variants, timeSeries=timeSeries, normals = normals, plotDirectory=plotDirectory,

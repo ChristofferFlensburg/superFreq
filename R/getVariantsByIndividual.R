@@ -74,7 +74,8 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
   }
 
   #check db SNP for called variants.
-  variantsBI = matchTodbSNPs(variantsBI, dir=dbDir, genome=genome)
+  variantsBI = lapply(variantsBI, function(q) q[!is.na(q$x),])
+  variantsBI = matchTodbSNPs(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
   variantsBI = lapply(variantsBI, function(q) q[order(q$x, q$variant),])
     
 
@@ -82,7 +83,7 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
   q = do.call(rbind, variantsBI)
   q = q[!duplicated(q$x),]
   q = q[order(q$x),]
-  inGene = xToGene(q$x, saveDirectory=Rdirectory, genome=genome)
+  inGene = xToGene(q$x, captureRegions=captureRegions, genome=genome)
   names(inGene) = q$x
   SNPs = data.frame(x=q$x, chr=xToChr(q$x, genome), start=xToPos(q$x, genome), end=xToPos(q$x, genome),
                     inGene=inGene, reference=q$reference, variant=q$variant, db=q$db)
@@ -120,6 +121,12 @@ plotFrequencyDiagnostics = function(variants, plotDirectory) {
       var = pmin(cov, noneg(variants$variants[[sample]]$var[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2)))))
       png(paste0(FreqDirectory, sample, '-varcov.png'), height=1000, width=2000, res=144)
       plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=sample)
+      cleanUse = use & variants$variants[[sample]]$flag == ''
+      if ( any(cleanUse) ) {
+        cov = noneg(variants$variants[[sample]]$cov[cleanUse] + pmax(-0.4, pmin(0.4, rnorm(sum(cleanUse), 0, 0.2))))
+        var = pmin(cov, noneg(variants$variants[[sample]]$var[cleanUse] + pmax(-0.4, pmin(0.4, rnorm(sum(cleanUse), 0, 0.2)))))
+        plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=paste0(sample, ', clean variants'))
+      }
       dev.off()
     }
     
@@ -208,7 +215,7 @@ SNP2GRanges = function(SNPs, genome=genome) {
 }
 
 #hepler function that marks the variants in a SNPs object as db or non db SNPs.
-matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19') {
+matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19', cpus=1) {
 
   variants = lapply(variants, function(q) {
     q$db = rep(F, nrow(q))
@@ -241,8 +248,8 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19') {
       load(file=RsaveFile)
     }
     
-    catLog('matching to variant postions..')
-    variants = lapply(variants, function(q) {
+    catLog('matching to variant positions..')
+    variants = mclapply(variants, function(q) {
       thisChr = which(xToChr(q$x, genome) == chr)
       if ( length(thisChr) == 0 ) return(q)
       varPos = xToPos(q$x)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
@@ -259,7 +266,7 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19') {
       names(dbMAF) = dbQ$pos
       q$dbMAF[thisChr][q$db[thisChr]] = dbMAF[as.character(varPos)][q$db[thisChr]]
       return(q)
-    })
+    }, mc.cores=cpus)
     catLog('done.\n')
   }
   
@@ -804,7 +811,7 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
 
   
   #check db SNP for called variants.
-  normalVariantsBI = matchTodbSNPs(normalVariantsBI, dir=dbDir, genome=genome)
+  normalVariantsBI = matchTodbSNPs(normalVariantsBI, dir=dbDir, genome=genome, cpus=cpus)
   normalVariantsBI = lapply(normalVariantsBI, function(q) q[order(q$x, q$variant),])
 
   normalVariantsBI = list('variants'=normalVariantsBI, 'SNPs'=SNPs)

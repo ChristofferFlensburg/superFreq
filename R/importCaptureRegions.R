@@ -143,7 +143,7 @@ nameCaptureRegions = function(inFile, outFile, Rdirectory, genome='hg19') {
   start = as.numeric(start[use])
   end = as.numeric(end[use])
   x = chrToX(chr, (start+end)/2, genome=genome)
-  gene = xToGene(x, genome=genome, saveDirectory=Rdirectory)
+  gene = xToGeneFromDB(x, genome=genome, saveDirectory=Rdirectory)
 
   outDF = data.frame(chr, start, end, gene)
   catLog('done.\n')
@@ -157,7 +157,39 @@ nameCaptureRegions = function(inFile, outFile, Rdirectory, genome='hg19') {
 #' find the gene closest to the genomic coordinate x
 #'
 #' @importFrom GenomicRanges findOverlaps as.data.frame as.factor
-xToGene = function(x, genome='hg19', saveDirectory='', verbose=T) {
+xToGene = function(x, captureRegions, genome='hg19') {
+  if ( length(x) == 0 ) return(c())
+
+  chr = xToChr(x, genome)
+  pos = xToPos(x, genome)
+  xGR = GRanges(seqnames=chr, ranges = IRanges(start=pos, end=pos), strand='*', seqlengths=chrLengths(genome))
+
+  gene = rep('', length(x))
+  fO = findOverlaps(xGR, captureRegions, maxgap=0)
+  OLs = cbind(queryHits(fO), subjectHits(fO))
+  OLs = OLs[!duplicated(OLs[,1]),,drop=F]
+  gene[OLs[,1]] = captureRegions$region[OLs[,2]]
+  fO = findOverlaps(xGR[gene == ''], captureRegions, maxgap=100)
+  OLs = cbind(queryHits(fO), subjectHits(fO))
+  OLs = OLs[!duplicated(OLs[,1]),,drop=F]
+  gene[which(gene == '')[OLs[,1]]] = captureRegions$region[OLs[,2]]
+  fO = findOverlaps(xGR[gene == ''], captureRegions, maxgap=200)
+  OLs = cbind(queryHits(fO), subjectHits(fO))
+  OLs = OLs[!duplicated(OLs[,1]),,drop=F]
+  gene[which(gene == '')[OLs[,1]]] = captureRegions$region[OLs[,2]]
+  fO = findOverlaps(xGR[gene == ''], captureRegions, maxgap=300)
+  OLs = cbind(queryHits(fO), subjectHits(fO))
+  OLs = OLs[!duplicated(OLs[,1]),,drop=F]
+  gene[which(gene == '')[OLs[,1]]] = captureRegions$region[OLs[,2]]
+
+  if ( any(gene=='') ) warning('Failed to find gene names at x=', x[gene==''][1],' in xToGene.')
+  gene[gene==''] = '???'
+
+  return(gene)
+}
+
+
+xToGeneFromDB = function(x, genome='hg19', saveDirectory='', verbose=T) {
   if ( length(x) == 0 ) return(c())
 
   bm = importEnsemblData(x, saveDirectory, genome, verbose=verbose)

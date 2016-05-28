@@ -3,7 +3,7 @@
 
 #Takes variants and plots the frequencies of any two samples from the same individual against each other.
 #Goes to some effort in marking interesting SNVs.
-makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, genome='hg19', cpus=1, forceRedo=F) {
+makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, genome='hg19', cpus=1, plotPDF=F, forceRedo=F) {
   scatterDirectory = paste0(plotDirectory, '/scatters')
   if ( !file.exists(scatterDirectory) ) dir.create(scatterDirectory)
   for ( pair in samplePairs ) {
@@ -24,18 +24,31 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
       
       ps=qualityScatter(q1, q2, cpus=cpus, verbose=F, doPlot=F)
       psuf=qualityScatter(q1, q2, cpus=cpus, plotFlagged=F, verbose=F, doPlot=F)
-      
-      outfile = paste0(dir2, '/all.png')
-      catLog('Plotting to', outfile, '\n')
-      png(outfile, width = 10, height=10, res=300, units='in')
+
+      if ( plotPDF ) {
+        outfile = paste0(dir2, '/all.pdf')
+        catLog('Plotting to', outfile, '\n')
+        pdf(outfile, width = 10, height=10)
+      }
+      else {
+        outfile = paste0(dir2, '/all.png')
+        catLog('Plotting to', outfile, '\n')
+        png(outfile, width = 10, height=10, res=300, units='in')
+      }
       qualityScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F,
                      main=paste0('clean variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1)
       dev.off()
       
-      outfile = paste0(dir2, '/allNamed.png')
-      png(outfile, width = 10, height=10, res=300, units='in')
+      if ( plotPDF ) {
+        outfile = paste0(dir2, '/allNamed.pdf')
+        pdf(outfile, width = 10, height=10)
+      }
+      else {
+        outfile = paste0(dir2, '/allNamed.png')
+        png(outfile, width = 10, height=10, res=300, units='in')
+      }
       qualityScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F,
                      main=paste0('clean variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
@@ -43,8 +56,14 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
                      print=T, printRedCut=0.25)
       dev.off()
 
-      outfile = paste0(dir2, '/allFlagged.png')
-      png(outfile, width = 10, height=10, res=300, units='in')
+      if ( plotPDF ) {
+        outfile = paste0(dir2, '/allFlagged.pdf')
+        pdf(outfile, width = 10, height=10)
+      }
+      else {
+        outfile = paste0(dir2, '/allFlagged.png')
+        png(outfile, width = 10, height=10, res=300, units='in')
+      }
       qualityScatter(q1, q2, verbose=F, ps=ps,
                      main=paste0('all variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
@@ -55,8 +74,14 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
       chrs = xToChr(q1$x, genome=genome)
       catLog('done!\n  Plotting chr:')
       for ( chr in names(chrLengths(genome)) ) {
-        outfile = paste0(dir2, '/chr', chr, '.png')
-        png(outfile, width = 10, height=10, res=144, units='in')
+        if ( plotPDF ) {
+          outfile = paste0(dir2, '/chr', chr, '.pdf')
+          pdf(outfile, width = 10, height=10)
+        }
+        else {
+          outfile = paste0(dir2, '/chr', chr, '.png')
+          png(outfile, width = 10, height=10, res=144, units='in')
+        }
         catLog(chr, '..', sep='')
         use = chrs == chr
         qualityScatter(q1[use,], q2[use,], ps=ps[use],

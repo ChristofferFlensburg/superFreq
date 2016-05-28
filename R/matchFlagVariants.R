@@ -466,12 +466,6 @@ shareSNPs = function(SNPs1, SNPs2) {
   newRows = setdiff(rownames(SNPs2), rownames(SNPs1))
   if ( length(newRows) == 0 ) return(SNPs1)
   newSNPs = SNPs2[newRows,colnames(SNPs1)[colnames(SNPs1) %in% colnames(SNPs2)]]
-  newSNPs$reads = newSNPs$readsReference = newSNPs$readsVariant = newSNPs$frequency = 0
-  newSNPs$referencePlus = newSNPs$referenceMinus = newSNPs$variantPlus = newSNPs$variantMinus = 0
-  newSNPs$frequency = -0.02
-  newSNPs$pValue = newSNPs$filterPValue = 1
-  newSNPs$ref = newSNPs$het = newSNPs$hom = 0
-  newSNPs$nc = max(SNPs1$ref+SNPs1$het+SNPs1$hom+SNPs1$nc)
   for ( col in setdiff(names(SNPs2), names(SNPs1)) ) {
     catLog('adding ', col, '..', sep='')
     SNPs1[[col]] = rep(NA, nrow(SNPs1))

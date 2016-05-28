@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.7')
+superVersion = function() return('0.9.8')
 
 
 #' Wrapper to run default superFreq analysis
@@ -127,12 +127,41 @@ superVersion = function() return('0.9.7')
 #'                  Rdirectory, plotDirectory, reference)
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
-  genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(),
-  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome') {
-
+  genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
+  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all') {
+  
+  if ( splitRun ) {
+    ensureDirectoryExists(Rdirectory)
+    logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
+    assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
+    if ( outputToTerminalAsWell )
+      assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
+    catLog('Splitting meta data into participants.\n')
+    splitInput = splitMetaData(metaDataFile, Rdirectory, plotDirectory)
+    if ( participants != 'all' ) {
+      splitInput = splitInput[participants]
+      catLog('Analysing only participants:\n')
+      for ( part in names(splitInput) ) catLog(part, '\n')
+      if ( length(splitInput) == 0 ) {
+        catLog('None of the specified participants match metadata. Exiting.\n')
+        return()
+      }
+    }
+    for ( input in splitInput ) {
+      superFreq(metaDataFile=input$metaDataFile, captureRegions=captureRegions,
+                normalDirectory=normalDirectory, Rdirectory=input$Rdirectory, plotDirectory=input$plotDirectory,
+                reference=reference, genome=genome, BQoffset=BQoffset, cpus=cpus,
+                outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
+                systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
+                dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F)
+        
+      }
+    return()
+  }
+  
   inputFiles =
-    superInputFiles(metaDataFile, captureRegions, normalDirectory, dbSNPdirectory,
-                    reference)
+    superInputFiles(metaDataFile=metaDataFile, captureRegions=captureRegions, normalDirectory=normalDirectory,
+                    dbSNPdirectory=dbSNPdirectory, reference=reference, normalCoverageDirectory=normalCoverageDirectory)
   #sanityCheckSuperInputFiles(inputFiles)
 
   outputDirectories = superOutputDirectories(Rdirectory=Rdirectory, plotDirectory=plotDirectory)
@@ -155,11 +184,27 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory,
                  cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
 
-  
 }
 
 
-
+splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
+  metaData = importSampleMetaData(metaDataFile)
+  individuals = unique(metaData$INDIVIDUAL)
+  metaDataDir = paste0(dirname(metaDataFile), '/splitMetaData')
+  ensureDirectoryExists(metaDataDir)
+  splitInput = lapply(individuals, function(individual) {
+    splitMetaData = metaData[metaData$INDIVIDUAL==individual,]
+    splitMetaDataFile = paste0(metaDataDir, '/', individual, '.tsv')
+    write.table(splitMetaData, file=splitMetaDataFile, quote=F, row.names=F, sep='\t')
+    ensureDirectoryExists(Rdirectory)
+    splitRdirectory = paste0(Rdirectory, '/', individual)
+    ensureDirectoryExists(plotDirectory)
+    splitPlotDirectory = paste0(plotDirectory, '/', individual)
+    return(list('metaDataFile'=splitMetaDataFile, 'Rdirectory'=splitRdirectory, 'plotDirectory'=splitPlotDirectory))
+  })
+  names(splitInput) = individuals
+  return(splitInput)
+}
 
 
 #' Analyse exomes
@@ -434,11 +479,11 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Normal coverage bamfiles are:\n')
   catLog(externalNormalCoverageBams, sep='\n')
 
-  captureRegions = try(importCaptureRegions(captureRegionsFile, reference=reference, Rdirectory=Rdirectory, genome=genome))
-  if ( class(captureRegions) != 'GRanges' ) {
-    catLog('Failed to import capture regions, aborting.\n')
-    stop('Failed to import capture regions, aborting.\n')
-  }
+  captureRegions = importCaptureRegions(captureRegionsFile, reference=reference, Rdirectory=Rdirectory, genome=genome)
+  #if ( class(captureRegions) != 'GRanges' ) {
+  #  catLog('Failed to import capture regions, aborting.\n')
+  #  stop('Failed to import capture regions, aborting.\n')
+  #}
   if ( length(captureRegions) == 0 ) {
     catLog('Empty capture regions, aborting.\n')
     stop('Empty capture regions, aborting.\n')
@@ -456,11 +501,11 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Mean GC content is ', round(mean(captureRegions$gc), 3), '.\n', sep='')
   
   #read in metadata
-  sampleMetaData = try(importSampleMetaData(sampleMetaDataFile))
-  if ( class(sampleMetaData) != 'data.frame' ) {
-    catLog('Failed to import meta data, aborting.\n')
-    stop('Failed to import meta data, aborting.\n')
-  }
+  sampleMetaData = importSampleMetaData(sampleMetaDataFile)
+  #if ( class(sampleMetaData) != 'data.frame' ) {
+  #  catLog('Failed to import meta data, aborting.\n')
+  #  stop('Failed to import meta data, aborting.\n')
+  #}
   if ( !all(c('BAM', 'INDIVIDUAL', 'NAME', 'TIMEPOINT', 'NORMAL') %in% colnames(sampleMetaData)) ) {
     missing = c('BAM', 'INDIVIDUAL', 'NAME', 'TIMEPOINT', 'NORMAL')[!(c('BAM', 'INDIVIDUAL', 'NAME', 'TIMEPOINT', 'NORMAL') %in% colnames(sampleMetaData))]
     catLog('Missing columns in meta data:' , missing, ', aborting.\n')
@@ -505,30 +550,30 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('\n##################################################################################################\n\n')
 
   #compare coverage of samples to the pool of normals, using limma-voom.
-  fit = try(runDE(bamFiles, names, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
+  fit = runDE(bamFiles, names, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
     normalCoverageRdirectory, settings=settings, cpus=cpus, forceRedoFit=forceRedoFit, forceRedoCount=forceRedoCount,
-    forceRedoNormalCount=forceRedoNormalCount))
-  if ( class(fit) == 'try-error' ) {
-    catLog('Error in runDEforSamples! Input was:')
-    catLog('bamFiles:', bamFiles, '\nnames:', names, '\nexternalNormalCoverageBams:', externalNormalCoverageBams,
-           '\nstart(captureRegions)[1:4]:', start(captureRegions)[1:4], '\nRdirectory:', Rdirectory,
-           '\nplotDirectory:', plotDirectory, '\nnormalCoverageRdirectory:', normalCoverageRdirectory, '\ncpus:', cpus,
-           '\nforceRedoFit:', forceRedoFit, '\nforceRedoCount', forceRedoCount,
-           '\nforceRedoNormalCount', forceRedoNormalCount, '\n')
-    dumpInput(Rdirectory, list('bamFiles'=bamFiles, 'names'=names, 'externalNormalCoverageBams'=externalNormalCoverageBams,
-                               'captureRegions'=captureRegions, 'Rdirectory'=Rdirectory, 'plotDirectory'=plotDirectory,
-                               'normalCoverageRdirectory'=normalCoverageRdirectory, 'cpus'=cpus, 'forceRedoFit'=forceRedoFit,
-                               'forceRedoCount'=forceRedoCount, 'forceRedoNormalCount'=forceRedoNormalCount))
-    stop('Error in runDEforSamples.')
-  }
+    forceRedoNormalCount=forceRedoNormalCount)
+  #if ( class(fit) == 'try-error' ) {
+  #  catLog('Error in runDEforSamples! Input was:')
+  #  catLog('bamFiles:', bamFiles, '\nnames:', names, '\nexternalNormalCoverageBams:', externalNormalCoverageBams,
+  #         '\nstart(captureRegions)[1:4]:', start(captureRegions)[1:4], '\nRdirectory:', Rdirectory,
+  #         '\nplotDirectory:', plotDirectory, '\nnormalCoverageRdirectory:', normalCoverageRdirectory, '\ncpus:', cpus,
+  #         '\nforceRedoFit:', forceRedoFit, '\nforceRedoCount', forceRedoCount,
+  #         '\nforceRedoNormalCount', forceRedoNormalCount, '\n')
+  #  dumpInput(Rdirectory, list('bamFiles'=bamFiles, 'names'=names, 'externalNormalCoverageBams'=externalNormalCoverageBams,
+  #                             'captureRegions'=captureRegions, 'Rdirectory'=Rdirectory, 'plotDirectory'=plotDirectory,
+  #                             'normalCoverageRdirectory'=normalCoverageRdirectory, 'cpus'=cpus, 'forceRedoFit'=forceRedoFit,
+  #                             'forceRedoCount'=forceRedoCount, 'forceRedoNormalCount'=forceRedoNormalCount))
+  #  stop('Error in runDEforSamples.')
+  #}
 
   #Plot volcanoes and output an excel file with top DE regions.
-  ret = try(makeFitPlots(fit, plotDirectory, genome,
-    forceRedoVolcanoes=forceRedoVolcanoes, forceRedoDifferentRegions=forceRedoDifferentRegions))
-  if ( class(ret) == 'try-error' ) {
-    catLog('Error in makeFitPlots, will continue analysis anyway.')
-    warning('Error in makeFitPlots.')
-  }
+  ret = makeFitPlots(fit, plotDirectory, genome,
+    forceRedoVolcanoes=forceRedoVolcanoes, forceRedoDifferentRegions=forceRedoDifferentRegions)
+  #if ( class(ret) == 'try-error' ) {
+  #  catLog('Error in makeFitPlots, will continue analysis anyway.')
+  #  warning('Error in makeFitPlots.')
+  #}
 
 
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
@@ -541,132 +586,132 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       #import, filter and QC the variants. Save to file.
       #The information about normals is used for QC, as there will be only true frequencies of 0, 0.5 and 1 in those samples.
       if ( byIndividual )
-        variants = try(getVariantsByIndividual(sampleMetaData, captureRegions, genome, BQoffset, dbSNPdirectory,
-          Rdirectory, plotDirectory, cpus=cpus, forceRedo=forceRedoVariants))
+        variants = getVariantsByIndividual(sampleMetaData, captureRegions, genome, BQoffset, dbSNPdirectory,
+          Rdirectory, plotDirectory, cpus=cpus, forceRedo=forceRedoVariants)
       else
-        variants = try(getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
+        variants = getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, forceRedoSNPs=forceRedoSNPs,
-          forceRedoVariants=forceRedoVariants))
-      if ( class(variants) == 'try-error' ) {
-        catLog('Error in getVariants.\n')
-        stop('Error in getVariants.')
-      }
+          forceRedoVariants=forceRedoVariants)
+      #if ( class(variants) == 'try-error' ) {
+      #  catLog('Error in getVariants.\n')
+      #  stop('Error in getVariants.')
+      #}
       
       #Get variants from the external normals
       normalVariants =
-        try(getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions,
+        getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions,
                         genome, BQoffset, dbSNPdirectory, normalRdirectory, Rdirectory, plotDirectory, cpus=cpus,
-                        forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants))
-      if ( class(normalVariants) == 'try-error' ) {
-        catLog('Error in getVariants for normals.\n')
-        dumpInput(Rdirectory, list('variants'=variants, 'externalNormalBams'=externalNormalBams,
-                                   'names'=names(externalNormalBams), 'captureRegions'=captureRegions,
-                                   'genome'=genome, 'BQoffset'=BQoffset, 'Rdirectory'=Rdirectory,
-                                   'normalRdirectory'=normalRdirectory, 'plotDirectory'=plotDirectory, 'cpus'=cpus,
-                                   'forceRedoSNPs'=forceRedoNormalSNPs, 'forceRedoVariants'=forceRedoNormalVariants))
-        stop('Error in getVariants for normals.')
-      }
+                        forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants)
+      #if ( class(normalVariants) == 'try-error' ) {
+      #  catLog('Error in getVariants for normals.\n')
+      #  dumpInput(Rdirectory, list('variants'=variants, 'externalNormalBams'=externalNormalBams,
+      #                             'names'=names(externalNormalBams), 'captureRegions'=captureRegions,
+      #                             'genome'=genome, 'BQoffset'=BQoffset, 'Rdirectory'=Rdirectory,
+      #                             'normalRdirectory'=normalRdirectory, 'plotDirectory'=plotDirectory, 'cpus'=cpus,
+      #                             'forceRedoSNPs'=forceRedoNormalSNPs, 'forceRedoVariants'=forceRedoNormalVariants))
+      #  stop('Error in getVariants for normals.')
+      #}
       
       #share variants with normals
       flaggingVersion = 'old'
       if ( 'flaggingVersion' %in% names(settings) ) flaggingVersion = settings$flaggingVersion
-      allVariants = try(matchFlagVariants(variants, normalVariants, individuals, normals, genome,
+      allVariants = matchFlagVariants(variants, normalVariants, individuals, normals, genome,
         Rdirectory, flaggingVersion=flaggingVersion, cpus=cpus, byIndividual=byIndividual,
-        forceRedoMatchFlag=forceRedoMatchFlag))
-      if ( class(allVariants) == 'try-error' | !all(c('variants', 'normalVariants') %in% names(allVariants)) ) {
-        catLog('Error in matchFlagVariants.\n')
-        dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'individuals'=individuals, 'normals'=normals,
-                                   'Rdirectory'=Rdirectory, 'forceRedoMatchFlag'=forceRedoMatchFlag))
-        stop('Error in matchFlagVariants.')
-      }
+        forceRedoMatchFlag=forceRedoMatchFlag)
+      #if ( class(allVariants) == 'try-error' | !all(c('variants', 'normalVariants') %in% names(allVariants)) ) {
+      #  catLog('Error in matchFlagVariants.\n')
+      #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'individuals'=individuals, 'normals'=normals,
+      #                             'Rdirectory'=Rdirectory, 'forceRedoMatchFlag'=forceRedoMatchFlag))
+      #  stop('Error in matchFlagVariants.')
+      #}
     }
   }
   variants = allVariants$variants
   normalVariants = allVariants$normalVariants
-  a=try(setVariantLoss(normalVariants$variants))
-  if ( class(a) == 'try-error' ) {
-    catLog('Error in setVariantLoss(normalVariants)\n')
-    stop('Error in setVariantLoss(normalVariants)!')
-  }
+  a=setVariantLoss(normalVariants$variants)
+  #if ( class(a) == 'try-error' ) {
+  #  catLog('Error in setVariantLoss(normalVariants)\n')
+  #  stop('Error in setVariantLoss(normalVariants)!')
+  #}
     
 
   #call CNVs compared to the normals.
   cnvs =
-    try(callCNVs(variants=variants, normalVariants=normalVariants, fitS=fit$fit, variants$SNPs,
+    callCNVs(variants=variants, normalVariants=normalVariants, fitS=fit$fit, variants$SNPs,
                  names=names, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
-                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV))
-  if ( class(cnvs) == 'try-error' ) {
-    catLog('Error in callCNVs!\n')
-    dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'fitS'=fit$fit,
-                               'names'=names, 'individuals'=individuals, 'normals'=normals, 'Rdirectory'=Rdirectory,
-                               'genome'=genome, 'cpus'=cpus, 'forceRedoCNV'=forceRedoCNV))
-    stop('Error in callCNVs.')
-  }
+                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV)
+  #if ( class(cnvs) == 'try-error' ) {
+  #  catLog('Error in callCNVs!\n')
+  #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'fitS'=fit$fit,
+  #                             'names'=names, 'individuals'=individuals, 'normals'=normals, 'Rdirectory'=Rdirectory,
+  #                             'genome'=genome, 'cpus'=cpus, 'forceRedoCNV'=forceRedoCNV))
+  #  stop('Error in callCNVs.')
+  #}
 
 
   #make CNV plots
-  cnvplot = try(makeCNVplots(cnvs, plotDirectory=plotDirectory, genome, forceRedoCNVplots=forceRedoCNVplots))
-  if ( class(cnvplot) == 'try-error' ) {
-    catLog('Error in makeCNVplots! Continuing, but these plots are kindof useful.\n')
-    warning('Error in makeCNVplots! Continuing, but these plots are kindof useful.')
-  }
+  cnvplot = makeCNVplots(cnvs, plotDirectory=plotDirectory, genome, forceRedoCNVplots=forceRedoCNVplots)
+  #if ( class(cnvplot) == 'try-error' ) {
+  #  catLog('Error in makeCNVplots! Continuing, but these plots are kindof useful.\n')
+  #  warning('Error in makeCNVplots! Continuing, but these plots are kindof useful.')
+  #}
 
   #combine SNPs and CNVs into stories of subclones.
-  stories = try(getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
-    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories))
-  if ( class(stories) == 'try-error' ) {
-    catLog('Error in getStories!\n')
-    dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs,
-                               'timeSeries'=timeSeries, 'Rdirectory'=Rdirectory, 'normals'=normals,
-                               'plotDirectory'=plotDirectory, 'cpus'=cpus, 'forceRedo'=forceRedoStories))
-    stop('Error in getStories!')
-  }
+  stories = getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
+    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories)
+  #if ( class(stories) == 'try-error' ) {
+  #  catLog('Error in getStories!\n')
+  #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs,
+  #                             'timeSeries'=timeSeries, 'Rdirectory'=Rdirectory, 'normals'=normals,
+  #                             'plotDirectory'=plotDirectory, 'cpus'=cpus, 'forceRedo'=forceRedoStories))
+  #  stop('Error in getStories!')
+  #}
   variants = stories$variants
   normalVariants = stories$normalVariants
   stories = stories$stories
 
   #do multi-sample heatmaps and frequency progression
-  progression = try(makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression, genome=genome))
-  if ( class(progression) == 'try-error' ) {
-    catLog('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.\n')
-    warning('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.')
-  }
+  progression = makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression, genome=genome)
+  #if ( class(progression) == 'try-error' ) {
+  #  catLog('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.\n')
+  #  warning('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.')
+  #}
   
   #make summary plots
-  summary = try(makeSummaryPlot(variants, cnvs, normals, individuals, timePoints, plotDirectory,
-    genome, cpus, forceRedo=forceRedoSummary))
-  if ( class(summary) == 'try-error' ) {
-    catLog('Error in makeSummaryPlot! Continuing, but these plots are kindof useful.\n')
-    warning('Error in makeSummaryPlot! Continuing, but these plots are kindof useful.')
-  }
+  summary = makeSummaryPlot(variants, cnvs, normals, individuals, timePoints, plotDirectory,
+    genome, cpus, forceRedo=forceRedoSummary)
+  #if ( class(summary) == 'try-error' ) {
+  #  catLog('Error in makeSummaryPlot! Continuing, but these plots are kindof useful.\n')
+  #  warning('Error in makeSummaryPlot! Continuing, but these plots are kindof useful.')
+  #}
   
   #identify and output new variants
-  newVar = try(outputNewVariants(variants, samplePairs, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoNewVariants))
-  if ( class(newVar) == 'try-error' ) {
-    catLog('Error in outputNewVariants! Continuing anyway.\n')
-    warning('Error in outputNewVariants! Continuing anyway.')
-  }
+  newVar = outputNewVariants(variants, samplePairs, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoNewVariants)
+  #if ( class(newVar) == 'try-error' ) {
+  #  catLog('Error in outputNewVariants! Continuing anyway.\n')
+  #  warning('Error in outputNewVariants! Continuing anyway.')
+  #}
   
   #output somatic variants
-  somatics = try(outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic))
-  if ( class(somatics) == 'try-error' ) {
-    catLog('Error in outputSomaticVariants! Continuing anyway, but this is fairly important information.\n')
-    warning('Error in outputSomaticVariants! Continuing anyway, but this is fairly important information.')
-  }
+  somatics = outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic)
+  #if ( class(somatics) == 'try-error' ) {
+  #  catLog('Error in outputSomaticVariants! Continuing anyway, but this is fairly important information.\n')
+  #  warning('Error in outputSomaticVariants! Continuing anyway, but this is fairly important information.')
+  #}
 
-  river = try(makeRiverPlots(stories, variants, genome, cpus=cpus, plotDirectory, forceRedo=forceRedoRiver))
-  if ( class(river) == 'try-error' ) {
-    catLog('Error in makeRiverPlots!\n')
-    warning('Error in makeRiverPlots!')
-  }
+  river = makeRiverPlots(stories, variants, genome, cpus=cpus, plotDirectory, forceRedo=forceRedoRiver)
+  #if ( class(river) == 'try-error' ) {
+  #  catLog('Error in makeRiverPlots!\n')
+  #  warning('Error in makeRiverPlots!')
+  #}
 
   #Make the scatter plots of the pairs
-  scatter = try(makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
-    genome=genome, cpus=cpus, forceRedo=forceRedoScatters))
-  if ( class(scatter) == 'try-error' ) {
-    catLog('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.\n')
-    warning('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.')
-  }
+  scatter = makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
+    genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
+  #if ( class(scatter) == 'try-error' ) {
+  #  catLog('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.\n')
+  #  warning('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.')
+  #}
 
   catLog('Run done! Have fun with the output! :)\n\n')
   
@@ -1002,8 +1047,8 @@ explainSuperReference = function() {
 #' @export
 #' @examples
 #' superInputFiles()
-superInputFiles = function(metaData='', captureRegions='', normalDirectory='', dbSNPdirectory='', reference='', normalCoverageDirectory='') {
-  if ( metaData == '' )
+superInputFiles = function(metaDataFile='', captureRegions='', normalDirectory='', dbSNPdirectory='', reference='', normalCoverageDirectory='') {
+  if ( metaDataFile == '' )
     explainSuperMetaData()
   
   if ( captureRegions == '' )
@@ -1021,7 +1066,7 @@ superInputFiles = function(metaData='', captureRegions='', normalDirectory='', d
   if ( normalCoverageDirectory == '' )
     normalCoverageDirectory = normalDirectory
 
-  ret = list('metaDataFile'=normalizePath(metaData), 'normalDirectory'=normalizePath(normalDirectory),
+  ret = list('metaDataFile'=normalizePath(metaDataFile), 'normalDirectory'=normalizePath(normalDirectory),
           'normalCoverageDirectory'=normalizePath(normalCoverageDirectory), 'reference'=normalizePath(reference),
           'captureRegionsFile'=normalizePath(captureRegions), 'dbSNPdirectory'=normalizePath(dbSNPdirectory))
 

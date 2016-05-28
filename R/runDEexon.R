@@ -58,7 +58,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')
       stop('Error in featureCounts.')
     }
-    catLog('Got a sample count matrix of size', dim(fCsExon$counts), '\n')
+    catLog('Got a sample count matrix of size', dim(fCsExon$counts), ', with total counts:\n')
+    for ( col in colnames(fCsExon$counts) ) {
+      catLog(col, ': ', sum(fCsExon$counts[,col]), '\n')
+    }
     colnames(fCsExon$counts) = names
     catLog('Saving sample counts to ', fCsSaveFile, '..', sep='')
     save(fCsExon, file=fCsSaveFile)
@@ -105,6 +108,11 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   counts = cbind(fCsExon$counts, normalFCsExon$counts)
   annotation = fCsExon$annotation
   catLog('done.\n')
+
+  if ( any(colSums(counts)==0) ) {
+    warning('0 reads counted in sample(s): ', colnames(counts)[colSums(counts)==0], '. This will cause nonsensical CNA calls. These counts are from featureCounts.')
+    counts[,colSums(counts)==0] = 1
+  }
 
   catLog('Determining sex..')
   xes = grep('^X', annotation$Chr)

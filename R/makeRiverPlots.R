@@ -8,19 +8,22 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     file = paste0(riverDirectory, ts, '-river.pdf')
     if ( file.exists(file) & !forceRedo ) next
     catLog('Making riverplot for ', ts, '..', sep='')
+    patVar = variants
+    patVar$variants = patVar$variants[colnames(stories[[ts]]$consistentClusters$cloneStories$stories)]
+
     pdf(file, width=15, height=10)
     cloneCols =
       plotRiver(cloneTree=stories[[ts]]$consistentClusters$cloneTree, cloneStories=stories[[ts]]$consistentClusters$cloneStories,
                 storyList=stories[[ts]]$consistentClusters$storyList, allStories=stories[[ts]]$allConsistent,
-                variants=variants, genome=genome)
-    plotStories(stories[[ts]]$consistentClusters$cloneStories, variants, col=cloneCols, genome=genome)
+                variants=patVar, genome=genome)
+    plotStories(stories[[ts]]$consistentClusters$cloneStories, patVar, col=cloneCols, genome=genome)
     heatmapStories(stories[[ts]]$allConsistent, stories[[ts]]$consistentClusters$storyList,
-                   variants, col=cloneCols, genome=genome)
+                   patVar, col=cloneCols, genome=genome)
     for ( subclone in names(stories[[ts]]$consistentClusters$storyList) ) {
       i = which(names(stories[[ts]]$consistentClusters$storyList) == subclone)
       plotStories(stories[[ts]]$allConsistent[stories[[ts]]$consistentClusters$storyList[[subclone]],],
-                  variants, alpha=0.2, genome=genome)
-      plotStories(stories[[ts]]$consistentClusters$cloneStories[i,], variants, add=T,
+                  patVar, alpha=0.2, genome=genome)
+      plotStories(stories[[ts]]$consistentClusters$cloneStories[i,], patVar, add=T,
                   col=cloneCols[i], genome=genome)
     }
     dev.off()
@@ -32,15 +35,15 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       pdf(removedFile, width=15, height=10)
       cloneCols = plotRiver(stories[[ts]]$cloneTree, stories[[ts]]$clusters$cloneStories,
                             stories[[ts]]$clusters$storyList, stories[[ts]]$all,
-                            variants=variants, genome=genome)
-      plotStories(stories[[ts]]$clusters$cloneStories, variants, col=cloneCols, genome=genome)
+                            variants=patVar, genome=genome)
+      plotStories(stories[[ts]]$clusters$cloneStories, patVar, col=cloneCols, genome=genome)
       heatmapStories(stories[[ts]]$all, stories[[ts]]$clusters$storyList,
-                     variants, col=cloneCols, genome=genome)
+                     patVar, col=cloneCols, genome=genome)
       for ( subclone in names(stories[[ts]]$clusters$storyList) ) {
         i = which(names(stories[[ts]]$clusters$storyList) == subclone)
         plotStories(stories[[ts]]$all[stories[[ts]]$clusters$storyList[[subclone]],],
-                    variants, alpha=0.2, genome=genome)
-        plotStories(stories[[ts]]$clusters$cloneStories[i,], variants, add=T,
+                    patVar, alpha=0.2, genome=genome)
+        plotStories(stories[[ts]]$clusters$cloneStories[i,], patVar, add=T,
                     col=cloneCols[i], genome=genome)
       }
       dev.off()
@@ -57,12 +60,12 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     chr = xToChr(output$x1, genome)
     start = xToPos(output$x1, genome)
     end = xToPos(output$x2, genome)
-    label = storyToLabel(output, variants, genome, maxLength=100)$label
+    label = storyToLabel(output, patVar, genome, maxLength=100)$label
     clonality = as.data.frame(output$stories)
     error = as.data.frame(output$errors)
     names(chr) = names(start) = names(end) = names(label) = rownames(clonality)
     output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
-    output = addAnnotationToOutput(output, variants, genome=genome)
+    output = addAnnotationToOutput(output, patVar, genome=genome)
     WriteXLS('output', excelFile)
 
     if ( length(stories[[ts]]$clusters$storyList) > length(stories[[ts]]$consistentClusters$storyList) ) {
@@ -77,11 +80,11 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       chr = xToChr(output$x1, genome)
       start = xToPos(output$x1, genome)
       end = xToPos(output$x2, genome)
-      label = storyToLabel(output, variants, genome, maxLength=100)$label
+      label = storyToLabel(output, patVar, genome, maxLength=100)$label
       clonality = as.data.frame(output$stories)
       error = as.data.frame(output$errors)
       output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
-      output = addAnnotationToOutput(output, variants, genome=genome)
+      output = addAnnotationToOutput(output, patVar, genome=genome)
       WriteXLS('output', excelFile)
     }
 
@@ -156,7 +159,8 @@ addAnnotationToOutput = function(output, variants, genome='hg19') {
 
 #main plotting function
 plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c()) {
-
+  variants$variants = variants$variants[colnames(cloneStories$stories)]
+  
   if ( length(colourPool) == 0 )
     colourPool = mcri(c('black', 'blue', 'red', 'green', 'orange', 'magenta', 'cyan', 'violet', 'lightblue', 'grey', 'darkblue'))
 
@@ -450,7 +454,7 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
 }
 
 
-makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', ...) {
+makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', DEsaturation=log2(10), ...) {
   if ( nrow(mx) < 2 | ncol(mx) < 2 ) {
     warning('Not two lines and two columns in the heatmap. skip.')
     return()
@@ -460,6 +464,18 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
   if ( col[1] == 'default' )
     col = colourGradient(cols=mcri(c('black', 'grey', 'cyan', 'blue', 'red')),
       anchors=c(0, 0.02, 0.2, 0.5, 1), steps=nCol)
+  if ( col[1] == 'sunset' )
+    col = colourGradient(cols=mcri(c('black', 'blue', 'cyan', 'orange')),
+      anchors=c(0, 0.1, 0.5, 1), steps=nCol)
+  if ( col[1] == 'DE' ) {
+    zero = min(mx)/(min(mx)-max(mx))
+    upScale = min(1, DEsaturation/max(mx))
+    dnScale = min(1, -DEsaturation/min(mx))
+    col = colourGradient(cols=mcri(c('cyan', 'blue', 'black', 'red', 'orange')),
+      anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol)
+    
+  }
+
   ret = heatmap(mx, col=col, scale=scale, ...)
   
   barXmax = par('usr')[1]*0.88+par('usr')[2]*0.12

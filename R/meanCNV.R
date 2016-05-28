@@ -402,8 +402,6 @@ getCNVrates = function(metaData, cnvs, sex, individuals, clonalityCut=0.4, cpus=
   loh = indLoh/length(uInd)
 
   
-  #genes = xToGene((cnvs[[1]]$CR$x1+cnvs[[1]]$CR$x2)/2, genome=genome,
-  #  saveDirectory=paste0(metaData$paths$dataDirectory, '/resources'), verbose=F)
   genes = rownames(cnvs[[1]]$CR)
   delimiters = c(0, cumsum(chrLengths(genome=genome)))
   rownames = c(genes, delimiters)[order(c(cnvs[[1]]$CR$x1, delimiters))]
@@ -426,11 +424,10 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   hitX = mclapply(variants$variants, function(q) {
     catLog('.')
     q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
-    return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity))
+    return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity, 'genes'=q$inGene))
   }, mc.cores=cpus)
   hitInfo = data.frame(x=unlist(lapply(hitX, function(hit) hit$x)), rowname=unlist(lapply(hitX, function(hit) hit$rowname)), severity=unlist(lapply(hitX, function(hit) hit$sev)), stringsAsFactors=F)
   hitInfo = hitInfo[!duplicated(hitInfo$rowname),]
-  hitInfo$genes = xToGene(hitInfo$x, genome=genome, saveDirectory=paste0(metaData$paths$dataDirectory, '/resources'), verbose=F)
   xMx = do.call(cbind, lapply(hitX, function(hit) hitInfo$rowname %in% hit$rowname))
   rownames(xMx) =rownames(hitInfo) = hitInfo$rowname
   xRate = rowsums(xMx)
@@ -440,7 +437,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
     catLog('.')
     q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
     if ( nrow(q) == 0 ) return(c())
-    return(xToGene(q$x, saveDirectory=paste0(metaData$paths$dataDirectory, '/resources'), genome=genome, verbose=F))
+    return(q$inGene)
   }, mc.cores=cpus)
   catLog('\n')
   mutatedGenes = unique(unlist(lapply(hitGenes, unique)))
