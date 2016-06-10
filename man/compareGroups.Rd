@@ -5,7 +5,7 @@
 \title{Compares sets of individuals for reccuring mutations}
 \usage{
 compareGroups(metaDataFile, outputDirectories, project, subgroups1, subgroups2,
-  name, clonalityCut = 0.4, excludeSamples = c(),
+  name, includeNormal = F, clonalityCut = 0.4, excludeSamples = c(),
   excludeIndividuals = c(), cosmicDirectory = "",
   analysisName = "cohortAnalysis", cpus = 1, forceRedoVariants = F,
   forceRedoMean = F, forceRedoMeanPlot = F, forceRedoMatrixPlot = F,

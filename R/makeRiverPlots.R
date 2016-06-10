@@ -61,6 +61,7 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     start = xToPos(output$x1, genome)
     end = xToPos(output$x2, genome)
     label = storyToLabel(output, patVar, genome, maxLength=100)$label
+    names(start) = names(end) = names(chr) = names(label) = rownames(output)
     clonality = as.data.frame(output$stories)
     error = as.data.frame(output$errors)
     names(chr) = names(start) = names(end) = names(label) = rownames(clonality)
@@ -81,6 +82,7 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       start = xToPos(output$x1, genome)
       end = xToPos(output$x2, genome)
       label = storyToLabel(output, patVar, genome, maxLength=100)$label
+      names(start) = names(end) = names(chr) = names(label) = rownames(output)
       clonality = as.data.frame(output$stories)
       error = as.data.frame(output$errors)
       output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
@@ -468,11 +470,18 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
     col = colourGradient(cols=mcri(c('black', 'blue', 'cyan', 'orange')),
       anchors=c(0, 0.1, 0.5, 1), steps=nCol)
   if ( col[1] == 'DE' ) {
-    zero = min(mx)/(min(mx)-max(mx))
-    upScale = min(1, DEsaturation/max(mx))
-    dnScale = min(1, -DEsaturation/min(mx))
-    col = colourGradient(cols=mcri(c('cyan', 'blue', 'black', 'red', 'orange')),
-      anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol)
+    zero = min(mx,na.rm=T)/(min(mx,na.rm=T)-max(mx,na.rm=T))
+    upScale = min(1, DEsaturation/max(mx,na.rm=T))
+    dnScale = min(1, -DEsaturation/min(mx,na.rm=T))
+    if ( max(mx,na.rm=T) <= 0 )
+      col = colourGradient(cols=mcri(c('cyan', 'blue', 'black')),
+        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero))), steps=nCol)
+    else if ( min(mx,na.rm=T) >= 0 )
+      col = colourGradient(cols=mcri(c('black', 'red', 'orange')),
+        anchors=c(max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol)
+    else
+      col = colourGradient(cols=mcri(c('cyan', 'blue', 'black', 'red', 'orange')),
+        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol)
     
   }
 
@@ -493,8 +502,10 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
            lwd=2, col=barCols[c(1, round(nCol/2), nCol)])
   minDist = minVal
   maxDist = maxVal
-  text(rep(barXmin-(barXmax-barXmin)*0.2, 4), barYmin + c(0.003, 0.5, 0.997, 1.07)*(barYmax-barYmin),
-       c(round(c(minDist, (minDist+maxDist)/2, maxDist), 2), label), adj=c(1, 0.5))
+  text(rep(barXmin-(barXmax-barXmin)*0.2, 3), barYmin + c(0.003, 0.5, 0.997)*(barYmax-barYmin),
+       c(round(c(minDist, (minDist+maxDist)/2, maxDist), 2)), adj=c(1, 0.5))
+  text(barXmin-(barXmax-barXmin)*0.2, barYmin + 1.07*(barYmax-barYmin),
+       label, adj=c(0.5, 0.5))
 
   invisible(ret)
 }

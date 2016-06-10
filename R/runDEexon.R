@@ -192,10 +192,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   if ( getSettings(settings, 'MAcorrection') ) {
     catLog('Loess normalising counts to normals..')
     counts = countsSex
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal'], span=0.5)
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal'], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal'], counts[,group=='normal'], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal'], counts[,group=='normal'], span=0.5)
+    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
     loessCorrectionFactor = (0.5+counts)/(0.5+countsSex)
     countsSexLo = counts
     catLog('done.\n')
@@ -353,10 +353,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   if ( getSettings(settings, 'MAcorrection') ) {
     catLog('Second round of loess normalisation..')
     counts = countsSexLoBSregion
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal'], span=0.5)
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal'], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal'], counts[,group=='normal'], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal'], counts[,group=='normal'], span=0.5)
+    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
     loessCorrectionFactor2 = (0.5+counts)/(0.5+countsSexLoBS)
     countsSexLoBSLo = counts
     catLog('done.\n')
@@ -487,7 +487,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
 
   #remember stats from counting
   catLog('Importing stats about feature counts..')
-  tots = colSums(fCsExon$stat[,-1])
+  tots = colSums(fCsExon$stat[,-1,drop=F])
   assigned = fCsExon$stat[1,-1]
   names(tots) = names(assigned) = names
   exonFit$totNReads = tots
@@ -692,6 +692,7 @@ plotMA = function(x, y, col=mcri('darkblue'), libNorm = F, span=0.2, medianSigma
 #' @param y Numeric. The y coordinates.
 #' @param add boolean. If adding the plot onto whatever is alrady there. Essentially turns plot() it into points().
 #' @param verbose Boolean. Prints the correlation of x and y.
+#' @param showDensity Boolean. Adds a gradient through cyan and green in dense regions. Default TRUE.
 #' @param ... Remaining parameters are passed to plot(...), or to points(...) if add.
 #'
 #' @export
@@ -700,16 +701,26 @@ plotMA = function(x, y, col=mcri('darkblue'), libNorm = F, span=0.2, medianSigma
 #' y = rnorm(10000, ((1:10000)/10000)^3, 0.01)
 #' plotColourScatter(x, y)
 #'
-plotColourScatter = function(x, y, xlab='', ylab='', col=mcri('darkblue'), main='cor',
-  add=F, cex=1,verbose=T,...) {
+plotColourScatter = function(x, y, xlab='', ylab='', col='defaultBlue', main='cor',
+  add=F, cex=1,verbose=T, showDensity=T,...) {
   if ( verbose ) catLog('Correlation is ', cor(x,y), '.\n', sep='')
   if ( main == 'cor' ) main = paste('Correlation is', signif(cor(x,y), 2))
+  if ( col == 'defaultBlue' ) plotCol=mcri('darkblue')
+  else if ( col == 'defaultRed' ) plotCol=mcri('darkred')
+  else plotCol = col
   if ( !add ) plot(x, y, cex=cex*0.6, pch=16, xlab=xlab, ylab=ylab,
-                   col=col, main=main, ...)
-  else points(x, y, cex=cex*0.6, pch=16, col=col, ...)
-  points(x, y, cex=cex*0.4, pch=16, col=mcri('blue', 0.4))
-  points(x, y, cex=cex*0.3, pch=16, col=mcri('azure', 0.1))
-  points(x, y, cex=cex*0.2, pch=16, col=mcri('green', 0.02))
+                   col=plotCol, main=main, ...)
+  else points(x, y, cex=cex*0.6, pch=16, col=plotCol, ...)
+  if ( showDensity & col == 'defaultBlue' ) {
+    points(x, y, cex=cex*0.4, pch=16, col=mcri('blue', 0.4))
+    points(x, y, cex=cex*0.3, pch=16, col=mcri('azure', 0.1))
+    points(x, y, cex=cex*0.2, pch=16, col=mcri('green', 0.02))
+  }
+  if ( showDensity & col == 'defaultRed' ) {
+    points(x, y, cex=cex*0.4, pch=16, col=mcri('red', 0.4))
+    points(x, y, cex=cex*0.3, pch=16, col=mcri('orange', 0.1))
+    points(x, y, cex=cex*0.2, pch=16, col=mcri('white', 0.02))
+  }
 }
 
 #helper function that replaces negative values with 0.

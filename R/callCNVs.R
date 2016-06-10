@@ -168,7 +168,7 @@ selectGermlineHets = function(normalVariants, moreNormalVariants, sex, SNPs, gen
   
   #again to filter out noisy variants, filter on the RIB statistic in the cancer sample
   catLog('Taking variants that have low expected rate of incorrect basecalls in the normal sample..')
-  highNormalRIB = normalVariants$RIB > 0.01
+  highNormalRIB = normalVariants$RIB > 0.1
   use = use[!highNormalRIB]
   normalVariants = normalVariants[use,]
   catLog('done! Got', sum(!highNormalRIB), 'variants.\n')

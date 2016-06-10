@@ -88,7 +88,19 @@ makeFitPlots = function(fit, plotDirectory, genome, forceRedoVolcanoes=F, forceR
   }
 }
 
-#helepr functions converting from genomic coordinates to chr+bp
+
+#' Extract chromsome of genomic coordinate
+#'
+#' @param x integer: The genomic coordinate.
+#' @param genome character: the genome. default "hg19"
+#'
+#' @details Extracts which chromsome a genomic coordinate is on.
+#'
+#' @export
+#'
+#' @examples
+#' xToChr(1e9)
+#' xToChr(1e9, genome='mm10')
 xToChr = function(x, genome='hg19') {
   chrL = chrLengths(genome)
   ret = rep('', length(x))
@@ -98,6 +110,19 @@ xToChr = function(x, genome='hg19') {
   }
   return(ret)
 }
+
+#' Extract position of genomic coordinate
+#'
+#' @param x integer: The genomic coordinate.
+#' @param genome character: the genome. default "hg19"
+#'
+#' @details Extracts the position on the chromsome a genomic coordinate is on.
+#'
+#' @export
+#'
+#' @examples
+#' xToPos(1e9)
+#' xToPos(1e9, genome='mm10')
 xToPos = function(x, genome='hg19') {
   chr = xToChr(x, genome)
   pos = x - cumsum(chrLengths(genome))[chr] + chrLengths(genome)[chr]

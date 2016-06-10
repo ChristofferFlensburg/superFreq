@@ -35,7 +35,7 @@
 #' cohortAnalyseBatch(metaDataFile, outputDirectories, cpus=cpus, genome=genome)
 #'
 #' }
-cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T, clonalityCut=0.4,
+cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T, clonalityCut=0.4, includeNormal=F,
   excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cnvWeight=1,
   forceRedoVariants=F, forceRedoMean=F, forceRedoMatrixPlot=F, forceRedoMeanPlot=F, genome='hg19') {
 
@@ -52,7 +52,7 @@ cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T
   projects = getProjects(metaData, onlyDNA=onlyDNA)
   for ( project in projects ) {
     catLog('Cohort analysing', project, '\n')
-    a = projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut,
+    a = projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut, includeNormal=includeNormal,
       forceRedoMean=forceRedoMean, forceRedoVariants=forceRedoVariants, cosmicDirectory=cosmicDirectory, cnvWeight=cnvWeight,
       forceRedoMatrixPlot=forceRedoMatrixPlot, forceRedoMeanPlot=forceRedoMeanPlot, genome=genome)
     if ( class(a) == 'try-error' ) {
@@ -161,11 +161,10 @@ makeMetaDataFromBatch =
   individuals$Rdirectory = paste0(dataDirectory, '/R/individuals/',individuals$NAME)
   individuals$plotDirectory = paste0(dataDirectory, '/plots/individuals/',individuals$NAME)
   rownames(individuals) = individuals$individual
-
+  
   projects = if( 'PROJECT' %in% names(samples) ) {
-      samples$PROJECT = make.names(samples$PROJECT)
-      unique(unlist(strsplit(make.names(samples$PROJECT), split='\\.')))
-    } else defaultProjectName
+    unique(unlist(strsplit(samples$PROJECT, split=',')))
+  } else defaultProjectName
   projects = data.frame(
     'project'=projects,
     'Rdirectory'=paste0(dataDirectory, '/R/projects/',projects),

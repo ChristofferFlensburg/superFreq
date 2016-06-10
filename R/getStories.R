@@ -543,10 +543,13 @@ extractClonalities = function(cnvs, event) {
   if ( fM[1] != 0.5 ) {
     freqX = unique(unlist(lapply(subFreqs, function(freq) freq$x)))
     if ( length(freqX) > 0 ) {
-      directionScores = do.call(cbind, lapply(1:nSample, function(i) freqToDirectionProb(subFreqs[[i]], freqX, fM[1], ret$clonality[i])))
+      directionScores = do.call(cbind, lapply(1:nSample, function(i) freqToDirectionProb(subFreqs[[i]], freqX, fM, ret$clonality[i])))
       strongestSample = which(colsums(directionScores^2) >= 0.999999*max(colsums(directionScores^2)))[1]
       direction = sapply(1:nSample, function(i) {
-        scalarNorm(directionScores[,strongestSample], directionScores[,i])
+        sN = scalarNorm(directionScores[,strongestSample], directionScores[,i])
+        power = sqrt(sum(directionScores[,i]^2))
+        if ( power < 10 ) return(NA)  #if not enough power to tell up or down, nevermind.
+        return(sN)
       })
     }
   }
@@ -584,18 +587,22 @@ mergeToOneRegion = function(cR, eFreqs) {
   return(cR)
 }
 
-freqToDirectionProb = function(freq, freqX, f, clonality) {
+freqToDirectionProb = function(freq, freqX, fM, clonality) {
+  f = fM[1]
+  M = fM[2]
   if ( f == 0.5 ) return(rep(0, length(freqX)))
   
   upProb = function(x) {
     j = which(freq$x == x)
     if ( length(j) == 0 ) return(1)
-    return(pBinom(freq$cov[j], freq$var[j], 0.5 + (0.5-f)*clonality))
+    fClone = (clonality*(2*f*2^M-1) + 1)/(clonality*(2*2^M - 2) + 2)
+    return(pBinom(freq$cov[j], freq$var[j], 1-fClone))
   }
   downProb = function(x) {
     j = which(freq$x == x)
     if ( length(j) == 0 ) return(1)
-    return(pBinom(freq$cov[j], freq$var[j], 0.5 - (0.5-f)*clonality))
+    fClone = (clonality*(2*f*2^M-1) + 1)/(clonality*(2*2^M - 2) + 2)
+    return(pBinom(freq$cov[j], freq$var[j], fClone))
   }
   nullProb = function(x) {
     j = which(freq$x == x)

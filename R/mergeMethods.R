@@ -350,17 +350,6 @@ updateCNVplots = function(metaData, forceRedo=F, cpus=1, genome='hg19') {
 }
 
 
-
-ensureDirectoryExists = function(dir, verbose=T) {
-  didExist = file.exists(dir)
-  if ( !didExist ) {
-    catLog('Creating directory', dir, '\n')
-    dir.create(dir)
-  }
-  invisible(didExist)
-}
-
-
 updateMultisamplePlots = function(metaData, forceRedo=F) {
   individuals = metaData$individuals$individual
   
@@ -414,7 +403,7 @@ cleanVariants = function(variants) {
 }
 
 
-getProjectVariants = function(metaData, project, cpus=1, onlyDNA=T, forceRedo=F) {
+getProjectVariants = function(metaData, project, cpus=1, onlyDNA=T, includeNormal=F, forceRedo=F) {
   if ( length(inProject(metaData, project, includeNormal=T, onlyDNA=onlyDNA)) == 0 ) {
     warning(paste0('couldnt find any samples in project ', project, '.'))
     return()
@@ -427,7 +416,7 @@ getProjectVariants = function(metaData, project, cpus=1, onlyDNA=T, forceRedo=F)
     return(variants)
   }
 
-  samples = inProject(metaData, project, includeNormal=F, onlyDNA=onlyDNA)
+  samples = inProject(metaData, project, includeNormal=includeNormal, onlyDNA=onlyDNA)
   variants = getVariant(metaData, samples, cpus=cpus)
 
   catLog('Saving project variants to', saveFile, '.\n')
@@ -726,14 +715,14 @@ getAllVEPdata = function(metaData, variants) {
 
 #Returns the samples that are part of a project
 getProjects = function(metaData, onlyDNA=T) {
-  projects = strsplit(make.names(metaData$samples$PROJECT), '\\.')
+  projects = strsplit(metaData$samples$PROJECT, ',')
   ret = unique(unlist(projects))
   return(ret)
 }
 
 #Returns the samples that are part of a project
 inProject = function(metaData, project, includeNormal=T, onlyDNA=T) {
-  projects = strsplit(make.names(metaData$samples$PROJECT), '\\.')
+  projects = strsplit(metaData$samples$PROJECT, ',')
   isInProject = sapply(projects, function(sampleProjects) any(sampleProjects == project))
   if ( !includeNormal ) isInProject = isInProject & !metaData$samples$NORMAL
   if ( onlyDNA ) isInProject = isInProject & metaData$samples$DATATYPE == 'DNA'
@@ -745,7 +734,7 @@ getSubgroups = function(metaData, project, includeNormal=T, onlyDNA=T) {
   samples = inProject(metaData, project, includeNormal=includeNormal, onlyDNA=onlyDNA)
   subgroups = metaData$samples[samples,]$PROJECT.SUBGROUP
   subgroups = subgroups[subgroups != '']
-  subgroupList = strsplit(subgroups, '\\.')
+  subgroupList = strsplit(subgroups, ',')
   uniqueSubgroups = unique(unlist(subgroupList))
   isInformative = sapply(uniqueSubgroups, function(subgroup) !all(sapply(subgroupList, function(groups) subgroup %in% groups)) & any(sapply(subgroupList, function(groups) subgroup %in% groups)))
   return(uniqueSubgroups[isInformative])
@@ -755,7 +744,7 @@ getSubgroups = function(metaData, project, includeNormal=T, onlyDNA=T) {
 inSubgroup = function(metaData, project, subgroup, includeNormal=T, onlyDNA=T) {
   projectSamples = inProject(metaData, project, includeNormal=includeNormal, onlyDNA=onlyDNA)
   subgroups = metaData$samples[projectSamples,]$PROJECT.SUBGROUP
-  subgroups = strsplit(subgroups, '\\.')
+  subgroups = strsplit(subgroups, ',')
   isInSubgroup = sapply(subgroups, function(groups) any(groups %in% subgroup))
   subgroupSamples = projectSamples[isInSubgroup]
   if ( !includeNormal ) subgroupSamples = subgroupSamples[!metaData$samples[subgroupSamples,]$NORMAL]

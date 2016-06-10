@@ -131,7 +131,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all') {
   
   if ( splitRun ) {
-    ensureDirectoryExists(Rdirectory)
+    ensureDirectoryExists(Rdirectory, verbose=F)
     logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
     assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
     if ( outputToTerminalAsWell )
@@ -147,14 +147,19 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
         return()
       }
     }
-    for ( input in splitInput ) {
+    catLog('Planning to run over these participants:\n')
+    for ( participant in names(splitInput) ) catLog(participant, '\n')
+    catLog('Now running:\n')
+    for ( participant in names(splitInput) ) {
+      input = splitInput[[participant]]
+      catLog(participant, '...')
       superFreq(metaDataFile=input$metaDataFile, captureRegions=captureRegions,
                 normalDirectory=normalDirectory, Rdirectory=input$Rdirectory, plotDirectory=input$plotDirectory,
                 reference=reference, genome=genome, BQoffset=BQoffset, cpus=cpus,
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F)
-        
+      catLog('done.\n')
       }
     return()
   }
@@ -1178,8 +1183,13 @@ defaultSuperParameters = function(systematicVariance='', maxCov='', cloneDistanc
 }
 
 
-ensureDirectoryExists = function(dir) {
-  if ( !file.exists(dir) ) dir.create(dir)
+ensureDirectoryExists = function(dir, verbose=T) {
+  didExist = file.exists(dir)
+  if ( !didExist ) {
+    if ( verbose ) catLog('Creating directory', dir, '\n')
+    dir.create(dir)
+  }
+  invisible(didExist)
 }
 
 

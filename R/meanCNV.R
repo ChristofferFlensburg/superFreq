@@ -1,5 +1,5 @@
-projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA=T, clonalityCut=0.4, cnvWeight=1, forceRedoMean=F, forceRedoVariants=F, forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
-  samples = inProject(metaData, project, includeNormal=F, onlyDNA=onlyDNA)
+projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA=T, clonalityCut=0.4, includeNormal=F, cnvWeight=1, forceRedoMean=F, forceRedoVariants=F, forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
+  samples = inProject(metaData, project, includeNormal=includeNormal, onlyDNA=onlyDNA)
   if  ( length(samples) == 0 ) {
     warning('No cancer to analyse in project', project)
     return()
@@ -13,7 +13,8 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
     catLog('done.\n')
   }
   else {
-    variants = getProjectVariants(metaData, project, cpus=cpus, onlyDNA=onlyDNA, forceRedo=forceRedoVariants)
+    variants = getProjectVariants(metaData, project, cpus=cpus, onlyDNA=onlyDNA,
+      includeNormal=includeNormal, forceRedo=forceRedoVariants)
     meanCNV = getMeanCNV(metaData, samples, variants, genome=genome, clonalityCut=clonalityCut, cpus=cpus)
     
     catLog('Saving meanCNV...')
@@ -27,12 +28,14 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
   plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)
   catLog('done.\n')
 
-  subgroups = getSubgroups(metaData, project, includeNormal=F)
+  subgroups = getSubgroups(metaData, project, includeNormal=includeNormal)
+  catLog('Subgroups:\n')
+  for ( sg in subgroups ) cat(sg, '\n')
   if ( length(subgroups) > 0 ) { 
     for ( subgroup in subgroups ) {
       catLog('Plotting mean CNV for subgroup', subgroup, '...')
       plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
-      meanCNVs = plotSubgroupCNVtoFile(metaData, meanCNV, project, subgroup, cosmicDirectory=cosmicDirectory,
+      meanCNVs = plotSubgroupCNVtoFile(metaData, meanCNV, project, subgroup, includeNormal=includeNormal, cosmicDirectory=cosmicDirectory,
         forceRedo=forceRedoMeanPlot, genome=genome)
       plotMeanCNVtoFile(metaData, project, meanCNVs$inGroup, cosmicDirectory=cosmicDirectory, forceRedo=forceRedoMeanPlot,
                         plotFile=paste0(plotDirectory, '/meanCNVinGroup.pdf'), genome=genome)
@@ -423,10 +426,10 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   catLog('somatic SNVs')
   hitX = mclapply(variants$variants, function(q) {
     catLog('.')
-    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
+    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 10,]
     return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity, 'genes'=q$inGene))
   }, mc.cores=cpus)
-  hitInfo = data.frame(x=unlist(lapply(hitX, function(hit) hit$x)), rowname=unlist(lapply(hitX, function(hit) hit$rowname)), severity=unlist(lapply(hitX, function(hit) hit$sev)), stringsAsFactors=F)
+  hitInfo = data.frame(x=unlist(lapply(hitX, function(hit) hit$x)), rowname=unlist(lapply(hitX, function(hit) hit$rowname)), severity=unlist(lapply(hitX, function(hit) hit$sev)), genes=unlist(lapply(hitX, function(hit) hit$genes)), stringsAsFactors=F)
   hitInfo = hitInfo[!duplicated(hitInfo$rowname),]
   xMx = do.call(cbind, lapply(hitX, function(hit) hitInfo$rowname %in% hit$rowname))
   rownames(xMx) =rownames(hitInfo) = hitInfo$rowname
@@ -435,7 +438,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   catLog('mutated genes..')
   hitGenes = mclapply(variants$variants, function(q) {
     catLog('.')
-    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
+    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 10,]
     if ( nrow(q) == 0 ) return(c())
     return(q$inGene)
   }, mc.cores=cpus)
@@ -528,6 +531,7 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T) {
   uInd = unique(individuals)
   indSamples = lapply(uInd, function(i) which(individuals == i))
   snvGenes = unique(meanCNV$snvRates$hitInfo$genes)
+  if ( length(snvGenes) == 0 ) return(c())
   geneMx = lapply(snvGenes, function(gene) weightedxMx[meanCNV$snvRates$hitInfo$genes==gene,,drop=F])
   indMut = sapply(geneMx, function(mx) sum(sapply(indSamples, function(is) {
     indMx = mx[,is,drop=F]
@@ -702,9 +706,9 @@ plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWei
 
 #takes a meanCNV object of a project and splits it up into two meanCNV objects (returned in a list)
 #one containing the samples in the provided subgroup. the other containing the samples not in the subgroup
-splitMeanCNV = function(metaData, meanCNV, project, subgroup) {
+splitMeanCNV = function(metaData, meanCNV, project, subgroup, includeNormal=F) {
   samples = names(meanCNV$cnvs)
-  groupSamples = inSubgroup(metaData, project, subgroup, includeNormal=F, onlyDNA=T)
+  groupSamples = inSubgroup(metaData, project, subgroup, includeNormal=includeNormal, onlyDNA=T)
   groupSamples = samples[samples %in% groupSamples]
   otherSamples = samples[!(samples %in% groupSamples)]
   meanCNVinSubgroup = meanCNVoutsideSubgroup = meanCNV
@@ -752,13 +756,13 @@ splitMeanCNV = function(metaData, meanCNV, project, subgroup) {
 #also outputs the data from the analysis to a spreadsheet.
 #this version divides the samples of the project by the provided subgroup
 #and highlights differences.
-plotSubgroupCNVtoFile = function(metaData, meanCNV, project, subgroup, cosmicDirectory='', add=F, forceRedo=F, genome='hg19') {
+plotSubgroupCNVtoFile = function(metaData, meanCNV, project, subgroup, includeNormal=F, cosmicDirectory='', add=F, forceRedo=F, genome='hg19') {
   plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
   ensureDirectoryExists(plotDirectory)
   plotFile = paste0(plotDirectory, '/meanCNVs.pdf')
 
   catLog('Splitting stats by subgroup...')
-  meanCNVs = splitMeanCNV(metaData, meanCNV, project, subgroup)
+  meanCNVs = splitMeanCNV(metaData, meanCNV, project, subgroup, includeNormal)
   catLog('done.\n')
 
   if ( file.exists(plotFile) & !forceRedo ) return(meanCNVs)
@@ -815,7 +819,7 @@ plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cos
 #' @details This function runs a cohort analysis, comparing two subgroups (within a project) to each other. See cohortAnalyseBatch for details.
 #'
 #'
-compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, subgroups2, name, clonalityCut=0.4, excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cpus=1, forceRedoVariants=F, forceRedoMean=F,
+compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, subgroups2, name, includeNormal=F, clonalityCut=0.4, excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cpus=1, forceRedoVariants=F, forceRedoMean=F,
   forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
 
   metaData =
@@ -845,11 +849,11 @@ compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, s
 
   meanCNV1 = meanCNV
   for ( subgroup in subgroups1 )
-    meanCNV1 = splitMeanCNV(metaData, meanCNV1, project=project, subgroup=subgroup)$inGroup
+    meanCNV1 = splitMeanCNV(metaData, meanCNV1, project=project, subgroup=subgroup, includeNormal=includeNormal)$inGroup
   meanCNV2 = meanCNV
   for ( subgroup in subgroups2 )
-    meanCNV2 = splitMeanCNV(metaData, meanCNV2, project=project, subgroup=subgroup)$inGroup
-  meanCNVboth = splitMeanCNV(metaData, meanCNV, project=project, subgroup=union(subgroups1, subgroups2))$inGroup
+    meanCNV2 = splitMeanCNV(metaData, meanCNV2, project=project, subgroup=subgroup, includeNormal=includeNormal)$inGroup
+  meanCNVboth = splitMeanCNV(metaData, meanCNV, project=project, subgroup=union(subgroups1, subgroups2), includeNormal=includeNormal)$inGroup
   meanCNVs = list('inGroup'=meanCNV1, 'outGroup'=meanCNV2)
 
   plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', name)

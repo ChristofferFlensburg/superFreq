@@ -105,7 +105,7 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
   q2 = q2[use,]
 
   if ( minSomaticP > 0 & 'somaticP' %in% names(q1) & 'somaticP' %in% names(q2)  ) {
-    use = pmax(q1$somaticP) >= minSomaticP
+    use = pmax(q1$somaticP, q2$somaticP) >= minSomaticP
     q1 = q1[use,]
     q2 = q2[use,]    
   }
@@ -126,7 +126,6 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
   flag2 = q2$flag
 
   #remove a few flags if only present in one sample
-  ignoreFlagsInOne = c('Svr', 'Mv', 'Nab')
   for ( flagToCheck in ignoreFlagsInOne ) {
     flagIn1 = grepl(flagToCheck, flag1) & !grepl(flagToCheck, flag2) & freq2 > 0
     flag1[flagIn1] = gsub(flagToCheck, '', flag1[flagIn1])
@@ -134,7 +133,6 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
     flag2[flagIn2] = gsub(flagToCheck, '', flag2[flagIn2])
   }
   #remove flags entirely
-  ignoreFlagsInBoth = c('Srr')
   for ( flagToCheck in ignoreFlagsInBoth ) {
     flag1 = gsub(flagToCheck, '', flag1)
     flag2 = gsub(flagToCheck, '', flag2)

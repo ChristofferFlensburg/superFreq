@@ -4,8 +4,8 @@
 \alias{plotColourScatter}
 \title{A better version of plot}
 \usage{
-plotColourScatter(x, y, xlab = "", ylab = "", col = mcri("darkblue"),
-  main = "cor", add = F, cex = 1, verbose = T, ...)
+plotColourScatter(x, y, xlab = "", ylab = "", col = "defaultBlue",
+  main = "cor", add = F, cex = 1, verbose = T, showDensity = T, ...)
 }
 \arguments{
 \item{x}{Numeric. The x coordinates.}
@@ -15,6 +15,8 @@ plotColourScatter(x, y, xlab = "", ylab = "", col = mcri("darkblue"),
 \item{add}{boolean. If adding the plot onto whatever is alrady there. Essentially turns plot() it into points().}
 
 \item{verbose}{Boolean. Prints the correlation of x and y.}
+
+\item{showDensity}{Boolean. Adds a gradient through cyan and green in dense regions. Default TRUE.}
 
 \item{...}{Remaining parameters are passed to plot(...), or to points(...) if add.}
 }
