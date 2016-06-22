@@ -225,13 +225,21 @@ bringAnnotation = function(metaData, genome) {
 #' cohortAnalyseBatch(targetMetaDataFile, outputDirectories, cpus=6, genome='hg19')
 #'
 #' }
-mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
+mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {  
   if ( !('metaDataFile' %in% names(paths)) ) stop('paths need to have an metaDataFile column.')
   if ( !('Rdirectory' %in% names(paths)) ) stop('paths need to have an Rdirectory column.')
 
   assign('catLog', function(...) {cat(...)}, envir = .GlobalEnv)
   catLog('Running superFreq version', superVersion(), '\n')
 
+  variantsSaveFile = paste0(targetRdirectory, '/allVariants.Rdata')
+  clustersSaveFile = paste0(targetRdirectory, '/clusters.Rdata')
+  if ( file.exists(variantsSaveFile) & file.exists(clustersSaveFile) ) {
+    catLog('Batches already merged. Moving along.\n')
+    return()
+  }
+
+  
   #merge metaData files.
   metaDatas = lapply(as.character(paths$metaDataFile), function(metaDataFile) importSampleMetaData(metaDataFile))
   #fill in missing columns with blanks.
@@ -254,10 +262,10 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
   SNPs = SNPs[!duplicated(rownames(SNPs)),]
   allVariants = list('variants'=list('variants'=variants, 'SNPs'=SNPs))
   ensureDirectoryExists(targetRdirectory)
-  save(allVariants, file=paste0(targetRdirectory, '/allVariants.Rdata'))
+  save(allVariants, file=variantsSaveFile)
 
   clusters = do.call(c, lapply(datas, function(d) d$clusters))
-  save(clusters, file=paste0(targetRdirectory, '/clusters.Rdata'))
+  save(clusters, file=clustersSaveFile)
 
   fit = list('sex'= do.call(c, lapply(datas, function(d) d$fit$exonFit$sex)))
 }

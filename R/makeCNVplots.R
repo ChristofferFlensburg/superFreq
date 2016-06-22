@@ -85,7 +85,7 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 
 
 #The plotting function for CNV calls.
-plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, ...) {
+plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, ...) {
   showClonality = showClonality & 'subclonality' %in% names(cR)
   if ( nrow(cR) == 0 ) return()
   if ( chr != 'all' ) {
@@ -146,6 +146,7 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   x = (cR$x1 + cR$x2)/2
   y = 0.6+cR$M/2
   col = rgb(pmin(1,pmax(0,2*cR$M))*colourDeviation,0,pmin(1,pmax(0,-2*cR$M))*colourDeviation, alpha)
+  if ( !is.na(forceCol)[1] ) col = forceCol 
   width = sqrt(cR$width^2+systematicVariance()^2)
   lfcCex = pt.cex*pmax(0.2, pmin(3, sqrt(0.1/width)))
   points(x, pmax(0, y), cex=lfcCex, col=col, pch=16)
@@ -154,12 +155,16 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   tooHigh = y > 1.2
   tooLow = y < 0
   if ( any(tooHigh) ) {
-    arrows(x[tooHigh], 1.12, x[tooHigh], 1.18, lwd=2, length=0.1, col=rgb(1*colourDeviation,0,0,alpha))
-    text(x[tooHigh], 1.09, round(cR$M[tooHigh],2), cex=0.8, col=rgb(1*colourDeviation,0,0,alpha))
+    highCol = rgb(1*colourDeviation,0,0,alpha)
+    if ( !is.na(forceCol)[1] ) highCol = forceCol 
+    arrows(x[tooHigh], 1.12, x[tooHigh], 1.18, lwd=2, length=0.1, col=highCol)
+    text(x[tooHigh], 1.09, round(cR$M[tooHigh],2), cex=0.8, col=highCol)
   }
   if ( any(tooLow) ) {
-    arrows(x[tooLow], 0.11, x[tooLow], 0.05, lwd=2, length=0.1, col=rgb(0,0,1*colourDeviation,alpha))
-    text(x[tooLow], 0.14, round(cR$M[tooLow],2), cex=0.8, col=rgb(0,0,1*colourDeviation,alpha))
+    lowCol = rgb(0,0,1*colourDeviation,alpha)
+    if ( !is.na(forceCol)[1] ) lowCol = forceCol 
+    arrows(x[tooLow], 0.11, x[tooLow], 0.05, lwd=2, length=0.1, col=lowCol)
+    text(x[tooLow], 0.14, round(cR$M[tooLow],2), cex=0.8, col=lowCol)
   }
 
   xf = (cR$x1+cR$x2)[cR$cov > 0]/2
@@ -179,8 +184,14 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
       pHet = rep(0, length(pHet))
       pHet[cRf$call %in% c('AB', 'CL', 'AABB')] = 1
     }
-    if ( moveHet ) col = rgb(pmax(0,pmin(1, 4*(0.5-f)))*colourDeviation,0,0, (1-pHet)*alpha)
-    else col = rgb(pmax(0,pmin(1, 4*(0.5-f)))*colourDeviation,0,0, alpha)
+    if ( moveHet ) {
+      col = rgb(pmax(0,pmin(1, 4*(0.5-f)))*colourDeviation,0,0, (1-pHet)*alpha)
+      if ( !is.na(forceCol)[1] ) col = ifelse(pHet*alpha <= 0.5, forceCol, rgb(0,0,0,0))
+    }
+    else {
+      col = rgb(pmax(0,pmin(1, 4*(0.5-f)))*colourDeviation,0,0, alpha)
+      if ( !is.na(forceCol)[1] ) col = forceCol 
+    }
     if ( fullFrequency ) {
       xf = rep(xf, 2)
       yf = c(-1.1 + f, -0.1 - f)
@@ -193,6 +204,7 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
     #plot f=0.5, opaqueness from how likely a het is.
     if ( moveHet ) {
       col = rgb(0,0,0, pHet*alpha)
+      if ( !is.na(forceCol)[1] ) col = ifelse(pHet*alpha > 0.5, forceCol, rgb(0,0,0,0))
       yf = rep(-0.1, length(xf))
       if ( fullFrequency ) {
         xf = (cR$x1+cR$x2)[cR$cov > 0]/2
@@ -205,7 +217,7 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
     }
   }
 
-  if ( 'call' %in% colnames(cR) ) {
+  if ( 'call' %in% colnames(cR) & plotCall ) {
     called = which(cR$call != 'AB')
     if ( length(called) > 0 ) {
       y = rep(c(-1.05, -0.95, -0.85), length(called))[1:length(called)]

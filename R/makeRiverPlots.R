@@ -455,8 +455,32 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
   }
 }
 
-
-makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', DEsaturation=log2(10), ...) {
+#' plots a heatmap
+#'
+#' @param mx numeric. The matrix to be plotted.
+#' @param nCol numeric. The number of colours in the gradient. Default 200.
+#' @param col character. The colour scheme to be used. The default 'default' gives a scale adapted for freqwuencies between 0 and 1, with extra attention to values close to 0. 'sunset' is a easier on the eye, but has less ability to resolve values close to the lowest value. 'DE' is meant for differential expression, and sets 0 to black, with red and blue gradient towards positive and negative values, saturating at the DEsaturation parameter.
+#' @param maxVal numeric. Only for internal use. Default 'default'.
+#' @param minVal numeric. Only for internal use. Default 'default'.
+#' @param label character. The label for the colour scale on the side. Default ''.
+#' @param DEsaturation numeric. The value where the colour saturates when col='DE'. Default log2(10).
+#' @param ...  remaining arguments are passed to base heatmap(...)
+#'
+#' @details This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+#'
+#'
+#' @export
+#' @examples
+#' #random matrix to plot, centered around 0. Plot in 'DE' colours.
+#' mx = matrix(rt(400, df=10), nrow=100)
+#' makeHeatmap(mx, col='DE')
+#' 
+#' #random matrix to plot, between 0 and 1. Plot in default and sunset colours.
+#' mx = matrix(rt(400, df=10), nrow=100)
+#' makeHeatmap(mx)
+#' makeHeatmap(mx, col='sunset')
+#'
+makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', DEsaturation=log2(10), reverseGradient=F, ...) {
   if ( nrow(mx) < 2 | ncol(mx) < 2 ) {
     warning('Not two lines and two columns in the heatmap. skip.')
     return()
@@ -465,23 +489,27 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
   if ( minVal == 'default' ) minVal = min(mx, na.rm=T)
   if ( col[1] == 'default' )
     col = colourGradient(cols=mcri(c('black', 'grey', 'cyan', 'blue', 'red')),
-      anchors=c(0, 0.02, 0.2, 0.5, 1), steps=nCol)
+      anchors=c(0, 0.02, 0.2, 0.5, 1), steps=nCol, reverseGradient=reverseGradient)
   if ( col[1] == 'sunset' )
     col = colourGradient(cols=mcri(c('black', 'blue', 'cyan', 'orange')),
-      anchors=c(0, 0.1, 0.5, 1), steps=nCol)
+      anchors=c(0, 0.1, 0.5, 1), steps=nCol, reverseGradient=reverseGradient)
+  DEmode = F
   if ( col[1] == 'DE' ) {
+    DEmode = T
     zero = min(mx,na.rm=T)/(min(mx,na.rm=T)-max(mx,na.rm=T))
     upScale = min(1, DEsaturation/max(mx,na.rm=T))
     dnScale = min(1, -DEsaturation/min(mx,na.rm=T))
     if ( max(mx,na.rm=T) <= 0 )
       col = colourGradient(cols=mcri(c('cyan', 'blue', 'black')),
-        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero))), steps=nCol)
+        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero))), steps=nCol,
+        reverseGradient=reverseGradient)
     else if ( min(mx,na.rm=T) >= 0 )
       col = colourGradient(cols=mcri(c('black', 'red', 'orange')),
-        anchors=c(max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol)
+        anchors=c(max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))),
+        steps=nCol, reverseGradient=reverseGradient)
     else
       col = colourGradient(cols=mcri(c('cyan', 'blue', 'black', 'red', 'orange')),
-        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol)
+        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol, reverseGradient=reverseGradient)
     
   }
 
@@ -497,13 +525,15 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
   highX = rep(barXmax, nCol)
   barCols = col
   rect(lowX, lowY, highX, highY, col=barCols, border=NA)
-  segments(rep(barXmin, 3), barYmin + c(0.002, 0.5, 0.998)*(barYmax-barYmin),
-           rep(barXmin-(barXmax-barXmin)*0.1, 3), barYmin + c(0.002, 0.5, 0.998)*(barYmax-barYmin),
-           lwd=2, col=barCols[c(1, round(nCol/2), nCol)])
+  midTick = 0.5
+  if ( DEmode ) midTick = -minVal/(maxVal-minVal)
+  segments(rep(barXmin, 3), barYmin + c(0.002, midTick, 0.998)*(barYmax-barYmin),
+           rep(barXmin-(barXmax-barXmin)*0.1, 3), barYmin + c(0.002, midTick, 0.998)*(barYmax-barYmin),
+           lwd=2, col=barCols[c(1, round(nCol*midTick), nCol)])
   minDist = minVal
   maxDist = maxVal
-  text(rep(barXmin-(barXmax-barXmin)*0.2, 3), barYmin + c(0.003, 0.5, 0.997)*(barYmax-barYmin),
-       c(round(c(minDist, (minDist+maxDist)/2, maxDist), 2)), adj=c(1, 0.5))
+  text(rep(barXmin-(barXmax-barXmin)*0.2, 3), barYmin + c(0.003, midTick, 0.997)*(barYmax-barYmin),
+       c(round(c(minDist, minDist + (maxDist-minDist)*midTick, maxDist), 2)), adj=c(1, 0.5))
   text(barXmin-(barXmax-barXmin)*0.2, barYmin + 1.07*(barYmax-barYmin),
        label, adj=c(0.5, 0.5))
 
@@ -537,7 +567,7 @@ combineColours = combineColors = function (col1, col2, w1=0.5, w2=0.5) {
 #and an optional sorted vector of anchor points between 0 and 1. Returns a vector of colours of length @steps
 #that gradually goes through the colours in the vector, hitting each colour at  fraction through the vector
 #set by the anchor points. Defaults to a 100-step vector from blue through white to red.
-colourGradient = colorGradient = function(cols=mcri(c('red', 'orange', 'white', 'cyan', 'blue')), steps=100, anchors=(1:length(cols)-1)/(length(cols)-1) ) {
+colourGradient = colorGradient = function(cols=mcri(c('red', 'orange', 'white', 'cyan', 'blue')), steps=100, anchors=(1:length(cols)-1)/(length(cols)-1), reverseGradient=F ) {
   if ( length(anchors) != length(cols) ) {
     warning(paste0('colourGradient: Length of cols and anchors has to be the same. They are ', length(cols), ' and ', length(anchors), '. Returning default colour gradient.'))
   }
@@ -556,6 +586,7 @@ colourGradient = colorGradient = function(cols=mcri(c('red', 'orange', 'white', 
   w1 = 1/abs(x-anchors[col1i])
   w2 = 1/abs(x-anchors[col2i])
   gradient = sapply(1:length(col1), function(i) combineColours(col1[i], col2[i], w1[i], w2[i]))
+  if ( reverseGradient ) gradient = rev(gradient)
   names(gradient) = x
   return(gradient)
 }

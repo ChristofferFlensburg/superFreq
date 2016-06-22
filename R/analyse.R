@@ -138,7 +138,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
       assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
     catLog('Splitting meta data into participants.\n')
     splitInput = splitMetaData(metaDataFile, Rdirectory, plotDirectory)
-    if ( participants != 'all' ) {
+    if ( participants[1] != 'all' ) {
       splitInput = splitInput[participants]
       catLog('Analysing only participants:\n')
       for ( part in names(splitInput) ) catLog(part, '\n')
@@ -147,8 +147,12 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
         return()
       }
     }
+
+    forceRedo = propagateForceRedo(forceRedo)
+    
     catLog('Planning to run over these participants:\n')
     for ( participant in names(splitInput) ) catLog(participant, '\n')
+    
     catLog('Now running:\n')
     for ( participant in names(splitInput) ) {
       input = splitInput[[participant]]
@@ -399,6 +403,9 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
 
   catLog('\n')
 
+  #make sure that if something is redone, then all depending steps are redone as well
+  forceRedo = propagateForceRedo(forceRedo)
+  
   #set forceRedo parameters to false unless already specified
   forceRedoCount = forceRedo$forceRedoCount
   forceRedoNormalCount = forceRedo$forceRedoNormalCount
@@ -419,56 +426,6 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   forceRedoSummary = forceRedo$forceRedoSummary
   forceRedoStories = forceRedo$forceRedoStories
   forceRedoRiver = forceRedo$forceRedoRiver
-
-#make sure that if something is redone, then all depending steps are redone as well
-  if ( forceRedoCount ) {
-    catLog('Redoing coverage counts, so need to redo linear analysis.\n')
-    forceRedoFit = T
-  }
-  if ( forceRedoNormalCount ) {
-    catLog('Redoing normal coverage counts, so need to redo linear analysis of coverage.\n')
-    forceRedoFit = T
-  }
-  if ( forceRedoFit ) {
-    catLog('Redoing linear analysis of coverage, so need to redo CNVs, volcano plots and diffent regions sheet.\n')
-    forceRedoCNV = T
-    forceRedoVolcanoes = T
-    forceRedoDifferentRegions = T
-  }
-  if ( forceRedoSNPs ) {
-    catLog('Redoing SNPs, so need to redo quality flagging of variants.\n')
-    forceRedoVariants = T
-  }
-  if ( forceRedoVariants ) {
-    catLog('Redoing quality flagging of variants, so need to redo flagmatching with normals.\n')
-    forceRedoMatchFlag = T
-  }
-  if ( forceRedoNormalSNPs ) {
-    catLog('Redoing normal SNPs, so need to redo quality flagging of normal variants.\n')
-    forceRedoNormalVariants = T
-  }
-  if ( forceRedoNormalVariants ) {
-    catLog('Redoing normal quality flagging of variants, so need to redo flag matching with normals.\n')
-    forceRedoMatchFlag = T
-  }
-  if ( forceRedoMatchFlag ) {
-    catLog('Redoing flagmatching of normals, so need to redo frequency scatters, variant sheets, frequency progressions and CNVs.\n')
-    forceRedoSNPprogression = T
-    forceRedoCNV = T
-  }
-  if ( forceRedoCNV ) {
-    catLog('Redoing CNVs, so need to redo CNV plots, summary plot and clonality stories.\n')
-    forceRedoCNVplots = T
-    forceRedoSummary = T
-    forceRedoStories = T
-  }
-  if ( forceRedoStories ) {
-    catLog('Redoing stories, so need to redo river and scatter plots, and new and somatic spread sheets.\n')
-    forceRedoRiver = T
-    forceRedoScatters = T
-    forceRedoNewVariants = T
-    forceRedoOutputSomatic = T
-  }
 
   externalNormalBams =
     c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
@@ -1234,4 +1191,63 @@ downloadTemplate = function(analysisDirectory) {
 
 
   
+}
+
+
+
+#force reanalysis of everything downstream of sometehing that's redone.
+propagateForceRedo = function(forceRedo) {
+  if ( forceRedo$forceRedoCount ) {
+    catLog('Redoing coverage counts, so need to redo linear analysis.\n')
+    forceRedo$forceRedoFit = T
+  }
+  if ( forceRedo$forceRedoNormalCount ) {
+    catLog('Redoing normal coverage counts, so need to redo linear analysis of coverage.\n')
+    forceRedo$forceRedoFit = T
+  }
+  if ( forceRedo$forceRedoFit ) {
+    catLog('Redoing linear analysis of coverage, so need to redo CNVs, volcano plots and diffent regions sheet.\n')
+    forceRedo$forceRedoCNV = T
+    forceRedo$forceRedoVolcanoes = T
+    forceRedo$forceRedoDifferentRegions = T
+  }
+  if ( forceRedo$forceRedoSNPs ) {
+    catLog('Redoing SNPs, so need to redo quality flagging of variants.\n')
+    forceRedo$forceRedoVariants = T
+  }
+  if ( forceRedo$forceRedoVariants ) {
+    catLog('Redoing quality flagging of variants, so need to redo flagmatching with normals.\n')
+    forceRedo$forceRedoMatchFlag = T
+  }
+  if ( forceRedo$forceRedoNormalSNPs ) {
+    catLog('Redoing normal SNPs, so need to redo quality flagging of normal variants.\n')
+    forceRedo$forceRedoNormalVariants = T
+  }
+  if ( forceRedo$forceRedoNormalVariants ) {
+    catLog('Redoing normal quality flagging of variants, so need to redo flag matching with normals.\n')
+    forceRedo$forceRedoMatchFlag = T
+  }
+  if ( forceRedo$forceRedoMatchFlag ) {
+    catLog('Redoing flagmatching of normals, so need to redo frequency scatters, variant sheets, frequency progressions and CNVs.\n')
+    forceRedo$forceRedoSNPprogression = T
+    forceRedo$forceRedoCNV = T
+  }
+  if ( forceRedo$forceRedoCNV ) {
+    catLog('Redoing CNVs, so need to redo CNV plots, summary plot and clonality stories.\n')
+    forceRedo$forceRedoCNVplots = T
+    forceRedo$forceRedoSummary = T
+    forceRedo$forceRedoStories = T
+  }
+  if ( forceRedo$forceRedoStories ) {
+    catLog('Redoing stories, so need to redo river and scatter plots, and new and somatic spread sheets.\n')
+    forceRedo$forceRedoRiver = T
+    forceRedo$forceRedoScatters = T
+    forceRedo$forceRedoNewVariants = T
+    forceRedo$forceRedoOutputSomatic = T
+  }
+  if ( forceRedo$forceRedoOutputSomatic ) {
+    catLog('Redoing stories, so need to redo river and scatter plots, and new and somatic spread sheets.\n')
+    forceRedo$forceRedoVEP = T
+  }
+  return(forceRedo)
 }

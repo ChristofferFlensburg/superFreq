@@ -179,13 +179,20 @@ vcfToPositions = function(files, genome='hg19') {
   if ( nrow(raw) == 0 ) return(matrix(1, nrow=0, ncol=22))
   chrs = gsub('MT', 'M', gsub('chr', '', as.character(raw$V1)))
   use = chrs %in% names(chrLengths(genome))
-  variant = sapply(strsplit(raw$V5[use], split=','), function(parts) c(parts, '')[1])
+  raw = raw[use,]
+  chrs = chrs[use]
+  thirdColIsNumeric = sum(grepl('^[0-9]+$', raw[,3])) >= nrow(raw)/2
+  refCol = 3
+  if ( thirdColIsNumeric ) refCol = 4
+  varCol = 4
+  if ( thirdColIsNumeric ) varCol = 5
+  variant = sapply(strsplit(raw[,varCol], split=','), function(parts) c(parts, '')[1])
   ret = data.frame(
-    chr = chrs[use],
-    start = as.numeric(as.character(raw$V2[use])),
-    end = as.numeric(as.character(raw$V2[use])),
-    x = chrToX(chrs[use], as.numeric(as.character(raw$V2[use])), genome=genome),
-    reference = substr(as.character(raw$V4[use]), 1, 1),
+    chr = chrs,
+    start = as.numeric(as.character(raw[,2])),
+    end = as.numeric(as.character(raw[,2])),
+    x = chrToX(chrs, as.numeric(as.character(raw[,2])), genome=genome),
+    reference = substr(as.character(raw[,refCol]), 1, 1),
     variant = variant, stringsAsFactors=F)
 
   if ( any(ret$variant == ret$reference) )
@@ -201,7 +208,19 @@ vcfToPositions = function(files, genome='hg19') {
   return(ret)
 }
 
-#helper function converting from chr+bp coordinates into a single coordinate x that runs over all chromosomes.
+#' convert chromsome and position to the single genomic coordinate x
+#'
+#' @param chr character: The chromosome. Both 'chr1' and '1' works. 'Chr1' does not.
+#' @param bp integer: the position on the chromosome.
+#' @param genome character: the genome, such as 'hg19' or 'mm10'. Default 'hg19'.
+#'
+#' @details convert chromsome and position to the single genomic coordinate x.
+#'
+#' @export
+#'
+#' @examples
+#' xToPos(1e9)
+#' xToPos(1e9, genome='mm10')
 chrToX = function(chr, bp, genome='hg19') {
   prevChrL = c(0, cumsum(chrLengths(genome)))
   names(prevChrL) = c(names(chrLengths(genome)), 'outside')

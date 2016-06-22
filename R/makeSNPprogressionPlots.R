@@ -2,7 +2,7 @@
 
 #prints heatmaps and line plots of the frequency of the SNVs in the samples of the same individual
 #also outputs the results to excel files.
-makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', maxRowCluster=1500, cpus=1, forceRedo=F) {
+makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', maxRowCluster=1500, cpus=1, Colv=NULL, forceRedo=F) {
   msDirectory = paste0(plotDirectory, '/multiSample')
   if ( length(timeSeries) == 0 ) return()
   if ( !file.exists(msDirectory) ) dir.create(msDirectory)
@@ -15,14 +15,14 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
     if ( !file.exists(outfile) | forceRedo ) {
       catLog('Plotting SNP progression to ', outfile, '...\n', sep='')
       pdf(outfile, width = 15, height=10)
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome, maxRowCluster=maxRowCluster)
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster)
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome, maxRowCluster=maxRowCluster, Colv=Colv)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster, Colv=Colv)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster, Colv=Colv)
       dev.off()
       pdf(gsub('.pdf$', '.sunset.pdf', outfile), outfile, width = 15, height=10)
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset')
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset')
-      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster, colMode='sunset')
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset', Colv=Colv)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset', Colv=Colv)
+      qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster, colMode='sunset', Colv=Colv)
       dev.off()
       catLog('done.\n')
     }
@@ -31,7 +31,7 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
 
 
 #helper function that does all the work for the frequency progression plots.
-qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', main='', colMode='default', nCol=200, filterConstant=T, linePlot=T, genome='hg19', maxRowCluster=1500) {
+qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', main='', colMode='default', nCol=200, filterConstant=T, linePlot=T, genome='hg19', maxRowCluster=1500, ...) {
   if ( !filterConstant  && !(('severity' %in% names(qs[[1]])) && !any(is.na(qs[[1]]$severity))) ) {
     catLog('Skipping unfiltered snp progression without VEP information.\n')
     return()
@@ -129,13 +129,13 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     if ( nrow(fs[doColour,,drop=F]) <= maxRowCluster ) {
       clusterOrder =
         try(makeHeatmap(fs[doColour,,drop=F], cexCol=1, labRow=gene[doColour], Rowv=Rowv, nCol=nCol, col=heatCol,
-                        RowSideColors = RSC, margins=c(8,15), main=main, label='frequency'))
+                        RowSideColors = RSC, margins=c(8,15), main=main, label='frequency', ...))
       if ( class(clusterOrder) == 'try-error' ) {
         Rowv = NA
         catLog('too many variants, not clustering...')
         clusterOrder =
           makeHeatmap(fs[doColour,,drop=F], cexCol=1, labRow=gene[doColour], Rowv=Rowv, nCol=nCol, col=heatCol,
-                      RowSideColors = RSC, margins=c(8,15), main=main, label='frequency')
+                      RowSideColors = RSC, margins=c(8,15), main=main, label='frequency', ...)
       }
     }
     else {
@@ -143,7 +143,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
       catLog('too many variants, not clustering...')
       clusterOrder =
         makeHeatmap(fs[doColour,,drop=F], cexCol=1, labRow=gene[doColour], Rowv=Rowv, nCol=nCol, col=heatCol,
-                    RowSideColors = RSC, margins=c(8,15), main=main, label='frequency')
+                    RowSideColors = RSC, margins=c(8,15), main=main, label='frequency', ...)
     }
     fs[is.na(fs)] = -0.02
     if ( length(rG) > 0 ) {

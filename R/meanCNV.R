@@ -25,7 +25,7 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
   catLog('Plotting mean CNV...')
   plotMeanCNVtoFile(metaData, project, meanCNV, cosmicDirectory=cosmicDirectory, forceRedo=forceRedoMeanPlot, genome=genome)
   catLog('mutation matrix...')
-  plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)
+  plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot, genome=genome)
   catLog('done.\n')
 
   subgroups = getSubgroups(metaData, project, includeNormal=includeNormal)
@@ -47,10 +47,10 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
                                  nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
       plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory, priorCnvWeight=cnvWeight,
                                   nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
-                                  plotFile=paste0(plotDirectory, '/mutationMatrixInGroup.pdf'))
+                                  plotFile=paste0(plotDirectory, '/mutationMatrixInGroup.pdf'), genome=genome)
       plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory, priorCnvWeight=cnvWeight,
                                   nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
-                                  plotFile=paste0(plotDirectory, '/mutationMatrixOutGroup.pdf'))
+                                  plotFile=paste0(plotDirectory, '/mutationMatrixOutGroup.pdf'), genome=genome)
       catLog('done.\n')
     }
   }
@@ -502,7 +502,7 @@ mergeDoubleLoss = function(snvRates, cnvRates, individuals) {
 plotMultipageMutationMatrix =
   function(metaData, meanCNV, project, meanCNVs=NA, cosmicDirectory='',
            priorCnvWeight=1, nGenes=30,
-           pages=1, forceRedo=F, plotFile='', cancerGenes=NA) {
+           pages=1, forceRedo=F, plotFile='', cancerGenes=NA, genome='hg19') {
   if ( plotFile == '' )
     plotFile = paste0(metaData$project[project,]$plotDirectory, '/mutationMatrix.pdf')
   if ( file.exists(plotFile) & !forceRedo ) return()
@@ -510,13 +510,13 @@ plotMultipageMutationMatrix =
   pdf(plotFile, width=20, height=10)
   for ( page in 1:pages ) {
     plotMutationMatrix(metaData, meanCNV, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
-                       nGenes=nGenes, skipFirst=(page-1)*nGenes, forceRedo=forceRedo, cancerGenes=cancerGenes)
+                       nGenes=nGenes, skipFirst=(page-1)*nGenes, forceRedo=forceRedo, cancerGenes=cancerGenes, genome=genome)
   }
   dev.off()
   
 }
 
-cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T) {
+cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, genome=genome) {
   xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
   delimiter = xs %in% c(0, cumsum(chrLengths(genome=genome)))
   
@@ -582,12 +582,12 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T) {
 #This function takes the output from meanCNV, selects the most interesting genes
 #and plots the mutation and CNV status of those genes for all samples.
 plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWeight=1, nGenes=30, filterIG=T,
-                              skipFirst=0, forceRedo=F, meanCNV2=NA, add=F, cancerGenes=NA) {
+                              skipFirst=0, forceRedo=F, meanCNV2=NA, add=F, cancerGenes=NA, genome='hg19') {
   if ( is.na(cancerGenes[1]) ) {
     score = cohortGeneScore(metaData, meanCNV, priorCnvWeight=priorCnvWeight, filterIG=filterIG)
     score[names(score)=='?'] = 0
     if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
-      score2 = cohortGeneScore(metaData, meanCNV2, priorCnvWeight=priorCnvWeight, filterIG=filterIG)
+      score2 = cohortGeneScore(metaData, meanCNV2, priorCnvWeight=priorCnvWeight, filterIG=filterIG, genome=genome)
       score = abs(score-score2)
     }
     cancerGenes = names(sort(score, decreasing=T)[skipFirst + 1:nGenes])
@@ -782,7 +782,7 @@ plotSubgroupCNVtoFile = function(metaData, meanCNV, project, subgroup, includeNo
 
 
 plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cosmicDirectory='', priorCnvWeight=1,
-                                      nGenes=30, pages=10, forceRedo=F) {
+                                      nGenes=30, pages=10, forceRedo=F, genome='hg19') {
   plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)
   ensureDirectoryExists(plotDirectory)
   plotFile = paste0(plotDirectory, '/mutationMatrix.pdf')
@@ -791,9 +791,9 @@ plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cos
   pdf(plotFile, width=20, height=10)
   for ( page in 1:pages ) {
     plotMutationMatrix(metaData, meanCNVs$inGroup, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
-                       nGenes=nGenes, skipFirst=(page-1)*nGenes, meanCNV2=meanCNVs$outGroup)
+                       nGenes=nGenes, skipFirst=(page-1)*nGenes, meanCNV2=meanCNVs$outGroup, genome=genome)
     plotMutationMatrix(metaData, meanCNVs$outGroup, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
-                       nGenes=nGenes, skipFirst=(page-1)*nGenes, meanCNV2=meanCNVs$inGroup, add=T)
+                       nGenes=nGenes, skipFirst=(page-1)*nGenes, meanCNV2=meanCNVs$inGroup, add=T, genome=genome)
   }
   dev.off()
   catLog('done.\n')
@@ -879,10 +879,10 @@ compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, s
                              nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
   plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory,
                               nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
-                              plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups1[1], '.pdf'))
+                              plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups1[1], '.pdf'), genome=genome)
   plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory,
                               nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
-                              plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups2[1], '.pdf'))
+                              plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups2[1], '.pdf'), genome=genome)
 
   catLog('Done! Invisible returning mean CNV data.\n')
   invisible(meanCNV)

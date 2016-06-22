@@ -29,8 +29,9 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
         end[deletions] = end[deletions]+nDel
       }
       if ( any(grepl('\\+', variant)) ) {
-        nIns = nchar(variant[grepl('\\+', variant)])-1
-        variant[grepl('\\+', variant)] = paste0(substr(reference[grepl('\\+', variant)], 1, 1), gsub('\\+', '', variant[grepl('\\+', variant)]))
+        insertions = grepl('\\+', variant)
+        nIns = nchar(variant[insertions])-1
+        variant[insertions] = paste0(substr(reference[insertions], 1, 1), gsub('\\+', '', variant[insertions]))
       }
 
       somatic = data.frame(
@@ -55,7 +56,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
         dbSNP=ifelse(q$db, 'dbSNP', ''),
         dbMAF=if ( 'dbMAF' %in% names(q) ) q$dbMAF else rep('na', nrow(q)),
         dbValidated=if ( 'dbValidated' %in% names(q) ) q$dbValidated else rep('na', nrow(q)),
-        row.names=rownames(q))
+        row.names=rownames(q), stringsAsFactors=F)
       if ( all(moreVEPnames(genome=genome) %in% names(q)) ) {
         catLog('adding more VEP info..')
         somatic = cbind(somatic, q[,moreVEPnames(genome=genome)])
@@ -88,6 +89,14 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       catLog(basename(outfile), '..', sep='')
       if ( nrow(somatic) > 0 ) {
         options(scipen=999)
+
+        insertions = grepl('\\+', rownames(somatic))
+        if ( any(insertions) ) {
+          somatic$reference[insertions] = '-'
+          somatic$start[insertions] = somatic$start[insertions]+1
+          somatic$variant[insertions] = gsub('\\+', '', somatic$variant[insertions])
+        }
+
         mx = cbind(as.character(somatic$chr),
           as.character(somatic$start), as.character(somatic$end),
           paste0(as.character(somatic$reference), '/', as.character(somatic$variant)),
