@@ -3,7 +3,7 @@
 #flags variants with suspicious behaviour in the normals.
 #marks the somatic-looking variants in the samples
 #ie non-db variants that are not present in the normals and not flagged as suspicious.
-matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='old', cpus=1, byIndividual=F, forceRedoMatchFlag=F) {
+matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', cpus=1, byIndividual=F, forceRedoMatchFlag=F) {
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')

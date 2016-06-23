@@ -6,6 +6,9 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
   }
   individuals = metaData$samples[samples,]$INDIVIDUAL
 
+  variants = getProjectVariants(metaData, project, cpus=cpus, onlyDNA=onlyDNA,
+    includeNormal=includeNormal, forceRedo=forceRedoVariants)
+  
   saveFile = paste0(metaData$project[project,]$Rdirectory, '/meanCNV.Rdata')
   if ( file.exists(saveFile) & !forceRedoMean ) {
     catLog('loading cohort data...')
@@ -13,8 +16,6 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
     catLog('done.\n')
   }
   else {
-    variants = getProjectVariants(metaData, project, cpus=cpus, onlyDNA=onlyDNA,
-      includeNormal=includeNormal, forceRedo=forceRedoVariants)
     meanCNV = getMeanCNV(metaData, samples, variants, genome=genome, clonalityCut=clonalityCut, cpus=cpus)
     
     catLog('Saving meanCNV...')
@@ -28,6 +29,9 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
   plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot, genome=genome)
   catLog('done.\n')
 
+  variants$variants = lapply(variants$variants, function(q) q[q$severity < 11,])
+  outputSomaticVariants(variants, genome=genome, plotDirectory=metaData$project[project,]$plotDirectory, cpus=cpus)
+  
   subgroups = getSubgroups(metaData, project, includeNormal=includeNormal)
   catLog('Subgroups:\n')
   for ( sg in subgroups ) cat(sg, '\n')
@@ -426,7 +430,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   catLog('somatic SNVs')
   hitX = mclapply(variants$variants, function(q) {
     catLog('.')
-    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 10,]
+    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
     return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity, 'genes'=q$inGene))
   }, mc.cores=cpus)
   hitInfo = data.frame(x=unlist(lapply(hitX, function(hit) hit$x)), rowname=unlist(lapply(hitX, function(hit) hit$rowname)), severity=unlist(lapply(hitX, function(hit) hit$sev)), genes=unlist(lapply(hitX, function(hit) hit$genes)), stringsAsFactors=F)
@@ -438,7 +442,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   catLog('mutated genes..')
   hitGenes = mclapply(variants$variants, function(q) {
     catLog('.')
-    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 10,]
+    q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
     if ( nrow(q) == 0 ) return(c())
     return(q$inGene)
   }, mc.cores=cpus)
@@ -516,7 +520,7 @@ plotMultipageMutationMatrix =
   
 }
 
-cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, genome=genome) {
+cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filterTR=T, genome='hg19') {
   xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
   delimiter = xs %in% c(0, cumsum(chrLengths(genome=genome)))
   
@@ -570,11 +574,13 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, geno
   names(gain) = names(amp) = names(loss) = names(cl) = names(loh) = names(mutation) = names(doubleLoss) = genes
 
   isIG = grepl('IG.[VLJC][0-9].*', genes) | grepl('IGH[ADG][0-9].*', genes)
+  isTR = grepl('TR[AD][VJ][0-9].?', genes)
 
   cnvScore = gain*0.5 + loss*0.5 + amp + cl + loh*0.5
   cnvWeight = sqrt(mean(mutation)/mean(cnvScore))*priorCnvWeight
   score = cnvScore*cnvWeight + mutation + (doubleLoss - cl + cl*cnvWeight)*0.5 #DL downweighted, as it is already counted as loss/cl/mutation
   if ( filterIG ) score = score*(1-isIG)
+  if ( filterTR ) score = score*(1-isTR)
 
   return(score)
 }

@@ -85,6 +85,20 @@ mouseChrLengths = function() {
 
   return(lengths)
 }
+
+#' The lengths of the chromsomes
+#'
+#' @param genome character: the name of the genome. hg19 and mm10 supported atm.
+#'
+#' @details Returns a named vector of the chromosome lengths of the standard chromosomes.
+#'
+#' @examples
+#' barplot(chrLengths('hg19'))
+#' chrLengths('mm10')
+#'
+#' #the chromosome boundaries in the genomic x coordinate.
+#' plot(c(0, cumsum(chrLengths())), type='b')
+#'
 chrLengths = function(genome='hg19') {
   if ( genome == 'hg19' ) return(humanChrLengths())
   else if ( genome == 'mm10' ) return(mouseChrLengths())

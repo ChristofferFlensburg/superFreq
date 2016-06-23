@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.8')
+superVersion = function() return('0.9.9')
 
 
 #' Wrapper to run default superFreq analysis
@@ -575,7 +575,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       #}
       
       #share variants with normals
-      flaggingVersion = 'old'
+      flaggingVersion = 'new'
       if ( 'flaggingVersion' %in% names(settings) ) flaggingVersion = settings$flaggingVersion
       allVariants = matchFlagVariants(variants, normalVariants, individuals, normals, genome,
         Rdirectory, flaggingVersion=flaggingVersion, cpus=cpus, byIndividual=byIndividual,
