@@ -76,6 +76,7 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
   #check db SNP for called variants.
   variantsBI = lapply(variantsBI, function(q) q[!is.na(q$x),])
   variantsBI = matchTodbSNPs(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
+  #variantsBI = matchToExac(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
   variantsBI = lapply(variantsBI, function(q) q[order(q$x, q$variant),])
     
 
@@ -181,11 +182,11 @@ vcfToPositions = function(files, genome='hg19') {
   use = chrs %in% names(chrLengths(genome))
   raw = raw[use,]
   chrs = chrs[use]
-  thirdColIsNumeric = sum(grepl('^[0-9]+$', raw[,3])) >= nrow(raw)/2
-  refCol = 3
-  if ( thirdColIsNumeric ) refCol = 4
-  varCol = 4
-  if ( thirdColIsNumeric ) varCol = 5
+  thirdColIsReference = sum(substring(raw[,3], 1, 1) %in% c('A', 'C', 'T', 'G')) >= nrow(raw)/2
+  refCol = 4
+  if ( thirdColIsReference ) refCol = 3
+  varCol = 5
+  if ( thirdColIsReference ) varCol = 4
   variant = sapply(strsplit(raw[,varCol], split=','), function(parts) c(parts, '')[1])
   ret = data.frame(
     chr = chrs,
@@ -256,8 +257,10 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19', cpus=1) {
         }
         else stop('dbSNP file not found!')
       }
+      catLog('Chromosome ', chr, ': reading from file..')
       db = read.table(flatFile, header = T, fill=T)
       catLog('extracting positions..')
+      db = db[,c('pos', 'validated', 'MAF', 'minorAllele')]
       db = db[db$pos != '?',] #without position, the dbSNP is useless
       catLog('saving positions for future use..')
       save('db', file=RsaveFile)
@@ -283,7 +286,13 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19', cpus=1) {
       dbQ = dbQ[!duplicated(dbQ$pos),]
       dbMAF = dbQ$MAF
       names(dbMAF) = dbQ$pos
-      q$dbMAF[thisChr][q$db[thisChr]] = dbMAF[as.character(varPos)][q$db[thisChr]]
+      dbMA = dbQ$minorAllele
+      names(dbMA) = dbQ$pos
+      dbMAF = dbMAF[as.character(varPos)][q$db[thisChr]]
+      dbMA = dbMA[as.character(varPos)][q$db[thisChr]]
+      reference = q$reference[thisChr][q$db[thisChr]]
+      dbMAF[dbMA == reference] = 1 - dbMAF[dbMA == reference]
+      q$dbMAF[thisChr][q$db[thisChr]] = dbMAF
       return(q)
     }, mc.cores=cpus)
     catLog('done.\n')
@@ -292,6 +301,104 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19', cpus=1) {
   return(variants)
 }
 
+
+#hepler function that marks the variants in a SNPs object as db or non db SNPs.
+matchToExac = function(variants, dir='~/leukemia_genomics/data/resources/ExAC', genome='hg19', cpus=1) {
+
+  variants = lapply(variants, function(q) {
+    q$exac = rep(F, nrow(q))
+    q$exacAF = rep(NA, nrow(q))
+    q$exacQual = rep(NA, nrow(q))
+    q$exacFilter = rep(NA, nrow(q))
+    return(q)
+  })
+  
+  for (chr in names(chrLengths(genome)) ) {
+    chr = gsub('^M$', 'MT', chr)
+    if ( chr %in% c('M', 'MT') ) next
+    RsaveFile = paste0(dir,'/', chr, '.Rdata')
+    if ( !file.exists(RsaveFile) ) {
+      vcfFile = paste0(dir,'/ExAC.r0.3.nonTCGA.sites.vep.vcf')
+      if ( !file.exists(vcfFile) ) {
+        catLog('Couldnt find ', vcfFile, '. Marking all as not in ExAC.\n', sep='')
+        stop('ExAC file not found!')
+      }
+      catLog('Importing from ExAC file..')
+      exac = read.table(vcfFile, fill=T)
+      catLog('splitting by chromsome..')
+      
+      for (loopChr in names(chrLengths(genome)) ) {
+        loopSaveFile = paste0(dir,'/', loopChr, '.Rdata')
+        if ( file.exists(loopSaveFile) ) next
+        catLog(loopChr, '..', sep='')
+        subExac = exac[exac[,1]==loopChr,]
+        af = gsub(';.+$', '', gsub('^.+;AF=', '',subExac[,8]))
+        exacVariant = subExac[,5]
+        toSplit = grep(',', af)
+        splitVariants = strsplit(exacVariant[toSplit], split=',')
+        firstVariant = exacVariant
+        firstVariant[toSplit] = sapply(splitVariants, function(vs) vs[1])
+        newVariant = lapply(splitVariants, function(vs) vs[2:length(vs)])
+        splitAf = strsplit(af[toSplit], split=',')
+        firstAf = af
+        firstAf[toSplit] = sapply(splitAf, function(vs) vs[1])
+        newAf = lapply(splitAf, function(vs) as.numeric(vs[2:length(vs)]))
+        chrN = cbind(subExac[toSplit,1], sapply(newAf, length))
+        newChr = apply(chrN, 1, function(row) rep(row[1], as.numeric(row[2])))
+        posN = cbind(subExac[toSplit,2], sapply(newAf, length))
+        newPos = apply(posN, 1, function(row) rep(row[1], as.numeric(row[2])))
+        referenceN = cbind(subExac[toSplit,4], sapply(newAf, length))
+        newReference = apply(referenceN, 1, function(row) rep(row[1], as.numeric(row[2])))
+        qualN = cbind(subExac[toSplit,6], sapply(newAf, length))
+        newQual = apply(qualN, 1, function(row) rep(row[1], as.numeric(row[2])))
+        filterN = cbind(subExac[toSplit,7], sapply(newAf, length))
+        newFilter = apply(filterN, 1, function(row) rep(row[1], as.numeric(row[2])))
+
+        exacChr = c(subExac[,1], unlist(newChr))
+        exacPos = c(subExac[,2], unlist(newPos))
+        exacReference = c(subExac[,4], unlist(newReference))
+        exacVariant = c(firstVariant, unlist(newVariant))
+        exacQuality = c(subExac[,6], unlist(newQual))
+        exacFilter = c(subExac[,7], unlist(newFilter))
+        exacAf = c(firstAf, unlist(newAf))
+
+        subExac =
+          data.frame(chr=exacChr, pos=exacPos, reference=exacReference, variant=exacVariant,
+                     qual=exacQuality, filter=exacFilter, alleleFrequency=exacAf, stringsAsFactors=F)
+        catLog('saving..')
+        save(subExac, file = loopSaveFile)
+      }
+      load(file=RsaveFile)
+    }
+    else {
+      catLog('Chromosome ', chr, ': loading ExAC positions..')
+      load(file=RsaveFile)
+    }
+    
+    catLog('matching to variant positions..')
+    variants = mclapply(variants, function(q) {
+      thisChr = which(xToChr(q$x, genome) == chr)
+      if ( length(thisChr) == 0 ) return(q)
+      varPos = xToPos(q$x)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
+      qName = paste0(chrToX(chr, varPos), q$variant[thisChr])
+      exac = subExac[subExac$pos %in% varPos,]
+      exacName = paste0(chrToX(chr, exac$pos), exac$variant)
+      rownames(exac) = exacName
+
+      q$exac[thisChr] = qName %in% exacName
+      exac = exac[qName[q$exac[thisChr]],]
+
+      q[thisChr,][q$exac[thisChr],]$exacFilter = exac$filter
+      q$exacAF[thisChr][q$exac[thisChr]] = exac$alleleFrequency
+      q$exacQual[thisChr][q$exac[thisChr]] = exac$qual
+
+      return(q)
+    }, mc.cores=cpus)
+    catLog('done.\n')
+  }
+  
+  return(variants)
+}
 
 
 
@@ -831,6 +938,7 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
   
   #check db SNP for called variants.
   normalVariantsBI = matchTodbSNPs(normalVariantsBI, dir=dbDir, genome=genome, cpus=cpus)
+  normalVariantsBI = matchToExac(normalVariantsBI, dir=dbDir, genome=genome, cpus=cpus)
   normalVariantsBI = lapply(normalVariantsBI, function(q) q[order(q$x, q$variant),])
 
   normalVariantsBI = list('variants'=normalVariantsBI, 'SNPs'=SNPs)
