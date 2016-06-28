@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.9')
+superVersion = function() return('0.9.10')
 
 
 #' Wrapper to run default superFreq analysis
@@ -132,7 +132,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   
   if ( splitRun ) {
     ensureDirectoryExists(Rdirectory, verbose=F)
-    logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
+    logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
     assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
     if ( outputToTerminalAsWell )
       assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -273,7 +273,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #loadMethods(byIndividual=byIndividual)
   options(stringsAsFactors = F)
   options(scipen = 10)
-
+  
   if ( !all(c('Rdirectory', 'plotDirectory') %in% names(outputDirectories)) )
     stop('outputDirectories need all entries: Rdirectory, plotDirectory.')
   Rdirectory = normalizePath(outputDirectories$Rdirectory)
@@ -289,7 +289,8 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #set up logfile and log start of run.
   outputToTerminalAsWell = runtimeSettings$outputToTerminalAsWell
   if ( is.null(outputToTerminalAsWell) | class(outputToTerminalAsWell) != 'logical' ) outputToTerminalAsWell=F
-  logFile = normalizePath(paste0(Rdirectory, '/runtimeTracking.log'))
+  ensureDirectoryExists(Rdirectory, verbose=F)
+  logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
   if ( outputToTerminalAsWell )
     assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -1030,7 +1031,7 @@ superInputFiles = function(metaDataFile='', captureRegions='', normalDirectory='
 
   ret = list('metaDataFile'=normalizePath(metaDataFile), 'normalDirectory'=normalizePath(normalDirectory),
           'normalCoverageDirectory'=normalizePath(normalCoverageDirectory), 'reference'=normalizePath(reference),
-          'captureRegionsFile'=normalizePath(captureRegions), 'dbSNPdirectory'=normalizePath(dbSNPdirectory))
+          'captureRegionsFile'=normalizePath(captureRegions), 'dbSNPdirectory'=dbSNPdirectory)
 
   if ( any(ret=='') ) {
     error('There are required input files not provided.\n')

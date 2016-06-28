@@ -427,7 +427,7 @@ calledFromSingleSNP = function(cR, eFreqs) {
   meanM = (cR$M[first]/width[first]^2 + cR$M[second]/width[second]^2)/(1/width[first]^2 + 1/width[second]^2)
   MP1 = pt(-abs(cR$M[first] - meanM)/width[first], df = cR$df[first])
   MP2 = pt(-abs(cR$M[second] - meanM)/width[second], df = cR$df[second])
-  pM = sapply(first, function(i) min(p.adjust(c(MP1[i], MP2[i]), method='fdr')))
+  pM = sapply(first, function(i) min(c(Inf, p.adjust(c(MP1[i], MP2[i]), method='fdr'))))
 
   return(pM > 0.05 & singleSNP)
 }

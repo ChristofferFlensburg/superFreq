@@ -324,6 +324,12 @@ matchToExac = function(variants, dir, genome='hg19', cpus=1) {
   for (chr in names(chrLengths(genome)) ) {
     chr = gsub('^M$', 'MT', chr)
     if ( chr %in% c('M', 'MT') ) next
+
+    nSNPs = sum(sapply(variants, function(q) {
+      sum(xToChr(q$x, genome) == chr)
+    }))
+    if ( nSNPs == 0 ) next
+
     RsaveFile = paste0(dir,'/', chr, '.Rdata')
     if ( !file.exists(RsaveFile) ) {
       vcfFile = paste0(dir,'/ExAC.r0.3.nonTCGA.sites.vep.vcf')

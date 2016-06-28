@@ -19,7 +19,7 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster, Colv=Colv)
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster, Colv=Colv)
       dev.off()
-      pdf(gsub('.pdf$', '.sunset.pdf', outfile), outfile, width = 15, height=10)
+      pdf(gsub('.pdf$', '.sunset.pdf', outfile), width = 15, height=10)
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], nondb=F, excelFile=excelFileDB, main='significantly changing germline SNPs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset', Colv=Colv)
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileNotDB, main='significantly changing somatic SNVs', genome=genome, maxRowCluster=maxRowCluster, colMode='sunset', Colv=Colv)
       qualityProgression(variants$variants[ts], variants$SNPs, normals[ts], db=F, excelFile=excelFileAllChanging, main='all protein changing somatic SNVs', filterConstant=F, genome=genome, maxRowCluster=maxRowCluster, colMode='sunset', Colv=Colv)

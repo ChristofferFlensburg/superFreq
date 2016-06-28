@@ -39,7 +39,8 @@ cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T
   excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cnvWeight=1,
   forceRedoVariants=F, forceRedoMean=F, forceRedoMatrixPlot=F, forceRedoMeanPlot=F, genome='hg19') {
 
-  logFile = normalizePath(paste0(outputDirectories$Rdirectory, '/runtimeTracking.log'))
+  ensureDirectoryExists(outputDirectories$Rdirectory, verbose=F)
+  logFile = paste0(normalizePath(outputDirectories$Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
   catLog('Running superFreq version', superVersion(), '\n')
 
