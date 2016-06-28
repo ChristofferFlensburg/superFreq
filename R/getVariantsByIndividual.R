@@ -321,7 +321,7 @@ matchToExac = function(variants, dir, genome='hg19', cpus=1) {
     if ( !file.exists(RsaveFile) ) {
       vcfFile = paste0(dir,'/ExAC.r0.3.nonTCGA.sites.vep.vcf')
       if ( !file.exists(vcfFile) ) {
-        catLog('Couldnt find ', vcfFile, '. Marking all as not in ExAC.\n', sep='')
+        catLog('Couldnt find ExAC save file ', RsaveFile, ' or ExAC source file ', vcfFile, '. Marking all as not in ExAC.\n', sep='')
         stop('ExAC file not found!')
       }
       catLog('Importing from ExAC file..')
