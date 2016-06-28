@@ -17,6 +17,12 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
   variants = matchVariants(variants, normalVariants)
   normalVariants = matchVariants(normalVariants, variants)
 
+  #check for exac and add if not present. Only for backwards compatibility (0.9.9 and earlier)
+  if ( !('exac' %in% names(variants$variants[[1]])) )
+    variants$variants = matchToExac(variants$variants)
+  if ( !('exac' %in% names(normalVariants$variants[[1]])) )
+    normalVariants$variants = matchToExac(normalVariants$variants)
+
   #Normalise coverage to the number of available reads. Assumes minor variants are noise.
   variants$variants = normaliseCoverage(variants$variants)
   normalVariants$variants = normaliseCoverage(normalVariants$variants)
@@ -384,11 +390,12 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     pNormalFreq = pBinom(q$cov, q$var, normalFreq)
     normalOK = pmin(1, noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
     
-    if ( !(name %in% names(CNs)) ) catLog('\nWARNING! No matched normal: removing all validated dbSNPs over 0.1% population frequency from the somatic candidates! Remaining somatics will include rare germline variants.\n', sep='')
-    commonPopulationVariant = q$db
-    if ( 'dbValidated' %in% names(q) ) commonPopulationVariant = commonPopulationVariant & q$dbValidated
-    if ( 'dbMAF' %in% names(q) ) commonPopulationVariant = commonPopulationVariant & q$dbMAF > 0.001
-    notInNormal = !commonPopulationVariant
+    if ( !(name %in% names(CNs)) ) catLog('\nWARNING! No matched normal: removing all validated dbSNPs or ExAC over 0.1% population frequency from the somatic candidates! Remaining somatics will include rare germline variants.\n', sep='')
+    commonDbSNP = q$db & q$dbValidated & q$dbMAF > 0.001
+    commonExAC = q$exac & q$exacFilter == 'PASS' & q$exacAF > 0.001
+
+    #Let's be conservative and filter variants present in either dbSNP or ExAC.
+    notInNormal = !commonDbSNP & !commonExAC
     
     if ( name %in% names(CNs) ) {
       catLog('Correcting somatics using', correspondingNormal[name], 'as matched normal.\n')

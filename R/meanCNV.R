@@ -110,7 +110,7 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19') {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
@@ -251,7 +251,14 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
   }
 
   if ( printGeneNames ) {
-    topMutGenes = names(sort(meanCNV$snvRates$mutationRate, decreasing=T)[1:min(10, length(meanCNV$snvRates$mutationRate))])
+    mutRate = meanCNV$snvRates$mutationRate
+    isIG = grepl('IG.[VLJC][0-9].*', names(mutRate)) | grepl('IGH[ADG][0-9].*', names(mutRate))
+    isTR = grepl('TR[AD][VJ][0-9].?', names(mutRate))
+    
+    if ( filterIG ) mutRate = mutRate[!isIG]
+    if ( filterTR ) mutRate = mutRate[!isTR]
+    
+    topMutGenes = names(sort(mutRate, decreasing=T)[1:min(10, length(mutRate))])
     mark = names(meanCNV$snvRates$mutationRate) %in% topMutGenes
     if ( length(mark) > 0 && any(is.na(SNVgenesX[mark])) ) {
       warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
@@ -269,8 +276,15 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
       segments(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.6,
                SNVgenesX[mark], spaceForGenes, col=mcri('darkblue'))
     }
+
+    dlRate = meanCNV$doubleLossRates$doubleLossRate
+    isIG = grepl('IG.[VLJC][0-9].*', names(dlRate)) | grepl('IGH[ADG][0-9].*', names(dlRate))
+    isTR = grepl('TR[AD][VJ][0-9].?', names(dlRate))
     
-    topDHGenes = names(sort(meanCNV$doubleLossRates$doubleLossRate, decreasing=T)[1:min(10, length(meanCNV$doubleLossRates$doubleLossRate))])
+    if ( filterIG ) dlRate = dlRate[!isIG]
+    if ( filterTR ) dlRate = dlRate[!isTR]
+    
+    topDHGenes = names(sort(dlRate, decreasing=T)[1:min(10, length(dlRate))])
     topDHGenes = topDHGenes[topDHGenes != '?']
     topDHGenes = topDHGenes[meanCNV$doubleLossRates$doubleLossRate[topDHGenes] > 0]
     mark = names(meanCNV$doubleLossRates$doubleLossRate) %in% topDHGenes

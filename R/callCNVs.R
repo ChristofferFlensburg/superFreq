@@ -257,10 +257,11 @@ selectGermlineHetsFromCancer = function(cancerVariants, moreNormalVariants, sex,
   cancerVariants = cancerVariants[use,]
   catLog('done! Got', sum(highQ), 'variants.\n')
 
-  #Restrict to validated dbSNPs with population frequency > 1%
+  #Restrict to validated dbSNPs with population frequency > 1% in dbSNP and ExAC
   catLog('Restrict to validated dbSNPs with population frequency > 1%...')
   isValidated = cancerVariants$dbValidated & !is.na(cancerVariants$dbValidated)
-  isFrequent = cancerVariants$dbMAF > 0.01 & !is.na(cancerVariants$dbMAF)
+  isFrequent = cancerVariants$db & cancerVariants$dbMAF > 0.01 & !is.na(cancerVariants$dbMAF) & cancerVariants$dbValidated &
+               cancerVariants$exac & cancerVariants$exacAF > 0.01 & cancerVariants$exacFilter == 'PASS'
   use = use[isValidated & isFrequent]
   cancerVariants = cancerVariants[use,]
   catLog('done! Got', sum(isValidated & isFrequent), 'variants.\n')

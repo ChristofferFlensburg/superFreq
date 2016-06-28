@@ -54,8 +54,11 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
         somaticScore=q$somaticP,
         germlineLike=ifelse(is.na(q$germline), 'na', ifelse(q$germline, 'YES', '')),
         dbSNP=ifelse(q$db, 'dbSNP', ''),
-        dbMAF=if ( 'dbMAF' %in% names(q) ) q$dbMAF else rep('na', nrow(q)),
-        dbValidated=if ( 'dbValidated' %in% names(q) ) q$dbValidated else rep('na', nrow(q)),
+        dbMAF=if ( 'dbMAF' %in% names(q) ) ifelse(q$db, q$dbMAF, '') else rep('na', nrow(q)),
+        dbValidated=if ( 'dbValidated' %in% names(q) ) ifelse(q$db, q$dbValidated, '') else rep('na', nrow(q)),
+        ExAC= if ( 'exac' %in% names(q) ) ifelse(q$exac, 'ExAC', '') else rep('na', nrow(q)),
+        ExAC_AF = if ( 'exacAF' %in% names(q) ) ifelse(q$exac, q$exacAF, '') else rep('na', nrow(q)),
+        ExAC_Filter = if ( 'exacFilter' %in% names(q) ) ifelse(q$exac, q$exacFilter, '') else rep('na', nrow(q)),
         row.names=rownames(q), stringsAsFactors=F)
       if ( all(moreVEPnames(genome=genome) %in% names(q)) ) {
         catLog('adding more VEP info..')

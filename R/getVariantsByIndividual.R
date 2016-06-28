@@ -76,7 +76,7 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
   #check db SNP for called variants.
   variantsBI = lapply(variantsBI, function(q) q[!is.na(q$x),])
   variantsBI = matchTodbSNPs(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
-  #variantsBI = matchToExac(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
+  variantsBI = matchToExac(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
   variantsBI = lapply(variantsBI, function(q) q[order(q$x, q$variant),])
     
 
@@ -235,7 +235,7 @@ SNP2GRanges = function(SNPs, genome=genome) {
 }
 
 #hepler function that marks the variants in a SNPs object as db or non db SNPs.
-matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19', cpus=1) {
+matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
 
   variants = lapply(variants, function(q) {
     q$db = rep(F, nrow(q))
@@ -303,7 +303,8 @@ matchTodbSNPs = function(variants, dir='~/data/dbSNP', genome='hg19', cpus=1) {
 
 
 #hepler function that marks the variants in a SNPs object as db or non db SNPs.
-matchToExac = function(variants, dir='~/leukemia_genomics/data/resources/ExAC', genome='hg19', cpus=1) {
+matchToExac = function(variants, dir, genome='hg19', cpus=1) {
+  if ( genome != 'hg19' ) return(variants)
 
   variants = lapply(variants, function(q) {
     q$exac = rep(F, nrow(q))
@@ -389,8 +390,8 @@ matchToExac = function(variants, dir='~/leukemia_genomics/data/resources/ExAC', 
       exac = exac[qName[q$exac[thisChr]],]
 
       q[thisChr,][q$exac[thisChr],]$exacFilter = exac$filter
-      q$exacAF[thisChr][q$exac[thisChr]] = exac$alleleFrequency
-      q$exacQual[thisChr][q$exac[thisChr]] = exac$qual
+      q$exacAF[thisChr][q$exac[thisChr]] = as.numeric(exac$alleleFrequency)
+      q$exacQual[thisChr][q$exac[thisChr]] = as.numeric(exac$qual)
 
       return(q)
     }, mc.cores=cpus)
