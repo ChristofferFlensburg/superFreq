@@ -66,7 +66,7 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
     names(variants) = samples
     variants = lapply(variants, function(q) q[apply(!is.na(q), 1, any),])
     variants = shareVariants(variants)
-    catLog('saving variants...')
+    catLog('saving variants to ', variantsSaveFile, '...')
     save(variants, file=variantsSaveFile)
     catLog('done.\n')
 
@@ -244,8 +244,15 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
     return(q)
   })
   
+  
   for (chr in names(chrLengths(genome)) ) {
     chr = gsub('^M$', 'MT', chr)
+
+    nSNPs = sum(sapply(variants, function(q) {
+      sum(xToChr(q$x, genome) == chr)
+    }))
+    if ( nSNPs == 0 ) next
+      
     RsaveFile = paste0(dir,'/ds_flat_ch', chr, '.Rdata')
     if ( !file.exists(RsaveFile) ) {
       flatFile = paste0(dir,'/ds_flat_ch', chr, '.dbSNP')
