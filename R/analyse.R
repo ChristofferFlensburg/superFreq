@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.10')
+superVersion = function() return('0.9.11')
 
 
 #' Wrapper to run default superFreq analysis
@@ -734,7 +734,7 @@ loadData = function(Rdirectory, setVariantLoss=F) {
 #'
 #' @examples
 #' loadMethods()
-loadMethods = function(stringsAsFactors = FALSE, byIndividual=F) {
+loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
   options(stringsAsFactors = stringsAsFactors)
   options(scipen = 10)
   assign('catLog', function(...) cat(...), envir = .GlobalEnv)

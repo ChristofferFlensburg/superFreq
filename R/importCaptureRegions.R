@@ -92,6 +92,8 @@ mouseChrLengths = function() {
 #'
 #' @details Returns a named vector of the chromosome lengths of the standard chromosomes.
 #'
+#' @export
+#'
 #' @examples
 #' barplot(chrLengths('hg19'))
 #' chrLengths('mm10')

@@ -400,7 +400,8 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     if ( name %in% names(CNs) ) {
       catLog('Correcting somatics using', correspondingNormal[name], 'as matched normal.\n')
       qn = variants$variants[[correspondingNormal[name]]][use,]
-      referenceNormal = (qn$var <= 0.1*qn$cov)
+      referenceNormal = qn$var <= pmax(0.02*qn$cov, 0.5*sqrt(qn$cov))
+      referenceNormalFactor = 1-pmin(1, noneg(qn$var/pmax(1, 0.02*qn$cov, 0.5*sqrt(qn$cov)) - 1))
       pNormalHet = pBinom(qn$cov[referenceNormal], qn$var[referenceNormal], 0.3)
       fdrNormalHet = p.adjust(pNormalHet, method='fdr')
       referenceNormal[referenceNormal] = fdrNormalHet < 0.01
@@ -408,8 +409,9 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
       psameF = unlist(mclapply(which(referenceNormal), function(i)
         fisher.test(matrix(c(q$ref[i], q$var[i], qn$ref[i], qn$var[i]), nrow=2))$p.value,
         mc.cores=cpus))
-      referenceNormal[referenceNormal] = psameF < 0.05 & (q$var/q$cov > 0.2 + 2*(qn$var/qn$cov))[referenceNormal]
-      notInNormal = referenceNormal
+      fdrSameF = p.adjust(psameF, method='fdr')
+      referenceNormal[referenceNormal] = (psameF < 0.01 & (q$var/q$cov > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*noneg(1 - 100*psameF)
+      notInNormal = referenceNormal*referenceNormalFactor
       normalOK = ifelse(qn$cov == 0, 0.5, noneg(1 - 5*qn$var/qn$cov)) #penalty for non-zero normal frequency
     }
     pSampleOK =

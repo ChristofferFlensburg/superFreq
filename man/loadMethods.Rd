@@ -4,7 +4,7 @@
 \alias{loadMethods}
 \title{Not needed in the package, ignore this function.}
 \usage{
-loadMethods(stringsAsFactors = FALSE, byIndividual = F)
+loadMethods(stringsAsFactors = FALSE, byIndividual = T)
 }
 \description{
 This function loads the analysis functions used in analyse().

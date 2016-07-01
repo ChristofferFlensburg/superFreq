@@ -286,7 +286,7 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
 
       q$db[thisChr] = varPos %in% dbQ$pos
 
-      dbVal = dbQ[dbQ$validated,]
+      dbVal = dbQ[dbQ$validated=='YES',]
       q$dbValidated[thisChr] = varPos %in% dbVal$pos
 
       dbQ = dbQ[order(dbQ$pos, -dbQ$MAF),]

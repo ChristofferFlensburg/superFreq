@@ -907,3 +907,10 @@ compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, s
   catLog('Done! Invisible returning mean CNV data.\n')
   invisible(meanCNV)
 }
+
+
+correctForGeneSize = function(hitMx, geneLengths) {
+
+  
+  
+}
