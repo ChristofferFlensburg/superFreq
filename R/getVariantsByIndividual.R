@@ -118,15 +118,17 @@ plotFrequencyDiagnostics = function(variants, plotDirectory) {
       use[is.na(use)] = F
     }
     if ( sum(use) > 0 ) {
-      cov = noneg(variants$variants[[sample]]$cov[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2))))
-      var = pmin(cov, noneg(variants$variants[[sample]]$var[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2)))))
       png(paste0(FreqDirectory, sample, '-varcov.png'), height=1000, width=2000, res=144)
-      plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=sample)
-      cleanUse = use & variants$variants[[sample]]$flag == ''
+      cleanUse = use & variants$variants[[sample]]$flag %in% c('', 'Svr')
       if ( any(cleanUse) ) {
         cov = noneg(variants$variants[[sample]]$cov[cleanUse] + pmax(-0.4, pmin(0.4, rnorm(sum(cleanUse), 0, 0.2))))
         var = pmin(cov, noneg(variants$variants[[sample]]$var[cleanUse] + pmax(-0.4, pmin(0.4, rnorm(sum(cleanUse), 0, 0.2)))))
         plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=paste0(sample, ', clean variants'))
+      }
+      else {
+        cov = noneg(variants$variants[[sample]]$cov[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2))))
+        var = pmin(cov, noneg(variants$variants[[sample]]$var[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2)))))
+        plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=sample)
       }
       dev.off()
     }
@@ -286,7 +288,9 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
 
       q$db[thisChr] = varPos %in% dbQ$pos
 
-      dbVal = dbQ[dbQ$validated=='YES',]
+      dbVal = dbQ[dbQ$validated,]
+      if ( class(dbQ$validated) == 'character' )
+        dbVal = dbQ[dbQ$validated=='YES',]
       q$dbValidated[thisChr] = varPos %in% dbVal$pos
 
       dbQ = dbQ[order(dbQ$pos, -dbQ$MAF),]

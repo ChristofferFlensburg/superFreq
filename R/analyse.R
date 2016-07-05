@@ -156,13 +156,16 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
     catLog('Now running:\n')
     for ( participant in names(splitInput) ) {
       input = splitInput[[participant]]
-      catLog(participant, '...')
+      catLog(date(), ': ', participant, '...')
       superFreq(metaDataFile=input$metaDataFile, captureRegions=captureRegions,
                 normalDirectory=normalDirectory, Rdirectory=input$Rdirectory, plotDirectory=input$plotDirectory,
                 reference=reference, genome=genome, BQoffset=BQoffset, cpus=cpus,
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F)
+      assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
+      if ( outputToTerminalAsWell )
+        assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
       catLog('done.\n')
       }
     return()
@@ -996,6 +999,7 @@ explainSuperNormalDirectory = function() {
 
 explainSuperDbSNPdirectory = function() {
   cat('Please provide a (absolute or relative from current directory) path to the dbSNP directory.\n',
+      'Or leave the default empty string, and a new directory will be automagically created.\n',
       'This directory is provided with the example for hg19.\n')
 }
 

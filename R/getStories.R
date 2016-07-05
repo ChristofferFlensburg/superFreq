@@ -190,6 +190,11 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
 }
 
 findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
+  if ( nrow(somaticQs[[1]]) == 0 ) {
+    emptyMx = matrix(,nrow=0, ncol=length(somaticQs))
+    ret = data.frame(x1=numeric(), x2=numeric(), call=character(), stories=emptyMx, errors=emptyMx, stringsAsFactors=F)
+    return(ret)
+  }
   if ( nrow(somaticQs[[1]]) == 0 ) return(data.frame(x1=integer(), x2=integer(), call=character(), stories=numeric(), errors=numeric(), stringsAsFactors=F))
   if ( filter ) {
     cov10 = rowMeans(do.call(cbind, lapply(somaticQs, function(q) q$cov))) >= 10
@@ -251,6 +256,7 @@ findLocalCNV = function(qs, cnvs) {
 
 #takes a quality variant object, that has gone through findLocalCNV, and adds a clonality and clonalityError column
 findSNPclonalities = function(somaticQs, cnvs) {
+  if ( nrow(somaticQs[[1]]) == 0 ) return(somaticQs)
   somaticQs = findLocalCNV(somaticQs, cnvs)
   somaticQs = lapply(somaticQs, function(q) {
     nA = nchar(q$CNV) - nchar(gsub('A', '', q$CNV))

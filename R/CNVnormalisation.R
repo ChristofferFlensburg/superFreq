@@ -144,3 +144,64 @@ plotShiftedMAFLFC = function(clusters, shift=0) {
   return(plotMAFLFC(clusters))
 }
 
+
+
+findShiftManually = function(clusters, nShifts=40, maxShift = 3, cpus=1, plot=T) {
+  #set up shifts more densely around 0
+  nShiftsHalf = round(nShifts/2)
+  nullShifts = ((0:nShiftsHalf)/nShiftsHalf)^2*maxShift
+  nullShifts = c(-rev(nullShifts), nullShifts[-1])
+
+  #ask user for the shift
+  userHappy = F
+  userShift = 0
+  while( !userHappy ) {
+    #calculate state for user shift
+    cat('Caclucalating inconsistency scores')
+    shifts = nullShifts + userShift
+    shiftConsistencies = mclapply(shifts, function(shift) {
+      cat('.')
+      callConsistencies(clusters, shift=shift, N=1000)
+    }, mc.cores=cpus)
+    shiftScores = sapply(shiftConsistencies, scoreConsistencies)
+    cat('done.\n')
+    
+    #plot info about current shift
+    resetMargins()
+    layout(matrix(1:2, nrow=1))
+    plotShiftedMAFLFC(clusters, shift=userShift)
+    plot(shifts, shiftScores, type='c', xlab='LFC shift', ylab='inconsistency score')
+    text(shifts, shiftScores, 1:length(shifts))
+    ploidy = sum(2*2^(clusters$M + userShift)*(clusters$x2-clusters$x1))/sum(clusters$x2-clusters$x1)
+    cat('Ploidy with shift ', userShift, ' is ', round(ploidy, 3), '.\n', sep='')
+    cat('Inconsistency score is ', shiftScores[21], '.\n', sep='')
+    cat('Minimum score is ', min(shiftScores), ' at index ', which(shiftScores==min(shiftScores)),
+        ', with shift ', round(shifts[which(shiftScores==min(shiftScores))], 3), '.\n', sep='')
+
+    #ask for new shift, return if user happy.
+    i = -1
+    while ( !(i %in% 0:length(shifts)) ) {
+      i = as.numeric(readline('type index of new shift from the right plot. 0 --> use this normalisation.\nindex: '))
+    }
+    if ( i == 0 ) {
+      i = 21
+      userHappy = T
+    }
+    userShift = shifts[i]
+  }
+  cat('Final ploidy with shift ', userShift, ' is ', round(ploidy, 3), '.\n', sep='')
+  layout(1)
+  
+  bestShift = userShift
+
+  #return if no shift was best
+  if ( bestShift == 0 ) {
+    if ( plot ) plotShiftedMAFLFC(clusters)
+    return(clusters)
+  }
+
+  #if a non-zero shift is better scored, renormalise and rerun to better find local minimum
+  #with the denser shifts around 0.
+  clusters$M = clusters$M + bestShift
+  return(clusters)
+}

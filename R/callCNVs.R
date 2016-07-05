@@ -450,7 +450,10 @@ postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19'
   clusters = redoHetCalculations(clusters, eFreqs, cpus=cpus, plot=T)
   dev.off()
   catLog('renormalising..')
-  renorm =  findShift(clusters, plot=F)
+  if ( exists('.doSuperFreqPloidyManually', envir= .GlobalEnv) && get('.doSuperFreqPloidyManually', envir= .GlobalEnv) )
+    renorm =  findShiftManually(clusters, plot=F)
+  else
+    renorm =  findShift(clusters, plot=F)
   shift = renorm$M[1] - clusters$M[1]
   clusters = renorm
   catLog('call CNVs..')
@@ -1031,6 +1034,7 @@ plotMAFLFC = function(clusters, xlim=c(-1.2, 1.2)) {
   f = clusters$f
   ferr = ifelse(clusters$cov == 0, 0.25, clusters$ferr)
   f = ifelse(clusters$cov == 0, 0.25, f)
+  if ( !(call %in% names(clusters)) ) clusters$call = rep('', nrow(clusters))
   points(clusters$M, f, pch=16, cex = pmin(1.5,pmax(0.2, sqrt((0.1/(w/2))^2 + (0.1/(ferr/0.5))^2))), col=callsToCol(clusters$call))
   segments(clusters$M+w, f, clusters$M-w, f,
            lwd = pmin(1.5,pmax(0.2, 0.1/(w/2))), col=callsToCol(clusters$call))
