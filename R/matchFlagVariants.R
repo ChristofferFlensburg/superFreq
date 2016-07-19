@@ -133,6 +133,9 @@ return(qs)
 flagFromNormals = function(variants, normalVariants, genome, cpus=1) {
   #check normals for recurring noise.
   setVariantLoss(normalVariants$variants)
+
+  if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
+  
   varN = do.call(cbind, lapply(normalVariants$variants, function(q) q$var))
   covN = do.call(cbind, lapply(normalVariants$variants, function(q) q$cov))
   flags = do.call(cbind, lapply(normalVariants$variants, function(q) q$flag))
@@ -227,6 +230,9 @@ flagFromNormals = function(variants, normalVariants, genome, cpus=1) {
 newFlagFromNormals = function(variants, normalVariants, genome, cpus=1) {
   #check normals for recurring noise.
   setVariantLoss(normalVariants$variants)
+
+  if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
+
   varN = do.call(cbind, lapply(normalVariants$variants, function(q) q$var))
   covN = do.call(cbind, lapply(normalVariants$variants, function(q) q$cov))
   flags = do.call(cbind, lapply(normalVariants$variants, function(q) q$flag))
@@ -348,6 +354,9 @@ newFlagFromNormals = function(variants, normalVariants, genome, cpus=1) {
 #This helper function assign probabilities that variants are somatics.
 # the probabilities that the variants are true somatic variants are added in a column 'somaticP'
 markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpus) {
+
+  if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
+
   names = names(variants$variants)
   #pair up cancer normals
   correspondingNormal = findCorrespondingNormal(names, individuals, normals)
@@ -579,6 +588,7 @@ normaliseCoverage = function(qs) {
 
 
 trimVariantsByIndividual = function(variants, individuals) {
+  if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
   for ( individual in unique(individuals) ) {
     is = names(individuals)[individuals == individual]
     if ( length(is) > 1 )

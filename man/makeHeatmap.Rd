@@ -37,7 +37,7 @@ mx = matrix(rt(400, df=10), nrow=100)
 makeHeatmap(mx, col='DE')
 
 #random matrix to plot, between 0 and 1. Plot in default and sunset colours.
-mx = matrix(rt(400, df=10), nrow=100)
+mx = matrix(runif(400), nrow=100)
 makeHeatmap(mx)
 makeHeatmap(mx, col='sunset')
 

@@ -84,7 +84,29 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 
 
 
-#The plotting function for CNV calls.
+#' plots a copy number profile
+#'
+#' @param cR data.frame. The "clusters" or "CR" from the data.
+#' @param showClonality logical. if the clonality panel is shown, if data available. Default TRUE.
+#' @param errorBars logical. If errorbars are plotted. Default TRUE.
+#' @param chr character. Which chromosome to plot. Default 'all', which plots the entire genome.
+#' @param genome character. The genome assembly. Default 'hg19'.
+#' @param alpha numeric. The opacity of the point. Default 1.
+#' @param add logical. If the data should be plotted on top of whatever is already there. Default FALSE.
+#' @param moveHet logical. If the SNP data should snap to f=0.5 if not significantly different. Default TRUE.
+#' @param pt.cex numerical. Scaling factor for the size of the points. Default 1.
+#' @param setMargins logical. If the margins should be removed to use the entire plottable area. Default TRUE.
+#' @param fullFrequency logical. If the SNPs should be copied back up to 1-f as well. Generally not a good idea, and potentially misleading, but can be useful for people that are not used to see frequencies mirrored down to 0-0.5.
+#' @param colourDeviation logical. If the points should be coloured based on deviation from diploid. Defaulty TRUE.
+#' @param forceCol colour. The colour all the points will be plotted in. Can be useful if overplotting several samples with add=T. Overrides colourDeviation if not NA. Default NA.
+#' @param plotCall logical. If the copy number call should be added to the bottom of the SNP panel. Default TRUE.
+#' @param ...  remaining arguments are passed to base plot(...) if add=F, otherwise ignored. 
+#'
+#' @details This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+#'
+#'
+#' @export
+#'
 plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, ...) {
   showClonality = showClonality & 'subclonality' %in% names(cR)
   if ( nrow(cR) == 0 ) return()

@@ -190,15 +190,14 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
 }
 
 findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
+  if ( filter ) {
+    cov10 = rowMeans(do.call(cbind, lapply(somaticQs, function(q) q$cov))) >= 10
+    somaticQs = lapply(somaticQs, function(q) q[cov10,])
+  }
   if ( nrow(somaticQs[[1]]) == 0 ) {
     emptyMx = matrix(,nrow=0, ncol=length(somaticQs))
     ret = data.frame(x1=numeric(), x2=numeric(), call=character(), stories=emptyMx, errors=emptyMx, stringsAsFactors=F)
     return(ret)
-  }
-  if ( nrow(somaticQs[[1]]) == 0 ) return(data.frame(x1=integer(), x2=integer(), call=character(), stories=numeric(), errors=numeric(), stringsAsFactors=F))
-  if ( filter ) {
-    cov10 = rowMeans(do.call(cbind, lapply(somaticQs, function(q) q$cov))) >= 10
-    somaticQs = lapply(somaticQs, function(q) q[cov10,])
   }
   somaticQs = findSNPclonalities(somaticQs, cnvs)
   clonality = matrix(sapply(somaticQs, function(q) q$clonality), ncol=length(somaticQs))

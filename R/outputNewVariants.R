@@ -45,8 +45,9 @@ newVariants = function(q1, q2, SNPs, genome='hg19', cpus=1, ps=NA) {
   use = which(freq1 < freq2 & low)
 
   cut = 1/sum(low)^0.75
-  Nprint = sum(ps[use] <= cut) + 10
+  Nprint = min(sum(ps[use] <= cut) + 10, length(use))
   toReturn = use[order(ps[use])][1:Nprint]
+  if ( Nprint == 0 ) toReturn = c()
   severity =
     if ( 'severity' %in% names(q1) & 'severity' %in% names(q2) )
       pmin(q1$severity[toReturn], q2$severity[toReturn])
