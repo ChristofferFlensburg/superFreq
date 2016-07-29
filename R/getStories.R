@@ -21,7 +21,7 @@
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
-  Rdirectory, plotDirectory, cpus=1, forceRedo=F) {
+  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F) {
   catLog('Setting reference bias..')
   setVariantLoss(normalVariants$variants)
   catLog('done.\n')
@@ -60,17 +60,20 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
         effectiveVar = round(q$var/q$cov*effectiveCov)
         q$var = effectiveVar
         q$cov = effectiveCov
+        q$ref = q$cov - q$var
         return(q)
       })
       
       #set clonality of SNPs from frequency and local CNV, return stories
       catLog('SNVs..\n')
       snpStories = findSNPstories(somaticQs, cnvs[ts], normals[ts], filter=T)
+      anchorSNVs = snpStories
       catLog('Keeping', nrow(snpStories), 'SNV stories.\n')
       
       #combine CNV calls over sample into stories
       catLog('Tracking clonal evolution in CNVs..')
       cnvStories = getCNVstories(cnvs[ts], normals[ts], genome, filter=T)
+      anchorCNAs = cnvStories
       catLog('Keeping', nrow(cnvStories), 'CNV stories.\n')
 
       #merge SNV and CNA stories.
@@ -85,7 +88,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       colnames(allStories$stories) = colnames(allStories$errors) = ts
 
       #clusters stories into clones
-      clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus)
+      clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus, manualStoryMerge=manualStoryMerge, variants=variants)
       germlineCluster = which(apply(clusteredStories$cloneStories$stories + 1e-3 > 1, 1, all) &
         apply(clusteredStories$cloneStories$errors-1e-5 < 0, 1, all))
       rownames(clusteredStories$cloneStories)[germlineCluster] = clusteredStories$cloneStories$call[germlineCluster] = 'germline'
@@ -149,7 +152,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
 
       consistentClusteredStories = renameClones(consistentClusteredStories)
       
-      stories[[name]] = list('allConsistent'=allConsistentStories, 'consistentClusters'=consistentClusteredStories, 'germlineVariants'=germlineVariants, 'all'=allStories, 'clusters'=clusteredStories, 'cloneTree'=cloneTree)
+      stories[[name]] = list('allConsistent'=allConsistentStories, 'consistentClusters'=consistentClusteredStories, 'germlineVariants'=germlineVariants, 'all'=allStories, 'clusters'=clusteredStories, 'cloneTree'=cloneTree, anchorStories=list('anchorSNVs'=anchorSNVs, 'anchorCNAs'=anchorCNAs))
       catLog('done!\n')
     }
   }
@@ -446,7 +449,7 @@ splitEvents = function(cnvs, regions) {
 }
 
 cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
-  stories = errors = data.frame(stringsAsFactors=F)
+  stories = errors = sigmas = data.frame(stringsAsFactors=F)
   if ( nrow(events) > 0 ) {
     i=1
     while ( i <= nrow(events) ) {
@@ -454,6 +457,7 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
       clonalities = extractClonalities(cnvs, events[i,])
       stories = rbind(stories, noneg(clonalities$clonality))
       errors = rbind(errors, clonalities$clonalityError)
+      sigmas = rbind(sigmas, clonalities$sigma)
       if ( any(clonalities$clonality < 0) & any(clonalities$clonality > 0) ) {
         negativeClonalities = clonalities
         negativeClonalities$clonality = noneg(-negativeClonalities$clonality)
@@ -462,6 +466,7 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
         events = rbind(events, negEvent)[order(c(1:nrow(events), i+0.5)),]
         stories = rbind(stories, noneg(negativeClonalities$clonality))
         errors = rbind(errors, negativeClonalities$clonalityError)
+        sigmas = rbind(sigmas, negativeClonalities$sigma)
         i = i + 1
       }
       i = i + 1
@@ -474,10 +479,13 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
         rows = events$x1 == x1
         if ( sum(rows) == 0 ) next
         subStories = stories[rows,,drop=F]
+        subSigmas = sigmas[rows,,drop=F]
         subKeep = keep[rows]
         while ( any(colSums(subStories[subKeep,]) > 1) ) {
-          presence = rowSums(subStories[subKeep,])
-          subKeep[subKeep][which.min(presence)] = F
+          presence = rowMeans(subStories[subKeep,])
+          inconsistency = sqrt(rowMeans(subSigmas[subKeep,]^2))
+          score = presence - inconsistency/3
+          subKeep[subKeep][which.min(score)] = F
         }
         keep[rows] = subKeep
       }
@@ -485,8 +493,8 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
       events = events[keep,]
       stories = stories[keep,]
       errors = errors[keep,]
+      sigmas = sigmas[keep,]
     }
-    
   }
   else {
     events$stories=matrix(,nrow=0, ncol=length(cnvs))
@@ -517,21 +525,25 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
     catLog('Filtered ', sum(allSmall) , ' small, ', sum(uncertain), ' uncertain, ', sum(smallRegion), ' small region and ', sum(presentInNormal), ' present in normal stories.\n', sep='')
   }
   else catLog('Filtered ', sum(allSmall) , ' small, ', sum(uncertain), ' uncertain and ', sum(smallRegion), ' small region stories.\n', sep='')
-  falseSNPcalls = ret$call == 'AA' & (ret$x2 - ret$x1 < 2e6 | rowMeans(ret$errors) > 0.1 ) 
+  falseSNPcalls = ret$call == 'AA' & (ret$x2 - ret$x1 < 2e6 | rowMeans(ret$errors) > 0.15 )
   ret = ret[!falseSNPcalls,,drop=F]
-  catLog('Filtered ', sum(falseSNPcalls) , ' stories that are likely based on false SNPs.\n', sep='')
+  catLog('Filtered ', sum(falseSNPcalls) , ' stories that are potentially based on false SNPs.\n', sep='')
   return(ret)
 }
 
 extractClonalities = function(cnvs, event) {
   nSample = length(cnvs)
-  subCR = do.call(rbind, lapply(cnvs, function(cs) mergeToOneRegion(cs$CR[cs$CR$x2 >= event$x1 & cs$CR$x1 <= event$x2,,drop=F], cs$eFreqs)))
   subFreqs = lapply(cnvs, function(cs) cs$eFreqs[cs$eFreqs$x >= event$x1 & cs$eFreqs$x <= event$x2,])
   subFreqsMirror = lapply(cnvs, function(cs) {
     ret=cs$eFreqs[cs$eFreqs$x >= event$x1 & cs$eFreqs$x <= event$x2,]
     ret$var = mirrorDown(ret$var, ret$cov)
     return(ret)
     })
+  subCR = do.call(rbind, lapply(1:length(cnvs), function(i) {
+    cs = cnvs[[i]]
+    efs = subFreqsMirror[[i]]
+    mergeToOneRegion(cs$CR[cs$CR$x2 >= event$x1 & cs$CR$x1 <= event$x2,,drop=F], efs)
+  }))
   fM = callTofM(as.character(event$call))
   prior = callPrior(as.character(event$call))
   ret = as.data.frame(do.call(rbind, lapply(1:nSample, function(sample) {
@@ -580,11 +592,12 @@ mergeToOneRegion = function(cR, eFreqs) {
                       pHet=0.5, pAlt=0.5, odsHet=0.5, f=NA, ferr=NA))
   cR$x1[1] = min(cR$x1)
   cR$x2[1] = max(cR$x2)
-  efs = eFreqs[eFreqs$x1 > cR$x1[1] & eFreqs$x2 < cR$x2[1],]
-  cR$var[1] = sum(efs$var)
-  cR$cov[1] = sum(efs$cov)
+  efs = eFreqs[eFreqs$x > cR$x1[1] & eFreqs$x < cR$x2[1],]
+  cR$var[1] = sum(cR$var)
+  cR$cov[1] = sum(cR$cov)
   cR$M[1] = sum(cR$M/cR$width^2)/sum(1/cR$width^2)
   cR$width[1] = 1/sqrt(sum(1/cR$width^2))
+  cR$Nsnps[1] = sum(cR$Nsnps)
   cR = cR[1,]
   cf = correctedFrequency(cR, efs)
   cR$f = cf[,'f']
@@ -620,10 +633,12 @@ freqToDirectionProb = function(freq, freqX, fM, clonality) {
   return((1-n)*log(u/d))
 }
 
+
+
 #takes a dataframe of stories and groups them into subclone stories. returns a data frame of the subclone stories
 #and a list of dataframes for the individual stories in each subclone.
 storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
-  minDistance=-qnorm(0.01), cpus=1) {
+  minDistance=-qnorm(0.01), cpus=1, manualStoryMerge=F, variants=NA) {
   if ( length(storyList) < 2 )
     return(list('cloneStories'=stories, 'storyList'=storyList))
 
@@ -638,40 +653,80 @@ storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
     storyList = c(first300$storyList, storyList[(batchSize+1):length(storyList)])
     batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
   }
+
+  summariseClusters = function() {
+    st = do.call(rbind, lapply(storyList, function(rows) {
+      err = stories$errors[rows,,drop=F]
+      if ( any(err<=0) ) err[err<=0] = rep(min(c(1,err[err>0]))/1e6, sum(err<=0))
+      st = stories$stories[rows,,drop=F]
+      w = t(1/t(err^2)/colsums(1/err^2))
+      mean = colsums(st*w)
+      ret = matrix(mean, nrow=1)
+    }))
+    err = do.call(rbind, lapply(storyList, function(rows) {
+      err = stories$errors[rows,,drop=F]
+      err = 1/sqrt(colsums(1/err^2))
+      ret = matrix(err, nrow=1)
+    }))
+    rownames(err) = rownames(st) = 1:length(storyList)
+    colnames(err) = colnames(st) = colnames(stories$stories)
+    clusters = data.frame('call'=rep('clone', length(storyList)), 'x1'=rep(NA, length(storyList)), 'x2'=rep(NA, length(storyList)), row.names=1:length(storyList), stringsAsFactors=F)
+    clusters$stories = st
+    clusters$errors = err
+    return(clusters)
+  }
   
   distance = do.call(rbind, mclapply(1:length(storyList), function(i) c(sapply(1:i, function(j) pairScore(stories, storyList[[i]], storyList[[j]])), rep(0, length(storyList)-i)), mc.cores=cpus))
   distance = distance + t(distance)
-  distance = distance + (minDistance+1)*as.numeric(row(distance) == col(distance))
-  
+  distance = distance + ifelse(row(distance) == col(distance), (max(distance)+1), 0)
+
+  loops = 0
   while ( any(distance < minDistance) ) {
     merge = which(distance == min(distance), arr.ind=TRUE)[1,]
+
+    if ( manualStoryMerge & loops == 0 ) {
+      layout(matrix(1:2, nrow=2))
+      cat('\n\nUSER INPUT:\nTop left: Merging story cluster ', merge[1], ' (blue) and ', merge[2], ' (red) at a distance of ', min(distance), '.\n', sep='')
+      cat('There are ', nrow(distance), ' clusters.\n', sep='')
+      i=merge[1];j=merge[2];plotStories(stories[c(storyList[[i]], storyList[[j]]),], variants, col=mcri(c(rep('blue', length(storyList[[i]])), rep('red', length(storyList[[j]])))), lty=1, main=paste0('next up to merge: ', merge[1], ' (blue) and ', merge[2], ' (red)'), setPar=F)
+      clusters = summariseClusters()
+      plotStories(clusters, variants, main = 'clusters right now', setPar=F)
+      if ( nrow(distance) < 15 ) {
+        cat('Clone distance matrix:\n')
+        print(distance)
+      }
+      layout(1)
+
+      a = as.numeric(readline('\nType number of merges to perform, or blank for this merge only.\nType 0 to not merge these two clusters.\nType -1 to reset and start over with clustering.\nType any number smaller than -1 to stop clustering and continue downstream analysis.\nInput:'))
+      if ( is.na(a) ) a = 1
+      if ( a < -1 ) {
+        distance = Inf
+        next
+      }
+      else if ( a == 0 ) {
+        distance[merge[1], merge[2]] = distance[merge[2], merge[1]] = Inf
+        next
+      }
+      else if ( a == -1 ) {
+        storyList=as.list(rownames(stories))
+        distance = do.call(rbind, mclapply(1:length(storyList), function(i) c(sapply(1:i, function(j) pairScore(stories, storyList[[i]], storyList[[j]])), rep(0, length(storyList)-i)), mc.cores=cpus))
+        distance = distance + t(distance)
+        distance = distance + ifelse(row(distance) == col(distance), (max(distance)+1), 0)
+        next
+      }
+      else if ( a == round(a) & a > 0 ) loops = a - 1
+      else loops = 0
+    }
+    else if ( manualStoryMerge ) loops = loops - 1
     
     storyList[[merge[1]]] = c(storyList[[merge[1]]], storyList[[merge[2]]])
     distance[merge[1],] = distance[,merge[1]] = sapply(1:length(storyList), function(j)
-                                      pairScore(stories, storyList[[merge[1]]], storyList[[j]]) + (minDistance+1)*as.numeric(j==merge[1]))
+                                      pairScore(stories, storyList[[merge[1]]], storyList[[j]]) + ifelse(j==merge[1], (max(distance)+1), 0))
     distance = distance[-merge[2], -merge[2], drop=F]
     storyList = storyList[-merge[2]]
   }
 
-  
-  st = do.call(rbind, lapply(storyList, function(rows) {
-    err = stories$errors[rows,,drop=F]
-    if ( any(err<=0) ) err[err<=0] = rep(min(c(1,err[err>0]))/1e6, sum(err<=0))
-    st = stories$stories[rows,,drop=F]
-    w = t(1/t(err^2)/colsums(1/err^2))
-    mean = colsums(st*w)
-    ret = matrix(mean, nrow=1)
-  }))
-  err = do.call(rbind, lapply(storyList, function(rows) {
-    err = stories$errors[rows,,drop=F]
-    err = 1/sqrt(colsums(1/err^2))
-    ret = matrix(err, nrow=1)
-  }))
-  rownames(err) = rownames(st) = 1:length(storyList)
-  colnames(err) = colnames(st) = colnames(stories$stories)
-  clusters = data.frame('call'=rep('clone', length(storyList)), 'x1'=rep(NA, length(storyList)), 'x2'=rep(NA, length(storyList)), row.names=1:length(storyList), stringsAsFactors=F)
-  clusters$stories = st
-  clusters$errors = err
+  clusters = summariseClusters()
 
   names(storyList) = rownames(clusters)
   return(list('cloneStories'=clusters, 'storyList'=storyList))
@@ -679,27 +734,27 @@ storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
 
 #The metric on stories, used for clustering similar stories into subclones.
 pairScore = function(stories, is, js) {
-  if ( length(is) == 1 ) rms1 = noneg(0.5 - mean(stories$errors[is,]))
-  else {
-    err1 = stories$errors[is,]
-    if ( any(err1<=0) ) err1[err1<=0] = rep(min(c(1,err1[err1>0]))/1e6, sum(err1<=0))
-    st1 = stories$stories[is,]
-    w1 = t(1/t(err1^2)/colsums(1/err1^2))
-    mean1 = colSums(st1*w1)
-    sigma1 = abs(t(t(st1)-mean1))/err1
-    rms1 = max(sqrt(colmeans(sigma1^2)))
-  }
-  if ( length(js) == 1 ) rms2 = noneg(0.5 - mean(stories$errors[js,]))
-  else {
-    err2 = stories$errors[js,]
-    if ( any(err2<=0) ) err2[err2<=0] = rep(min(c(1,err2[err2>0]))/1e6, sum(err2<=0))
-    st2 = stories$stories[js,]
-    w2 = t(1/t(err2^2)/colsums(1/err2^2))
-    mean2 = colSums(st2*w2)
-    sigma2 = abs(t(t(st2)-mean2))/err2
-    rms2 = max(sqrt(mean(sigma2^2)))
-  }
-  unpairedRms = sqrt(rms1^2+rms2^2)
+  #if ( length(is) == 1 ) rms1 = noneg(0.5 - mean(stories$errors[is,]))
+  #else {
+  #  err1 = stories$errors[is,]
+  #  if ( any(err1<=0) ) err1[err1<=0] = rep(min(c(1,err1[err1>0]))/1e6, sum(err1<=0))
+  #  st1 = stories$stories[is,]
+  #  w1 = t(1/t(err1^2)/colsums(1/err1^2))
+  #  mean1 = colSums(st1*w1)
+  #  sigma1 = abs(t(t(st1)-mean1))/err1
+  #  rms1 = max(sqrt(colmeans(sigma1^2)))
+  #}
+  #if ( length(js) == 1 ) rms2 = noneg(0.5 - mean(stories$errors[js,]))
+  #else {
+  #  err2 = stories$errors[js,]
+  #  if ( any(err2<=0) ) err2[err2<=0] = rep(min(c(1,err2[err2>0]))/1e6, sum(err2<=0))
+  #  st2 = stories$stories[js,]
+  #  w2 = t(1/t(err2^2)/colsums(1/err2^2))
+  #  mean2 = colSums(st2*w2)
+  #  sigma2 = abs(t(t(st2)-mean2))/err2
+  #  rms2 = max(sqrt(mean(sigma2^2)))
+  #}
+  #unpairedRms = sqrt(rms1^2+rms2^2)
 
   err = stories$errors[c(is,js),]
   if ( any(err<=0) ) err[err<=0] = rep(min(c(1,err[err>0]))/1e6, sum(err<=0))
@@ -710,8 +765,13 @@ pairScore = function(stories, is, js) {
   sigma = abs(t(t(st)-mean))/err
   #rms = max(sqrt(colmeans(sigma^2)))
 
-  p = min(apply(pnorm(-sigma)*2, 2, function(ps) min(p.adjust(ps, method='fdr'))))
-  return(-qnorm(p/2))
+  #p = min(apply(pnorm(-sigma)*2, 2, function(ps) min(p.adjust(ps, method='fdr'))))
+  #p1 = min(apply(pnorm(-sigma[1:length(is),])*2, 2, function(ps) min(p.adjust(ps, method='fdr'))))
+  #p2 = min(apply(pnorm(-sigma[(length(is)+1):nrow(sigma),])*2, 2, function(ps) min(p.adjust(ps, method='fdr'))))
+  #pF = min(apply(pnorm(-sigma)*2, 2, function(ps) fisherTest(ps)['pVal']))
+  pF1 = min(apply(pnorm(-sigma)*2, 2, function(ps) fisherTest(ps[1:length(is)])['pVal']))
+  pF2 = min(apply(pnorm(-sigma)*2, 2, function(ps) fisherTest(ps[(length(is)+1):length(ps)])['pVal']))
+  return(-qnorm(min(pF1, pF2)/2))
   
   #return(rms + noneg(rms - unpairedRms) )
 }

@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.11')
+superVersion = function() return('0.9.12')
 
 
 #' Wrapper to run default superFreq analysis
@@ -128,7 +128,8 @@ superVersion = function() return('0.9.11')
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all') {
+  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F) {
+  forceRedo = propagateForceRedo(forceRedo)
   
   if ( splitRun ) {
     ensureDirectoryExists(Rdirectory, verbose=F)
@@ -147,8 +148,6 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
         return()
       }
     }
-
-    forceRedo = propagateForceRedo(forceRedo)
     
     catLog('Planning to run over these participants:\n')
     for ( participant in names(splitInput) ) catLog(participant, '\n')
@@ -191,7 +190,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
 
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
-                 runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T)
+                 runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge)
 
   postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory,
                  cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
@@ -272,7 +271,7 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #'
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
-  parameters=defaultSuperParameters(), byIndividual=T) {
+  parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F) {
   #loadMethods(byIndividual=byIndividual)
   options(stringsAsFactors = F)
   options(scipen = 10)
@@ -624,7 +623,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
 
   #combine SNPs and CNVs into stories of subclones.
   stories = getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
-    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories)
+    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge)
   #if ( class(stories) == 'try-error' ) {
   #  catLog('Error in getStories!\n')
   #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs,

@@ -451,9 +451,9 @@ postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19'
   dev.off()
   catLog('renormalising..')
   if ( exists('.doSuperFreqPloidyManually', envir= .GlobalEnv) && get('.doSuperFreqPloidyManually', envir= .GlobalEnv) )
-    renorm =  findShiftManually(clusters, plot=F)
+    renorm =  findShiftManually(clusters, cpus=cpus, plot=F)
   else
-    renorm =  findShift(clusters, plot=F)
+    renorm =  findShift(clusters, cpus=cpus, plot=F)
   shift = renorm$M[1] - clusters$M[1]
   clusters = renorm
   catLog('call CNVs..')

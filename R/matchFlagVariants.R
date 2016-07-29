@@ -495,7 +495,7 @@ shareSNPs = function(SNPs1, SNPs2) {
 fisherTest = function(p) {
   p = p[!is.na(p)]
   Xsq = -2*sum(log(p))
-  pVal = 1-pchisq(Xsq, df = 2*length(p))
+  pVal = pchisq(Xsq, df = 2*length(p), lower.tail=F)
   return(c(Xsq = Xsq, pVal = pVal))
 }
 

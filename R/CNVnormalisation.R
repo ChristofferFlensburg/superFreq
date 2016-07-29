@@ -111,7 +111,7 @@ scoreConsistencies = function(consistencies) {
 pToSigma = function(p) abs(qnorm(p/2, 0, 1))
 
 
-findShift = function(clusters, nShifts=40, maxShift = 3, cpus=1, plot=T) {
+findShift = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T) {
   #set up shifts more densely around 0
   nShiftsHalf = round(nShifts/2)
   shifts = ((0:nShiftsHalf)/nShiftsHalf)^2*maxShift
@@ -146,7 +146,7 @@ plotShiftedMAFLFC = function(clusters, shift=0) {
 
 
 
-findShiftManually = function(clusters, nShifts=40, maxShift = 3, cpus=1, plot=T) {
+findShiftManually = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T) {
   #set up shifts more densely around 0
   nShiftsHalf = round(nShifts/2)
   nullShifts = ((0:nShiftsHalf)/nShiftsHalf)^2*maxShift
@@ -157,7 +157,7 @@ findShiftManually = function(clusters, nShifts=40, maxShift = 3, cpus=1, plot=T)
   userShift = 0
   while( !userHappy ) {
     #calculate state for user shift
-    cat('Caclucalating inconsistency scores')
+    cat('Calculating inconsistency scores')
     shifts = nullShifts + userShift
     shiftConsistencies = mclapply(shifts, function(shift) {
       cat('.')
@@ -168,8 +168,9 @@ findShiftManually = function(clusters, nShifts=40, maxShift = 3, cpus=1, plot=T)
     
     #plot info about current shift
     resetMargins()
-    layout(matrix(1:2, nrow=1))
+    layout(matrix(c(1, 1, 2, 3), nrow=1))
     plotShiftedMAFLFC(clusters, shift=userShift)
+    plotCR(clusters)
     plot(shifts, shiftScores, type='c', xlab='LFC shift', ylab='inconsistency score')
     text(shifts, shiftScores, 1:length(shifts))
     ploidy = sum(2*2^(clusters$M + userShift)*(clusters$x2-clusters$x1))/sum(clusters$x2-clusters$x1)
