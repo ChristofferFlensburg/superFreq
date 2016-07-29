@@ -227,7 +227,7 @@ flagFromNormals = function(variants, normalVariants, genome, cpus=1) {
 
 #new version of flagging from pool of normals. Looks a bit closer and should be able to filter out
 #more low frequency crap without taking real variants. Added as option until tested more.
-newFlagFromNormals = function(variants, normalVariants, genome, cpus=1) {
+newFlagFromNormals = function(variants, normalVariants, genome, RNA=F, cpus=1) {
   #check normals for recurring noise.
   setVariantLoss(normalVariants$variants)
 
@@ -258,11 +258,17 @@ newFlagFromNormals = function(variants, normalVariants, genome, cpus=1) {
   catLog('Flagged another', sum(variableNormal), 'out of', nrow(fs),
          'variants that are not db, but significantly present in at least one normal sample.\n')
 
-  meanCov = rowmeans(covN)
-  medianCov = median(meanCov[unflagged & meanCov >= 5])
-  manyCopies = meanCov > 10*medianCov
-  catLog('Flagged another', sum(manyCopies), 'out of', nrow(fs),
-         'variants that have a coverage ten times higher than median', medianCov, ' in the normals.\n')
+  if ( !RNA ) {
+    meanCov = rowmeans(covN)
+    medianCov = median(meanCov[unflagged & meanCov >= 5])
+    manyCopies = meanCov > 10*medianCov
+    catLog('Flagged another', sum(manyCopies), 'out of', nrow(fs),
+           'variants that have a coverage ten times higher than median', medianCov, ' in the normals.\n')
+  }
+  else {
+    manyCopies = rep(F, nrow(covN))
+    catLog('Not flagging based on abnormal coverage in RNA mode.\n')
+  }
 
   #variants that are detected in at least one normal, but not enough
   #to be filtered. Filter or not filter these depending on cancer

@@ -129,14 +129,14 @@ superVersion = function() return('0.9.12')
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
   systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F) {
+  ensureDirectoryExists(Rdirectory, verbose=F)
+  logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
+  assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
+  if ( outputToTerminalAsWell )
+    assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
   forceRedo = propagateForceRedo(forceRedo)
   
   if ( splitRun ) {
-    ensureDirectoryExists(Rdirectory, verbose=F)
-    logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
-    assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
-    if ( outputToTerminalAsWell )
-      assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
     catLog('Splitting meta data into participants.\n')
     splitInput = splitMetaData(metaDataFile, Rdirectory, plotDirectory)
     if ( participants[1] != 'all' ) {

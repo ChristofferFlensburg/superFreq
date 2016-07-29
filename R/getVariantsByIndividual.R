@@ -301,6 +301,7 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
       names(dbMA) = dbQ$pos
       dbMAF = dbMAF[as.character(varPos)][q$db[thisChr]]
       dbMA = dbMA[as.character(varPos)][q$db[thisChr]]
+      dbMA[is.na(dbMA)] = 'X'
       reference = q$reference[thisChr][q$db[thisChr]]
       dbMAF[dbMA == reference] = 1 - dbMAF[dbMA == reference]
       q$dbMAF[thisChr][q$db[thisChr]] = dbMAF
