@@ -143,9 +143,12 @@ selectGermlineHets = function(normalVariants, moreNormalVariants, sex, SNPs, gen
   if ( length(use) == 0 ) return(use)
 
   #only use dbSNPs
-  catLog('Taking variants in dbSNP positions...')
-  isDB = normalVariants$db
-  use = use[isDB]
+  catLog('Taking variants in valideted dbSNP or unfiltered exac positions...')
+  isDB = normalVariants$db & normalVariants$dbValidated
+  isExac = rep(FALSE, length(isDB))
+  if ( 'exac' %in% names(normalVariants) )
+    isExac = normalVariants$exac & normalVariants$exacFilter == 'PASS'
+  use = use[isDB | isExac]
   normalVariants = normalVariants[use,]
   catLog('done! Got', sum(isDB), 'variants.\n')
   if ( length(use) == 0 ) return(use)
@@ -181,12 +184,16 @@ selectGermlineHets = function(normalVariants, moreNormalVariants, sex, SNPs, gen
   catLog('done! Got', sum(highQ), 'variants.\n')
 
   #Restrict to validated dbSNPs with population frequency > 1%
-  catLog('Restrict to validated dbSNPs with population frequency > 1%...')
-  isValidated = normalVariants$dbValidated & !is.na(normalVariants$dbValidated)
-  isFrequent = normalVariants$dbMAF > 0.01 & !is.na(normalVariants$dbMAF)
-  use = use[isValidated & isFrequent]
+  catLog('Restrict to SNPs with population frequency > 1%...')
+  isFrequentDb = normalVariants$db & normalVariants$dbValidated & !is.na(normalVariants$dbValidated) &
+                normalVariants$dbMAF > 0.01 & !is.na(normalVariants$dbMAF)
+  isFrequentExac = rep(FALSE, length(isFrequentDb))
+  if ( 'exac' %in% names(normalVariants) )
+    isFrequentExac = normalVariants$exac & normalVariants$exacFilter == 'PASS' & !is.na(normalVariants$exacFilter) &
+                     normalVariants$exacAF > 0.01 & !is.na(normalVariants$exacAF)
+  use = use[isFrequentDb | isFrequentExac]
   normalVariants = normalVariants[use,]
-  catLog('done! Got', sum(isValidated & isFrequent), 'variants.\n')
+  catLog('done! Got', sum(isFrequentDb | isFrequentExac), 'variants.\n')
 
   #remove variants from male X and Y, and female Y-chromsomes
   if ( sex == 'male' )
@@ -213,9 +220,12 @@ selectGermlineHetsFromCancer = function(cancerVariants, moreNormalVariants, sex,
   catLog('done! Got', sum(decentCoverage), 'variants.\n')
   
   #only use dbSNPs
-  catLog('Taking variants in dbSNP positions...')
-  isDB = cancerVariants$db
-  use = use[isDB]
+  catLog('Taking variants in valideted dbSNP or unfiltered exac positions...')
+  isDB = cancerVariants$db & cancerVariants$dbValidated
+  isExac = rep(FALSE, length(isDB))
+  if ( 'exac' %in% names(cancerVariants) )
+    isExac = cancerVariants$exac & cancerVariants$exacFilter == 'PASS'
+  use = use[isDB | isExac]
   cancerVariants = cancerVariants[use,]
   catLog('done! Got', sum(isDB), 'variants.\n')
   
@@ -258,13 +268,16 @@ selectGermlineHetsFromCancer = function(cancerVariants, moreNormalVariants, sex,
   catLog('done! Got', sum(highQ), 'variants.\n')
 
   #Restrict to validated dbSNPs with population frequency > 1% in dbSNP and ExAC
-  catLog('Restrict to validated dbSNPs with population frequency > 1%...')
-  isValidated = cancerVariants$dbValidated & !is.na(cancerVariants$dbValidated)
-  isFrequent = cancerVariants$db & cancerVariants$dbMAF > 0.01 & !is.na(cancerVariants$dbMAF) & cancerVariants$dbValidated &
-               cancerVariants$exac & cancerVariants$exacAF > 0.01 & cancerVariants$exacFilter == 'PASS'
-  use = use[isValidated & isFrequent]
+  catLog('Restrict to SNPs with population frequency > 1%...')
+  isFrequentDb = cancerVariants$db & cancerVariants$dbValidated & !is.na(cancerVariants$dbValidated) &
+                cancerVariants$dbMAF > 0.01 & !is.na(cancerVariants$dbMAF)
+  isFrequentExac = rep(FALSE, length(isFrequentDb))
+  if ( 'exac' %in% names(cancerVariants) )
+    isFrequentExac = cancerVariants$exac & cancerVariants$exacFilter == 'PASS' & !is.na(cancerVariants$exacFilter) &
+                     cancerVariants$exacAF > 0.01 & !is.na(cancerVariants$exacAF)
+  use = use[isFrequentDb | isFrequentExac]
   cancerVariants = cancerVariants[use,]
-  catLog('done! Got', sum(isValidated & isFrequent), 'variants.\n')
+  catLog('done! Got', sum(isFrequentDb | isFrequentExac), 'variants.\n')
 
   #remove variants from male X and Y, and female Y-chromsomes
   if ( sex == 'male' )
@@ -986,11 +999,11 @@ boostCRwidth = function(CR, plot=F) {
 
   last = nrow(CR)
   changeBoost = function(boost) median(abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1]+boost)^2+(CR$width[-last]+boost)^2)))
-  testRange = (0:200)/1000
+  testRange = (0:1000)/1000
   changes = sapply(testRange, changeBoost)
   widthBoost = testRange[max(c(1, which(changes > the)))]
 
-  if ( widthBoost > 0 ) catLog('Boosted biological variance of LFC by ', widthBoost, '.\n')
+  if ( widthBoost > 0 ) catLog('Boosted biological variance of LFC by ', widthBoost, '.\n', sep='')
   else catLog('No boost needed for biological variance.\n')
 
   if ( plot ) {
@@ -1009,7 +1022,7 @@ boostCRwidth = function(CR, plot=F) {
 
     ymax = max(changes, the)
     plot(testRange, changes, type='l', lwd=3, col=mcri('blue'), xlab='width boost', ylab='median difference',
-         main='boost optimisation curve', ylim=c(0, ymax))
+         main='boost optimisation curve', ylim=c(0, ymax), xlim=c(0, max(min(1, 1.5*widthBoost), 0.2)))
     segments(widthBoost, 0, widthBoost, 2*xmax, lwd=3, col=mcri('red'))
     segments(-1, the, 1, the, lwd=3, col=mcri('grey'))
     legend('topright', c('median difference', 'expected median', 'selected boost'), lwd=c(3,3,3),
@@ -1025,9 +1038,12 @@ boostCRwidth = function(CR, plot=F) {
 plotMAFLFC = function(clusters, xlim=c(-1.2, 1.2)) {
   plot(0, type='n', xlim=xlim, ylim=c(0, 0.5), xlab='LFC', ylab='MAF')
   clonalities = (0:500)/500
+  markClonalities = c(0.25, 0.5, 0.75)
   for ( call in c('AB', 'CL', 'A', 'AA', 'AAA', 'AAAA', 'AAAAA', 'AAB', 'AAAB', 'AAAAB', 'AABB', 'AAABB') ) {
     fMs = callCloneTofM(call, clonalities)
     points(fMs[,2], fMs[,1], pch=16, cex=2*clonalities, col=callsToCol(call))
+    markFMs = callCloneTofM(call, markClonalities)
+    if ( call != 'AB' ) points(markFMs[,2], markFMs[,1], pch=4, cex=4*markClonalities,, lwd=2, col=callsToCol(call))
     text(fMs[round(length(clonalities)*0.6),2]+0.05, fMs[round(length(clonalities)*0.6),1]+0.01, call, col=callsToCol(call))
   }
   w = sqrt(clusters$width^2 + systematicVariance()^2)
@@ -1040,7 +1056,7 @@ plotMAFLFC = function(clusters, xlim=c(-1.2, 1.2)) {
            lwd = pmin(1.5,pmax(0.2, 0.1/(w/2))), col=callsToCol(clusters$call))
   segments(clusters$M, f+ferr, clusters$M, f-ferr,
            lwd = pmin(1.5,pmax(0.2, 0.1/(ferr/0.5))), col=callsToCol(clusters$call))
-  legend('topright', c('clonality=0.25', 'clonality=0.50', 'clonality=0.75', 'clonality=1'), pch=16, pt.cex=c(0.5, 1, 1.5, 2))
+  legend('topright', paste0('clonality=',markClonalities), pch=4, pt.cex=4*markClonalities, pt.lwd=2)
   
 }
 #helper function

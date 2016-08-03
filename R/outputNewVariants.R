@@ -5,20 +5,23 @@ outputNewVariants = function(variants, pairs, genome, directory, cpus=1, forceRe
   outfile = paste0(directory, '/newVariants.xls')
   if ( (!file.exists(outfile) | forceRedo) & length(pairs) > 0 ) {
     news = list()
-    for ( pair in pairs ) {
-      name1 = substring(gsub('\\.', '', paste0(pair[1], ' to ', pair[2])), 1, 31)
-      name2 = substring(gsub('\\.', '', paste0(pair[2], ' to ', pair[1])), 1, 31)
-      catLog('Looking for new cancer variants in ', name1, '\n')
-      news[[name1]] = newVariants(variants$variants[[pair[1]]], variants$variants[[pair[2]]], variants$SNPs, genome, cpus=cpus)
-      catLog('Looking for new cancer variants in ', name2, '\n')
-      news[[name2]] = newVariants(variants$variants[[pair[2]]], variants$variants[[pair[1]]], variants$SNPs, genome, cpus=cpus)
+    reversePairs = lapply(pairs, function(pair) c(pair[2], pair[1]))
+    pairs = c(pairs, reversePairs)
+    names = sapply(pairs, function(pair) substring(gsub('\\.', '', paste0(pair[1], ' to ', pair[2])), 1, 30))
+    names(pairs) = names
+    pairs = pairs[order(names(pairs))]
+    names(pairs) = make.names(names(pairs), unique=T)
+    for ( name in names(pairs) ) {
+      pair = pairs[[name]]
+      catLog('Looking for new cancer variants in ', name, '\n')
+      news[[name]] = newVariants(variants$variants[[pair[1]]], variants$variants[[pair[2]]], genome, cpus=cpus)
     }
     WriteXLS('news', outfile)
   }
 }
 
 #helper function that isolates the significantly different variants
-newVariants = function(q1, q2, SNPs, genome='hg19', cpus=1, ps=NA) {
+newVariants = function(q1, q2, genome='hg19', cpus=1, ps=NA) {
   common = intersect(rownames(q1), rownames(q2))
   common = common[!is.na(common)]
   single = rownames(q2)[!(rownames(q2) %in% rownames(q1))]
@@ -26,17 +29,20 @@ newVariants = function(q1, q2, SNPs, genome='hg19', cpus=1, ps=NA) {
     
   q1 = q1[common,]
   q2 = q2[common,]
+
+  interesting = q2$var > 0.05*q2$cov & q2$var*q1$cov > q1$var*q2$cov
+  q1 = q1[interesting,]
+  q2 = q2[interesting,]
+  
   freq1 = q1$var/q1$cov
   freq1[is.na(freq1)] = -0.02
   freq2 = q2$var/q2$cov
   freq2[is.na(freq2)] = -0.02
   
-  if ( is.na(ps[1]) ) {
-    if ( cpus==1 )   
-      ps = sapply(1:length(freq1), function(i) fisher.test(matrix(c(q1$ref[i], q1$var[i], q2$ref[i], q2$var[i]), nrow=2))$p.value)
-    else {
-      ps = unlist(mclapply(1:length(freq1), function(i) fisher.test(matrix(c(q1$ref[i], q1$var[i], q2$ref[i], q2$var[i]), nrow=2))$p.value, mc.cores=cpus))      
-    }
+  if ( cpus==1 )   
+    ps = sapply(1:length(freq1), function(i) fisher.test(matrix(c(q1$ref[i], q1$var[i], q2$ref[i], q2$var[i]), nrow=2))$p.value)
+  else {
+    ps = unlist(mclapply(1:length(freq1), function(i) fisher.test(matrix(c(q1$ref[i], q1$var[i], q2$ref[i], q2$var[i]), nrow=2))$p.value, mc.cores=cpus))      
   }
   
   low = (freq1 < 0.2 | (pBinom(q1$cov, q1$var, 0.3) < 0.01 & freq1 < 0.3)) & !(freq1 == 0 & freq2 == 0)
@@ -96,7 +102,7 @@ newVariants = function(q1, q2, SNPs, genome='hg19', cpus=1, ps=NA) {
   }
 
   
-  if ( 'severity' %in% names(q1) ) ord = order(q1$severity[toReturn] + 10*q1$germline[toReturn])
+  if ( 'severity' %in% names(q1) ) ord = order(ret$severity + 10*(ret$germlineLike=='YES'))
   else ord = order(10*q1$germline[toReturn])
   ret = ret[ord,]
   return(ret)

@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.12')
+superVersion = function() return('0.9.13')
 
 
 #' Wrapper to run default superFreq analysis
@@ -180,6 +180,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
 
   settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset)
   if ( mode == 'genome' ) settings$MAcorrection = F
+  if ( mode == 'RNA' ) settings$RNA = T
 
   runtimeSettings = defaultSuperRuntimeSettings(cpus=cpus, outputToTerminalAsWell=outputToTerminalAsWell)
 
@@ -580,8 +581,10 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       #share variants with normals
       flaggingVersion = 'new'
       if ( 'flaggingVersion' %in% names(settings) ) flaggingVersion = settings$flaggingVersion
+      RNA = F
+      if ( 'RNA' %in% names(settings) ) RNA = settings$RNA
       allVariants = matchFlagVariants(variants, normalVariants, individuals, normals, genome,
-        Rdirectory, flaggingVersion=flaggingVersion, cpus=cpus, byIndividual=byIndividual,
+        Rdirectory, flaggingVersion=flaggingVersion, RNA=RNA, cpus=cpus, byIndividual=byIndividual,
         forceRedoMatchFlag=forceRedoMatchFlag)
       #if ( class(allVariants) == 'try-error' | !all(c('variants', 'normalVariants') %in% names(allVariants)) ) {
       #  catLog('Error in matchFlagVariants.\n')
@@ -678,7 +681,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #  warning('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.')
   #}
 
-  catLog('Run done! Have fun with the output! :)\n\n')
+  catLog('First part done! :)\n\n')
   
   return(list('fit'=fit, 'variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs, 'stories'=stories))
 }

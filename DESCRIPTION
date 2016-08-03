@@ -1,6 +1,6 @@
 Package: superFreq
 Title: Calls and tracks CNAs, SNVs and clones over multiple cancer exomes.
-Version: 0.9.12
+Version: 0.9.13
 Authors@R: person("Christoffer", "Flensburg", email = "flensburg.c@wehi.edu.au", role = c("aut", "cre"))
 Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
     all information across samples and mutation types. The inputs are the bam-files

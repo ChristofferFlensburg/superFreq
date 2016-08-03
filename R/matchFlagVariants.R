@@ -3,7 +3,7 @@
 #flags variants with suspicious behaviour in the normals.
 #marks the somatic-looking variants in the samples
 #ie non-db variants that are not present in the normals and not flagged as suspicious.
-matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', cpus=1, byIndividual=F, forceRedoMatchFlag=F) {
+matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F) {
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')
@@ -16,12 +16,6 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
   normalVariants$variants = lapply(normalVariants$variants, function(q) q[!is.na(q$cov),])
   variants = matchVariants(variants, normalVariants)
   normalVariants = matchVariants(normalVariants, variants)
-
-  #check for exac and add if not present. Only for backwards compatibility (0.9.9 and earlier)
-  if ( !('exac' %in% names(variants$variants[[1]])) )
-    variants$variants = matchToExac(variants$variants)
-  if ( !('exac' %in% names(normalVariants$variants[[1]])) )
-    normalVariants$variants = matchToExac(normalVariants$variants)
 
   #Normalise coverage to the number of available reads. Assumes minor variants are noise.
   variants$variants = normaliseCoverage(variants$variants)
@@ -37,7 +31,7 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
 
   #Use the normals to flag variants that are noisy in the normals
   if ( flaggingVersion == 'new' )
-    variants = newFlagFromNormals(variants, normalVariants, genome, cpus=cpus)
+    variants = newFlagFromNormals(variants, normalVariants, genome, RNA=RNA, cpus=cpus)
   else
     variants = flagFromNormals(variants, normalVariants, genome, cpus=cpus)
   
@@ -406,8 +400,10 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     normalOK = pmin(1, noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
     
     if ( !(name %in% names(CNs)) ) catLog('\nWARNING! No matched normal: removing all validated dbSNPs or ExAC over 0.1% population frequency from the somatic candidates! Remaining somatics will include rare germline variants.\n', sep='')
-    commonDbSNP = q$db & q$dbValidated & q$dbMAF > 0.001
-    commonExAC = q$exac & q$exacFilter == 'PASS' & q$exacAF > 0.001
+    commonDbSNP = q$db & !is.na(q$dbValidated) & q$dbValidated & !is.na(q$dbMAF) & q$dbMAF > 0.001
+    commonExAC = rep(FALSE, length(commonDbSNP))
+    if ( 'exac' %in% names(q) )
+      commonExAC = q$exac & !is.na(q$exacFilter) & q$exacFilter == 'PASS' & !is.na(q$exacAF) & q$exacAF > 0.001
 
     #Let's be conservative and filter variants present in either dbSNP or ExAC.
     notInNormal = !commonDbSNP & !commonExAC
@@ -428,6 +424,9 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
       referenceNormal[referenceNormal] = (psameF < 0.01 & (q$var/q$cov > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*noneg(1 - 100*psameF)
       notInNormal = referenceNormal*referenceNormalFactor
       normalOK = ifelse(qn$cov == 0, 0.5, noneg(1 - 5*qn$var/qn$cov)) #penalty for non-zero normal frequency
+
+      #if we have matched normal, we are sure the variants arent rare SNPs
+      pPolymorphic = 0*pPolymorphic
     }
     pSampleOK =
       pmax(0.8, p.adjust(q$pbq, method='fdr'))*
