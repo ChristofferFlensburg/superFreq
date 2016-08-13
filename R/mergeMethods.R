@@ -700,6 +700,17 @@ captureRegionsToGenome = function(captureRegions) {
   warning(paste0('Dont know a genome for capture regions ', captureRegions))
   return('')
 }
+captureRegionsToBed = function(captureRegions) {
+  warning('Called a hardcoding function!')
+  if ( captureRegions == 'SureSelect' ) return('/wehisan/general/academic/grp_leukemia_genomics/AGILENT_EXOME/HUMAN_v5/hg19.bed')
+  if ( captureRegions == 'TrueSeq' ) return('/wehisan/general/academic/grp_leukemia_genomics/F13TSFAPHT0461_HUMwkbX/analysis/captureRegions.bed')
+  if ( captureRegions == 'RNA' ) return('/wehisan/general/academic/grp_leukemia_genomics/data/captureRegions/RNA/captureRegions.bed')
+  if ( captureRegions == 'kinome' ) return('/wehisan/general/academic/grp_leukemia_genomics/DLBCL\\ PROJECT/analysis/captureRegions.gc.bed')
+  if ( captureRegions == 'genome' ) return('/wehisan/general/academic/grp_leukemia_genomics/data/captureRegions/genomic/captureRegions.hg19.10k.bed')
+  if ( captureRegions == 'siblingMUD' ) return('/wehisan/general/academic/grp_leukemia_genomics/data/captureRegions/siblingMUD/amplicons.bed')
+  warning(paste0('Dont know a bed file path for capture regions ', captureRegions))
+  return('')
+}
 
 getAllVEPdata = function(metaData, variants) {
   samples = names(variants$variants)

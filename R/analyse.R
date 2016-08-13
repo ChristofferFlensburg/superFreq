@@ -128,7 +128,7 @@ superVersion = function() return('0.9.13')
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.03, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F) {
+  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F) {
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -266,14 +266,13 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #'
 #' forceRedo = forceRedoNothing()
 #'
-#' parameters = list('systematicVariance'=0.03, 'maxCov'=150)
+#' parameters = list('systematicVariance'=0.02, 'maxCov'=150)
 #'
 #' data = analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings, parameters)
 #'
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F) {
-  #loadMethods(byIndividual=byIndividual)
   options(stringsAsFactors = F)
   options(scipen = 10)
   
@@ -396,7 +395,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('   maxCov:              ', get('.maxCov', envir = .GlobalEnv), '\n', sep='')
   if ( 'systematicVariance' %in% names(parameters) &  class(parameters$systematicVariance) != 'numeric' ) stop('parameter systematicVariance needs to be numeric.')
   if ( 'systematicVariance' %in% names(parameters) ) assign('.systematicVariance', parameters$systematicVariance, envir = .GlobalEnv)
-  else assign('.systematicVariance', 0.03, envir = .GlobalEnv)
+  else assign('.systematicVariance', 0.02, envir = .GlobalEnv)
   catLog('   systematicVariance:  ', get('.systematicVariance', envir = .GlobalEnv), '\n', sep='')
 
   if ( 'cloneDistanceCut' %in% names(parameters) &  class(parameters$cloneDistanceCut) != 'numeric' ) stop('parameter cloneDistanceCut needs to be numeric.')
@@ -831,13 +830,14 @@ loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
   source('makeSummaryPlot.R')
   source('getStories.R')
   source('makeRiverPlots.R')
+  source('downloadSuperFreqResources.R')
 
   if ( !exists('.maxCov', envir = .GlobalEnv) ) {
     catLog('Setting maxCov to default 150.\n')
     assign('.maxCov', 150, envir = .GlobalEnv)
   }
   if ( !exists('.systematicVariance', envir = .GlobalEnv) ) {
-    catLog('Setting systematicVariance to default 0.03.\n')
+    catLog('Setting systematicVariance to default 0.02.\n')
     assign('.systematicVariance', 0.03, envir = .GlobalEnv)
   }
 }
@@ -868,7 +868,7 @@ loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
 #' runtimeSettings = list('cpus'=cpus, 'outputToTerminalAsWell'=T)
 #'
 #' forceRedo = forceRedoNothing()
-#' parameters = list('systematicVariance'=0.03, 'maxCov'=150)
+#' parameters = list('systematicVariance'=0.02, 'maxCov'=150)
 #'
 #' data = analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings, parameters=parameters)
 #' }
@@ -920,7 +920,7 @@ forceRedoNothing = function() list(
 #' runtimeSettings = list('cpus'=cpus, 'outputToTerminalAsWell'=T)
 #'
 #' forceRedo = forceRedoEverything()
-#' parameters = list('systematicVariance'=0.03, 'maxCov'=150)
+#' parameters = list('systematicVariance'=0.02, 'maxCov'=150)
 #'
 #' data = analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings, parameters=parameters)
 #' }
@@ -1129,16 +1129,16 @@ defaultSuperRuntimeSettings = function(cpus='', outputToTerminalAsWell='') {
 #' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperParameters()
-defaultSuperParameters = function(systematicVariance='', maxCov='', cloneDistanceCut='') {
-  if ( systematicVariance == '' ) {
-    cat('Defaulting systematicVariance used to 0.03.\n')
-    systematicVariance = 0.03
+defaultSuperParameters = function(systematicVariance=-1, maxCov=-1, cloneDistanceCut=-1) {
+  if ( systematicVariance == -1 ) {
+    cat('Defaulting systematicVariance used to 0.02.\n')
+    systematicVariance = 0.02
   }
-  if ( maxCov == '' ) {
+  if ( maxCov == -1 ) {
     cat('Defaulting maxCov to 150.\n')
     maxCov = 150
   }
-  if ( cloneDistanceCut == '' ) {
+  if ( cloneDistanceCut == -1 ) {
     cat('Defaulting cloneDistanceCut to 2.3.\n')
     cloneDistanceCut = -qnorm(0.01)
   }

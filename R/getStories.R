@@ -47,13 +47,15 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       catLog('\nTracking clonal evolution in ', name, '..', sep='')
       
       #select somatic SNPs
-      somaticMx = do.call(cbind, lapply(qs, function(q) q$somaticP > 0.95))
+      somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
       somatic = apply(somaticMx, 1, any)
-      somaticQs = lapply(qs, function(q) q[somatic,])
+      rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 10))
+      rareGermline = apply(rareGermlineMx, 1, any)      
+      somaticQs = lapply(qs, function(q) q[somatic | rareGermline,])
 
       #switch to effective coverage, to not overestimate the accuracy of high-coverage SNPs
       #not too low though, keep at least 100.
-      mC = max(100, maxCov())
+      mC = max(100, getMaxCov())
       somaticQs = lapply(somaticQs, function(q) {
         d = q$cov
         effectiveCov = round(d*(1 + d/mC)/(1 + d/mC + d^2/mC^2))
@@ -210,6 +212,7 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
   clonalityError[which(is.na(clonalityError) | is.infinite(clonalityError), arr.ind=T)] = 10
   ret$stories = clonality
   ret$errors = clonalityError
+  rownames(ret$stories) = rownames(ret$errors) = rownames(ret)
   
   colnames(ret$stories) = colnames(ret$errors) = names(somaticQs)
   if ( !filter ) {
@@ -291,7 +294,7 @@ findSNPclonalities = function(somaticQs, cnvs) {
     clonalityN = pmin(1, 1 - (1 - f*2)/(f*(nA+nB-2)+1))
 
     #frequency error estimate: add up the poissonian width with the RIB as independent normal error sources.
-    fErr = sqrt(frequencyError(q$var, q$cov, p0=0.05)^2 + q$RIB^2)
+    fErr = sqrt(frequencyError(q$var, q$cov, p0=0.10)^2 + q$RIB^2)
     fErr[q$cov==0] = 1
     #propagate to clonality
     clonalityHighA = 2/(2+nA/(f+fErr)-nA-nB)
@@ -637,8 +640,9 @@ freqToDirectionProb = function(freq, freqX, fM, clonality) {
 
 #takes a dataframe of stories and groups them into subclone stories. returns a data frame of the subclone stories
 #and a list of dataframes for the individual stories in each subclone.
-storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
+storiesToCloneStories = function(stories, storyList='',
   minDistance=-qnorm(0.01), cpus=1, manualStoryMerge=F, variants=NA) {
+  if ( storyList ==  '' ) storyList = as.list(rownames(stories))
   if ( length(storyList) < 2 )
     return(list('cloneStories'=stories, 'storyList'=storyList))
 
@@ -734,6 +738,7 @@ storiesToCloneStories = function(stories, storyList=as.list(rownames(stories)),
 
 #The metric on stories, used for clustering similar stories into subclones.
 pairScore = function(stories, is, js) {
+  if ( identical(is, js) ) return(0)
   #if ( length(is) == 1 ) rms1 = noneg(0.5 - mean(stories$errors[is,]))
   #else {
   #  err1 = stories$errors[is,]

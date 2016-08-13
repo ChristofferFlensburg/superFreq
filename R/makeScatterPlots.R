@@ -100,6 +100,10 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
 #helper function that generates fancy scatter plots of the frequencies of two samples.
 #Requires two variants objects, and a SNPs object.
 qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main='', xlab='variant frequency: sample1', ylab='variant frequency: sample2', plotFlagged=T, cpus=1, verbose=T, print = F, printRedCut = 0.99, printOnlyNovel=F, plotPosition=F, genome='hg19', xlim=c(0,1), ylim=c(0,1), outputHighlighted=F, frame.plot=F, legend=T, redCut=0.75, forceCol=NA, add=F, GoI=c(), printCex=1, doPlot=T, minSomaticP=0, ignoreFlagsInOne = c('Svr', 'Mv', 'Nab'), ignoreFlagsInBoth = c('Srr'), flagOpacity=0.4, severityWidth=0.5, cosmicWidth=3, ...) {
+  sharedRows = intersect(rownames(q1), rownames(q2))
+  q1 = q1[sharedRows,]
+  q2 = q2[sharedRows,]
+
   use = q1$var > 0 | q2$var > 0
   q1 = q1[use,]
   q2 = q2[use,]
@@ -175,7 +179,7 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
   }
   if ( any(is.na(db)) ) {
     db[is.na(db)] = 0
-    warning('Got NA sb in scatter.')
+    warning('Got NA db in scatter.')
   }
 
   use = q1$cov >= minCov & q2$cov >= minCov

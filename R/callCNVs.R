@@ -79,7 +79,7 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVarian
   
   #summarise by capture region
   catLog('Summarising capture regions..')
-  mC = maxCov()
+  mC = getMaxCov()
   catLog('using effective coverage capped at ', mC, '..', sep='')
   d = cancerVariants$cov
   effectiveCov = round(d*(1 + d/mC)/(1 + d/mC + d^2/mC^2))
@@ -436,7 +436,7 @@ calledFromSingleSNP = function(cR, eFreqs) {
   singleSNP = sapply(snps, length) == 1 | sapply(snps, function(is)
                       max(c(-Inf, eFreqs$x[is])) - min(c(Inf, eFreqs$x[is])) < fragmentLength())
 
-  width = cR$width + 0*systematicVariance()
+  width = cR$width + 0*getSystematicVariance()
   meanM = (cR$M[first]/width[first]^2 + cR$M[second]/width[second]^2)/(1/width[first]^2 + 1/width[second]^2)
   MP1 = pt(-abs(cR$M[first] - meanM)/width[first], df = cR$df[first])
   MP2 = pt(-abs(cR$M[second] - meanM)/width[second], df = cR$df[second])
@@ -538,7 +538,7 @@ forceMerge = function(clusters, toMerge, genome) {
   return(clusters)
 }
 
-correctedFrequency = function(clusters, eFreqs, maxCov = maxCov(), cpus=1) {
+correctedFrequency = function(clusters, eFreqs, maxCov = getMaxCov(), cpus=1) {
   ret = do.call(rbind, mclapply(1:nrow(clusters), function(row) {
     efs = eFreqs[eFreqs$x > clusters$x1[row] & eFreqs$x < clusters$x2[row],]
     if ( nrow(efs) == 0 ) return(c('f'=NA, 'ferr'=NA))
@@ -547,7 +547,13 @@ correctedFrequency = function(clusters, eFreqs, maxCov = maxCov(), cpus=1) {
   return(ret)
 }
 
-maxCov = function() {return(get('.maxCov', envir = .GlobalEnv))}
+getMaxCov = function() {
+  if ( !exists('.maxCov', envir = .GlobalEnv) ) {
+    assign('.maxCov', value=0.02, envir = .GlobalEnv)
+    warnings('setting maxCov to default 150')
+  }
+  return(get('.maxCov', envir = .GlobalEnv))
+}
 
 #helper function that calculates the probability that a region has 50% frequency.
 redoHetCalculations = function(clusters, eFreqs, plot=F, cpus=1) {
@@ -734,7 +740,7 @@ isAB = function(cluster, efs, sigmaCut=3) {
   else {
     pF = cluster$postHet
   }
-  pM = 2*pt(-abs(cluster$M)/(cluster$width+systematicVariance()), df=cluster$df)  #allow systematic effects
+  pM = 2*pt(-abs(cluster$M)/(cluster$width+getSystematicVariance()), df=cluster$df)  #allow systematic effects
   pBoth = sapply(1:length(pF), function(row) fisherTest(c(pF[row], pM[row]))[2])
   sigma = abs(qnorm(pBoth/2, 0, 1))
   return(list(call=sigma < sigmaCut, sigma = sigma, clonalityError=0))
@@ -775,7 +781,7 @@ isCNV = function(cluster, efs, M, f, prior, sigmaCut=3) {
   ferr = if ( cluster$cov == 0 ) Inf else cluster$ferr
 
   #add the systematic variance to the setting, to not overestimate confidence in coverage
-  mWidth = sqrt(cluster$width^2 + systematicVariance()^2)
+  mWidth = sqrt(cluster$width^2 + getSystematicVariance()^2)
 
   #The MAF of the cluster
   if ( cluster$cov == 0 ) cf = 0 else cf = pmax(0.001, cluster$f)
@@ -832,7 +838,7 @@ isCNV = function(cluster, efs, M, f, prior, sigmaCut=3) {
   if ( cluster$cov == 0 ) pCall = exp(-1)
   #else pCall = fisherTest(pBinom(efs$cov, efs$var, refBias(fClone)))['pVal']
   else pCall = min(p.adjust(pBinom(efs$cov, efs$var, refBias(fClone)), method='fdr'))
-  pM = 2*pt(-noneg(abs(cluster$M - MClone))/(cluster$width+systematicVariance()), df=cluster$df)  #allow systematic error
+  pM = 2*pt(-noneg(abs(cluster$M - MClone))/(cluster$width+getSystematicVariance()), df=cluster$df)  #allow systematic error
 
   #likelihood for both MAF and LFC fitting the called clonality
   pBoth = fisherTest(c(pCall + 1e-10, pM))[2]
@@ -903,7 +909,7 @@ subsetFit = function(fit, rows=NA, cols=NA) {
   return(fit)
 }
 
-systematicVariance = function() {
+getSystematicVariance = function() {
   if ( !exists('.systematicVariance') ) {
     assign('.systematicVariance', 0, envir = .GlobalEnv)
     warning('.systematicVariance not previouly defined. Setting to 0.\n')
@@ -1046,7 +1052,7 @@ plotMAFLFC = function(clusters, xlim=c(-1.2, 1.2)) {
     if ( call != 'AB' ) points(markFMs[,2], markFMs[,1], pch=4, cex=4*markClonalities,, lwd=2, col=callsToCol(call))
     text(fMs[round(length(clonalities)*0.6),2]+0.05, fMs[round(length(clonalities)*0.6),1]+0.01, call, col=callsToCol(call))
   }
-  w = sqrt(clusters$width^2 + systematicVariance()^2)
+  w = sqrt(clusters$width^2 + getSystematicVariance()^2)
   f = clusters$f
   ferr = ifelse(clusters$cov == 0, 0.25, clusters$ferr)
   f = ifelse(clusters$cov == 0, 0.25, f)

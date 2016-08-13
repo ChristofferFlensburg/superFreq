@@ -7,7 +7,7 @@
 superFreq(metaDataFile, captureRegions, normalDirectory, Rdirectory,
   plotDirectory, reference, genome = "hg19", BQoffset = 33, cpus = 3,
   outputToTerminalAsWell = T, forceRedo = forceRedoNothing(),
-  normalCoverageDirectory = "", systematicVariance = 0.03, maxCov = 150,
+  normalCoverageDirectory = "", systematicVariance = 0.02, maxCov = 150,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
   cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
   participants = "all", manualStoryMerge = F)

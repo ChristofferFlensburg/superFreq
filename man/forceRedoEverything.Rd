@@ -34,7 +34,7 @@ outputDirectories = list('Rdirectory'=Rdirectory, 'plotDirectory'=plotDirectory)
 runtimeSettings = list('cpus'=cpus, 'outputToTerminalAsWell'=T)
 
 forceRedo = forceRedoEverything()
-parameters = list('systematicVariance'=0.03, 'maxCov'=150)
+parameters = list('systematicVariance'=0.02, 'maxCov'=150)
 
 data = analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings, parameters=parameters)
 }

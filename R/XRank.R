@@ -866,6 +866,7 @@ XRank = function(fit, coefs = 0, keepPosterior = T, verbose=F, plot=F, cpus=5) {
   return(fit)
 }
 
+
 plotXRank = function(fit, top = 5, coef=0, verbose=F, legend.cex=1, ...) {
   if ( !('posterior' %in% names(fit)) )
     warning('Could not find posterior. Run XRank(fit).')
@@ -916,7 +917,7 @@ plotXRank = function(fit, top = 5, coef=0, verbose=F, legend.cex=1, ...) {
 
   if ( (xmax > abs(xmin) && xmin != -0.5) || xmax == 0.5 ) side = 'topright'
   else side = 'topleft'
-  legend(side, paste(rownames(fit)[topGenes], ' (FDR ', signif(fitToFDR(fit, coef)[topGenes], 1),')', sep=''),
+  legend(side, paste(rownames(fit)[topGenes], ' (FDR ', signif(p.adjust(fit$p.value[,coef], method='fdr')[topGenes]),')', sep=''),
          col = cols[1:top], lwd=5, cex=legend.cex)
 }
 

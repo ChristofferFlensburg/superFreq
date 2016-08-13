@@ -84,7 +84,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')
       stop('Error in featureCounts of normals.')
     }
-    catLog('Got a normals count matrix of size', dim(normalFCsExon$counts), '\n')
+    catLog('Got a normals count matrix of size', dim(normalFCsExon$counts), ', with total counts:\n')
+    for ( col in colnames(normalFCsExon$counts) ) {
+      catLog(col, ': ', sum(normalFCsExon$counts[,col]), '\n')
+    }
     colnames(normalFCsExon$counts) = names(externalNormalBams)
     catLog('Saving normals counts to ', normalFCsSaveFile, '..', sep='')
     save(normalFCsExon, file=normalFCsSaveFile)
@@ -691,7 +694,6 @@ plotMA = function(x, y, col=mcri('darkblue'), libNorm = F, span=0.2, medianSigma
 #' @param x Numeric. The x coordinates.
 #' @param y Numeric. The y coordinates.
 #' @param add boolean. If adding the plot onto whatever is alrady there. Essentially turns plot() it into points().
-#' @param verbose Boolean. Prints the correlation of x and y.
 #' @param showDensity Boolean. Adds a gradient through cyan and green in dense regions. Default TRUE.
 #' @param ... Remaining parameters are passed to plot(...), or to points(...) if add.
 #'
@@ -702,8 +704,7 @@ plotMA = function(x, y, col=mcri('darkblue'), libNorm = F, span=0.2, medianSigma
 #' plotColourScatter(x, y)
 #'
 plotColourScatter = function(x, y, xlab='', ylab='', col='defaultBlue', main='cor',
-  add=F, cex=1,verbose=T, showDensity=T,...) {
-  if ( verbose ) catLog('Correlation is ', cor(x,y), '.\n', sep='')
+  add=F, cex=1, showDensity=T,...) {
   if ( main == 'cor' ) main = paste('Correlation is', signif(cor(x,y), 2))
   if ( col == 'defaultBlue' ) plotCol=mcri('darkblue')
   else if ( col == 'defaultRed' ) plotCol=mcri('darkred')

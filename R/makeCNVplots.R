@@ -169,7 +169,7 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   y = 0.6+cR$M/2
   col = rgb(pmin(1,pmax(0,2*cR$M))*colourDeviation,0,pmin(1,pmax(0,-2*cR$M))*colourDeviation, alpha)
   if ( !is.na(forceCol)[1] ) col = forceCol 
-  width = sqrt(cR$width^2+systematicVariance()^2)
+  width = sqrt(cR$width^2+getSystematicVariance()^2)
   lfcCex = pt.cex*pmax(0.2, pmin(3, sqrt(0.1/width)))
   points(x, pmax(0, y), cex=lfcCex, col=col, pch=16)
   if ( errorBars ) segments(x, pmax(0,y-width/2), x, pmax(0, y+width/2), lwd=lfcCex, col=col)

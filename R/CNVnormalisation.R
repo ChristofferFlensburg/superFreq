@@ -42,7 +42,7 @@ callConsistency = function(M, dM, f, df, postHet, call) {
 
 callConsistencyNumeric = function(M, dM, f, df, postHet, call, N = 1000) {
   #add the systematic variance to the setting, to not overestimate confidence in coverage
-  dM = sqrt(dM^2 + systematicVariance()^2)
+  dM = sqrt(dM^2 + getSystematicVariance()^2)
 
   callF = callTofM(call)['f']
   callM = callTofM(call)['M']

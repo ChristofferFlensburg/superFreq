@@ -4,8 +4,8 @@
 \alias{defaultSuperParameters}
 \title{Returns default parameters}
 \usage{
-defaultSuperParameters(systematicVariance = "", maxCov = "",
-  cloneDistanceCut = "")
+defaultSuperParameters(systematicVariance = -1, maxCov = -1,
+  cloneDistanceCut = -1)
 }
 \description{
 Returns default parameters
