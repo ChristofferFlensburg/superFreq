@@ -49,8 +49,12 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       #select somatic SNPs
       somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
       somatic = apply(somaticMx, 1, any)
-      rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 10))
-      rareGermline = apply(rareGermlineMx, 1, any)      
+      if ( any(normals[ts]) ) {
+        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 10 & !is.na(q$severity)))
+        rareGermline = apply(rareGermlineMx, 1, any)
+      }
+      else
+        rareGermline = rep(FALSE, length(somatic))
       somaticQs = lapply(qs, function(q) q[somatic | rareGermline,])
 
       #switch to effective coverage, to not overestimate the accuracy of high-coverage SNPs

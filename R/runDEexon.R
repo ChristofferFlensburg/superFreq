@@ -243,7 +243,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
           ylim = quantile(LFC[use], probs=c(0.01, 0.99))
           png(plotfile, height=10, width=20, res=144, unit='in')
           plotColourScatter(dn[use], LFC[use], cex=w[use], ylim=ylim,
-                            main=col, xlab='binding strength', ylab='log(reads/bp)', verbose=F)
+                            main=col, xlab='binding strength', ylab='log(reads/bp)')
         lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
           legend('topleft', 'loess fit', lwd=5, col=mcri('orange'), bg='white')
           dev.off()
@@ -253,7 +253,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
           ylim = quantile(LFC, probs=c(0.01, 0.99))+c(0.5,0.5)
           png(plotfile, height=10, width=20, res=144, unit='in')
           plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
-                            ylab='~log(1+read depth)', verbose=F)
+                            ylab='~log(1+read depth)')
           points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
           addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
@@ -265,7 +265,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
           ylim = quantile(LFC + log(correctionFactor), probs=c(0.01, 0.99))+c(0.5,0.5)
           png(plotfile, height=10, width=20, res=144, unit='in')
           plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
-                            ylab='~log(1+read depth)', verbose=F)
+                            ylab='~log(1+read depth)')
           points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
           addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
@@ -321,7 +321,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
           ylim = quantile(smoothLFC, probs=c(0.01, 0.99))
           png(plotfile, height=10, width=20, res=144, unit='in')
           plotColourScatter(regionDN, smoothLFC, cex=w, main=col, ylim=ylim,
-                            xlab='region binding strength', ylab='region mean log(reads/bp)', verbose=F)
+                            xlab='region binding strength', ylab='region mean log(reads/bp)')
           lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
           legend('topleft', 'loess fit', lwd=5, col=mcri('orange'))
           dev.off()
@@ -331,7 +331,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
           ylim = quantile(LFC, probs=c(0.01, 0.99))+c(0.5,0.5)
           png(plotfile, height=10, width=20, res=144, unit='in')
           plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim,
-                            xlab='genome', ylab='~log(1+read depth)', verbose=F)
+                            xlab='genome', ylab='~log(1+read depth)')
           points(annotationToX(annotation, genome), (regionDN-mean(regionDN))/1.5 + mean(ylim), cex=w/2,
                  pch=16, col=mcri('orange', 0.5))
           addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)

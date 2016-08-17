@@ -123,12 +123,12 @@ plotFrequencyDiagnostics = function(variants, plotDirectory) {
       if ( any(cleanUse) ) {
         cov = noneg(variants$variants[[sample]]$cov[cleanUse] + pmax(-0.4, pmin(0.4, rnorm(sum(cleanUse), 0, 0.2))))
         var = pmin(cov, noneg(variants$variants[[sample]]$var[cleanUse] + pmax(-0.4, pmin(0.4, rnorm(sum(cleanUse), 0, 0.2)))))
-        plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=paste0(sample, ', clean variants'))
+        plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', main=paste0(sample, ', clean variants'))
       }
       else {
         cov = noneg(variants$variants[[sample]]$cov[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2))))
         var = pmin(cov, noneg(variants$variants[[sample]]$var[use] + pmax(-0.4, pmin(0.4, rnorm(sum(use), 0, 0.2)))))
-        plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', verbose=F, main=sample)
+        plotColourScatter((var/cov), cov, log='y', xlab='f', ylab='coverage', main=sample)
       }
       dev.off()
     }

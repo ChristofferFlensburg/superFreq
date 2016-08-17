@@ -488,14 +488,17 @@ postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19'
 }
 
 fixFalseSNPcall = function(clusters, eFreqs) {
-  isAA = gsub('\\?', '', clusters$call) == 'AA'
+  #isAA = gsub('\\?', '', clusters$call) == 'AA'
+  lfcDist = abs(clusters$M[2:nrow(clusters)] - clusters$M[1:(nrow(clusters)-1)])/
+            sqrt(clusters$width[2:nrow(clusters)]^2 + clusters$width[1:(nrow(clusters)-1)]^2)
+  basedOnSNPs = c(F, lfcDist < 1) | c(lfcDist < 1, F)
   smallRegion = clusters$x2 - clusters$x1 < 1e7
   x = eFreqs$x
   snps = lapply(1:nrow(clusters), function(row) which(x < clusters$x2[row] & x > clusters$x1[row]))
   basedOnFewSNPs = sapply(snps, length) < 5
   basedOnSmallRegion = sapply(snps, function(is) length(is) > 0 && max(eFreqs$x[is]) - min(eFreqs$x[is]) < 1e5)
   inconsistentEvidence = clusters$sigma > 2
-  falseCall = isAA & smallRegion & (basedOnFewSNPs | basedOnSmallRegion | inconsistentEvidence)
+  falseCall = basedOnSNPs & smallRegion & (basedOnFewSNPs | basedOnSmallRegion | inconsistentEvidence)
   if ( any(falseCall) ) {
     catLog('found', sum(falseCall), 'AA calls from false SNPs..')
     isab = sapply(which(falseCall), function(i) unlist(isAB(clusters[i,], eFreqs[snps[[i]],])))
