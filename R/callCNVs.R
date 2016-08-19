@@ -86,11 +86,7 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVarian
   effectiveVar = round(cancerVariants$var/cancerVariants$cov*effectiveCov)
   effectiveFreqs = data.frame(var=mirrorDown(effectiveVar, cov=effectiveCov),
     cov=effectiveCov, x=cancerVariants$x)
-  cancerCR = try(unifyCaptureRegions(effectiveFreqs, fit, cpus=cpus))
-  if ( class(cancerCR) == 'try-error' ) {
-    catLog('Error in unifyCaptureRegions(cancerVariants, fit, cpus=cpus)\n')
-    stop('Error in unifyCaptureRegions(cancerVariants, fit, cpus=cpus)!')
-  }
+  cancerCR = unifyCaptureRegions(effectiveFreqs, fit, cpus=cpus)
   catLog('done!\n')
 
   #correct width if variance is underestimated
@@ -555,7 +551,7 @@ getMaxCov = function() {
     assign('.maxCov', value=0.02, envir = .GlobalEnv)
     warnings('setting maxCov to default 150')
   }
-  return(get('.maxCov', envir = .GlobalEnv))
+  return(max(1, get('.maxCov', envir = .GlobalEnv)))
 }
 
 #helper function that calculates the probability that a region has 50% frequency.
