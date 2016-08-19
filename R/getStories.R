@@ -47,14 +47,19 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       catLog('\nTracking clonal evolution in ', name, '..', sep='')
       
       #select somatic SNPs
-      somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
-      somatic = apply(somaticMx, 1, any)
+      if ( any(!normals[ts]) ) {
+        somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
+        somatic = apply(somaticMx, 1, any)
+      }
+      else
+        somatic = rep(FALSE, nrow(qs[[1]]))
+
       if ( any(normals[ts]) ) {
         rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 10 & !is.na(q$severity)))
         rareGermline = apply(rareGermlineMx, 1, any)
       }
       else
-        rareGermline = rep(FALSE, length(somatic))
+        rareGermline = rep(FALSE, nrow(qs[[1]]))
       somaticQs = lapply(qs, function(q) q[somatic | rareGermline,])
 
       #switch to effective coverage, to not overestimate the accuracy of high-coverage SNPs
