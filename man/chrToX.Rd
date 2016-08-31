@@ -11,7 +11,7 @@ chrToX(chr, bp, genome = "hg19")
 
 \item{bp}{integer: the position on the chromosome.}
 
-\item{genome}{character: the genome, such as 'hg19' or 'mm10'. Default 'hg19'.}
+\item{genome}{character: the genome, such as 'hg19', 'hg38' or 'mm10'. Default 'hg19'.}
 }
 \description{
 convert chromsome and position to the single genomic coordinate x

@@ -53,27 +53,13 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
 #the high level function that controls the steps of the CNV calling for given sample and normal variant objects.
 callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1) {
   #estimate reference bias and variance from the selected normal hets.
-  a=try(setVariantLoss(moreNormalVariants))
-  if ( class(a) == 'try-error' ) {
-    catLog('Error in setVariantLoss(moreNormalVariants)\n')
-    stop('Error in setVariantLoss(moreNormalVariants)!')
-  }
+  a=setVariantLoss(moreNormalVariants)
 
   #select good germline het variants from normals:
-  if ( class(normalVariants) == 'logical') {
-    use = try(selectGermlineHetsFromCancer(cancerVariants, moreNormalVariants, fit$sex, SNPs, genome, cpus=cpus))
-    if ( class(use) == 'try-error' ) {
-      catLog('Error in selectGermlineHetsFromCancer(cancerVariants, moreNormalVariants, cpus=cpus)\n')
-      stop('Error in selectGermlineHetsFromCancer(cancerVariants, moreNormalVariants, cpus=cpus)!')
-    }
-  }
-  else {
-    use = try(selectGermlineHets(normalVariants, moreNormalVariants, fit$sex, SNPs, genome, cpus=cpus))
-    if ( class(use) == 'try-error' ) {
-      catLog('Error in selectGermlineHets(normalVariants, moreNormalVariants, cpus=cpus)\n')
-      stop('Error in selectGermlineHets(normalVariants, moreNormalVariants, cpus=cpus)!')
-    }
-  }
+  if ( class(normalVariants) == 'logical')
+    use = selectGermlineHetsFromCancer(cancerVariants, moreNormalVariants, fit$sex, SNPs, genome, cpus=cpus)
+  else
+    use = selectGermlineHets(normalVariants, moreNormalVariants, fit$sex, SNPs, genome, cpus=cpus)
   is = rownames(cancerVariants) %in% use
   cancerVariants = cancerVariants[is,]
   

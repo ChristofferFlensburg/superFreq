@@ -50,13 +50,15 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       if ( any(!normals[ts]) ) {
         somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
         somatic = apply(somaticMx, 1, any)
+        catLog('Found ', sum(somatic), ' somatic SNVs to track.\n', sep='')
       }
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
 
       if ( any(normals[ts]) ) {
-        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 10 & !is.na(q$severity)))
+        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 11 & !is.na(q$severity)))
         rareGermline = apply(rareGermlineMx, 1, any)
+        catLog('Found ', sum(rareGermline), ' rare germline variants to track.\n', sep='')
       }
       else
         rareGermline = rep(FALSE, nrow(qs[[1]]))
@@ -554,7 +556,7 @@ extractClonalities = function(cnvs, event) {
   subCR = do.call(rbind, lapply(1:length(cnvs), function(i) {
     cs = cnvs[[i]]
     efs = subFreqsMirror[[i]]
-    mergeToOneRegion(cs$CR[cs$CR$x2 >= event$x1 & cs$CR$x1 <= event$x2,,drop=F], efs)
+    ret = mergeToOneRegion(cs$CR[cs$CR$x1 >= event$x1 & cs$CR$x2 <= event$x2,,drop=F], efs)
   }))
   fM = callTofM(as.character(event$call))
   prior = callPrior(as.character(event$call))
@@ -651,7 +653,7 @@ freqToDirectionProb = function(freq, freqX, fM, clonality) {
 #and a list of dataframes for the individual stories in each subclone.
 storiesToCloneStories = function(stories, storyList='',
   minDistance=-qnorm(0.01), cpus=1, manualStoryMerge=F, variants=NA) {
-  if ( storyList ==  '' ) storyList = as.list(rownames(stories))
+  if ( (storyList ==  '')[1] ) storyList = as.list(rownames(stories))
   if ( length(storyList) < 2 )
     return(list('cloneStories'=stories, 'storyList'=storyList))
 

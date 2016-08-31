@@ -16,6 +16,7 @@
 #' metaData
 #'
 importSampleMetaData = function(sampleMetaDataFile) {
+  if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
   if ( !file.exists(sampleMetaDataFile) ) stop("Meta data file ", sampleMetaDataFile, ' doesnt exist.')
   catLog('Loading sample meta data from file...')
   metaData = read.table(sampleMetaDataFile, header=T, as.is=T, fill=T)

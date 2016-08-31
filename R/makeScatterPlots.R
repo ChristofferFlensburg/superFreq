@@ -97,9 +97,54 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
 }
 
 
-#helper function that generates fancy scatter plots of the frequencies of two samples.
-#Requires two variants objects, and a SNPs object.
+#' plots a scatter of the VAF between two samples
+#'
+#' @param q1 data.frame. The variants of the x sample, taken from the loaded data$allVariants$variants$variants$mySample
+#' @param q2 data.frame. The variants of the y sample, taken from the loaded data$allVariants$variants$variants$mySample
+#' @param ps numeric. p-values of the variants. Default NA calculates them, but supplying them directly can save time.
+#' @param covScale numeric. The coverage where the point size is one. Larger coverage scale will make the points smaller. Default 100.
+#' @param maxCex numeric. Cutoff for maximum point size. Default 1.5.
+#' @param minCov numeric. Variants with coverage below this level are not plotted.
+#' @param plotFlagged logical. If flagged variants shouldbe plotted. Default T.
+#' @param cpus numeric. The maximum number of cpus to run on.
+#' @param verbose logical. If some diagnostic outputs should be printed to terminal. Default T.
+#' @param print logical. If gene names of significantly different VAFs should be printed on the plot. Default F.
+#' @param printRedCut numeric. The redness (0 to 1) above which gene names are printed if print is TRUE. Default 0.99.
+#' @param printOnlyNovel logical. Only print gene names if the VAF is small in one sample if print is TRUE. Default FALSE.
+#' @param plotPosition logical. Show the genomic position of each variant with a thin line to the top of the plot, as well as colour coding. Default FALSE.
+#' @param genome character. The genome aligned to. Default 'hg19'.
+#' @param outputHighlighted logical. Prints the printed genes to terminal. Default FALSE.
+#' @param legend logical. If the legend should be included. Default TRUE.
+#' @param redCut numeric. Sets how significantly different the VAFs have to be fo the dot to be coloured red. Default 0.75.
+#' @param forceCol colour. Forces all the dots to this colour. Default NA does colour by significance.
+#' @param add logical. If TRUE, the dots are added to the existing plot. Default FALSE.
+#' @param GoI character. vector of genes of interest that always get their gene name printed on the plot. Default c().
+#' @param printCex numeric. A scaling factor for the size of the printed gene names. Default 1.
+#' @param doPlot numeric. If FALSE, the plot isn't made, but p values are returned. Default TRUE.
+#' @param minSomaticP numeric. Variants with a somaticP below this cut in both samples are excluded. Default 0 includes all points.
+#' @param ignoreFlagsInOne character. Variants with this flag in one (but not both) sample are plotted even if plotFlagged is FALSE. Default c('Svr', 'Mv', 'Nab').
+#' @param ignoreFlagsInBoth character. Variants with this flag are plotted even if plotFlagged is FALSE. Default c('Srr').
+#' @param flagOpacity numeric. The opacity of the flagged variants. Default 0.4.
+#' @param severityWidth numeric. A scaling factor for the size of the orange circle for protein altering SNVs. Default 0.5.
+#' @param cosmicWidth numeric. A scaling factor for the size of the green circle around COSMIC census genes. Default 3.
+#' @param ...  remaining arguments are passed to plot(...)
+#'
+#' @details This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+#'
+#'
+#' @export
+#' @examples
+#' #random matrix to plot, centered around 0. Plot in 'DE' colours.
+#' mx = matrix(rt(400, df=10), nrow=100)
+#' makeHeatmap(mx, col='DE')
+#' 
+#' #random matrix to plot, between 0 and 1. Plot in default and sunset colours.
+#' mx = matrix(runif(400), nrow=100)
+#' makeHeatmap(mx)
+#' makeHeatmap(mx, col='sunset')
+#'
 qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main='', xlab='variant frequency: sample1', ylab='variant frequency: sample2', plotFlagged=T, cpus=1, verbose=T, print = F, printRedCut = 0.99, printOnlyNovel=F, plotPosition=F, genome='hg19', xlim=c(0,1), ylim=c(0,1), outputHighlighted=F, frame.plot=F, legend=T, redCut=0.75, forceCol=NA, add=F, GoI=c(), printCex=1, doPlot=T, minSomaticP=0, ignoreFlagsInOne = c('Svr', 'Mv', 'Nab'), ignoreFlagsInBoth = c('Srr'), flagOpacity=0.4, severityWidth=0.5, cosmicWidth=3, ...) {
+  if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
   sharedRows = intersect(rownames(q1), rownames(q2))
   q1 = q1[sharedRows,]
   q2 = q2[sharedRows,]

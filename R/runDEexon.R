@@ -13,7 +13,7 @@
 #' @param plotDirectory The directory to plot results and diagnosis to.
 #' @param normalRdirectory The directory to save or load the pool of normal counts to/from.
 #' @param settings Settings as passed to analyse(...).
-#' @param genome Character string of the genome, such as 'hg19' or 'mm10'. Defaults to 'hg19'.
+#' @param genome Character string of the genome, such as 'hg19', 'hg38' or 'mm10'. Defaults to 'hg19'.
 #' @param cpus The number of parallel cpus to be used. Defaults to 1.
 #' @param forceRedoFit Boolean, forcing the differential analysis to be redone even if saved data is
 #'                     present. Defaults to FALSE.

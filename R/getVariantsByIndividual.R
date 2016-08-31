@@ -215,7 +215,7 @@ vcfToPositions = function(files, genome='hg19') {
 #'
 #' @param chr character: The chromosome. Both 'chr1' and '1' works. 'Chr1' does not.
 #' @param bp integer: the position on the chromosome.
-#' @param genome character: the genome, such as 'hg19' or 'mm10'. Default 'hg19'.
+#' @param genome character: the genome, such as 'hg19', 'hg38' or 'mm10'. Default 'hg19'.
 #'
 #' @details convert chromsome and position to the single genomic coordinate x.
 #'

@@ -50,7 +50,7 @@ superVersion = function() return('0.9.14')
 #' @param plotDirectory Character. A path to the directory where plots and output is placed.
 #'                      The directory will be created if needed, but the parent directory must exist.
 #' @param reference Character. Path to the indexed fasta file the bams were aligned to.
-#' @param genome Character. The reference genome the samples are aligned to, such as "hg19"
+#' @param genome Character. The reference genome the samples are aligned to, such as "hg19", "hg38"
 #'               or "mm10". Defaults to "hg19".
 #' @param BQoffset Integer. The offset of the base quality encoding. Defaults to 33.
 #' @param forceRedo named list of Booleans. Controls which step are retrieved from previously
@@ -385,7 +385,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Running on at most', cpus, 'cpus.\n')
 
 
-  if ( !(genome %in% c('hg19', 'mm10')) ) stop('Only genomes that are supported atm are hg19 and mm10, sorry.\nNew genomes can easily be added though, please contact the authors.\n')
+  if ( !(genome %in% c('hg19', 'hg38', 'mm10')) ) stop('Only genomes that are supported atm are hg19, hg38 and mm10, sorry.\nNew genomes can easily be added though, please contact the authors.\n')
 
   if ( class(parameters) != 'list' ) stop('parameters need to be of class list. Dont provide this to analyse() for default settings, otherwise a named list with the parameters.')
   catLog('\nParameters for this run are:\n')

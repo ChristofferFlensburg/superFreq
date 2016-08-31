@@ -481,6 +481,7 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
 #' makeHeatmap(mx, col='sunset')
 #'
 makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', DEsaturation=log2(10), reverseGradient=F, ...) {
+  if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
   if ( nrow(mx) < 2 | ncol(mx) < 2 ) {
     warning('Not two lines and two columns in the heatmap. skip.')
     return()

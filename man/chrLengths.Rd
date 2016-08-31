@@ -7,7 +7,7 @@
 chrLengths(genome = "hg19")
 }
 \arguments{
-\item{genome}{character: the name of the genome. hg19 and mm10 supported atm.}
+\item{genome}{character: the name of the genome. hg19, hg38 and mm10 supported atm.}
 }
 \description{
 The lengths of the chromsomes
@@ -16,7 +16,7 @@ The lengths of the chromsomes
 Returns a named vector of the chromosome lengths of the standard chromosomes.
 }
 \examples{
-barplot(chrLengths('hg19'))
+barplot(chrLengths())
 chrLengths('mm10')
 
 #the chromosome boundaries in the genomic x coordinate.

@@ -2,7 +2,7 @@
 #' Imports capture regions from a bed file with GC information.
 #'
 #' @param file Bedfile of the capture regions with extra columns for gc and binding strength information.
-#' @param genome Which genome the bed file is on. 'hg19' and 'mm10' only supported atm.
+#' @param genome Which genome the bed file is on. 'hg19', 'hg38' and 'mm10' only supported atm.
 #' @param gcColumn the column in the bed file that contains the gc content. Default 5 matches output from the provided script at X.
 #' @param dnColumn the column in the bed file that contains the binding strength. Default 6 matches output from the provided script at X.
 #'
@@ -85,17 +85,24 @@ mouseChrLengths = function() {
 
   return(lengths)
 }
+hg38ChrLengths = function() {
+  lengths = c(248956422, 242193529, 198295559, 190214555, 181538259, 170805979, 159345973, 145138636, 138394717, 133797422, 135086622, 133275309, 114364328, 107043718, 101991189, 90338345, 83257441, 80373285, 58617616, 64444167, 46709983, 50818468, 156040895, 57227415)
+
+  names(lengths) = c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ,'11', '12' ,'13', '14' ,'15', '16' ,'17', '18', '19', '20', '21', '22', 'X', 'Y')
+  
+  return(lengths)
+}
 
 #' The lengths of the chromsomes
 #'
-#' @param genome character: the name of the genome. hg19 and mm10 supported atm.
+#' @param genome character: the name of the genome. hg19, hg38 and mm10 supported atm.
 #'
 #' @details Returns a named vector of the chromosome lengths of the standard chromosomes.
 #'
 #' @export
 #'
 #' @examples
-#' barplot(chrLengths('hg19'))
+#' barplot(chrLengths())
 #' chrLengths('mm10')
 #'
 #' #the chromosome boundaries in the genomic x coordinate.
@@ -104,6 +111,7 @@ mouseChrLengths = function() {
 chrLengths = function(genome='hg19') {
   if ( genome == 'hg19' ) return(humanChrLengths())
   else if ( genome == 'mm10' ) return(mouseChrLengths())
+  else if ( genome == 'hg38' ) return(hg38ChrLengths())
   else stop('chrLengths doesnt know about genome ', genome, '\n')
 }
 
@@ -215,7 +223,7 @@ xToGeneFromDB = function(x, genome='hg19', saveDirectory='', verbose=T) {
 
   #match variant positions to genes ranges
   if ( verbose ) catLog('matching ranges to positions...')
-  if ( genome == 'hg19' ) symbolName = 'hgnc_symbol'
+  if ( genome %in% c('hg19', 'hg38') ) symbolName = 'hgnc_symbol'
   else if ( genome == 'mm10' ) symbolName = 'mgi_symbol'
   else stop('genome ', genome, ' not supported')
   geneRanges =
@@ -267,7 +275,14 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
       ensemblName = 'ensembl_transcript_id'
       biotype = 'gene_biotype'
     }
-    else stop('hg19 and mm10 are the only supported genomes atm, sorry. :(')
+    else if ( genome == 'hg38' ) {
+      mart = useMart(biomart='ensembl', dataset = 'hsapiens_gene_ensembl',
+        version='Ensembl Genes', host='grch38.ensembl.org')
+      symbolName = 'hgnc_symbol'
+      ensemblName = 'ensembl_transcript_id'
+      biotype = 'gene_biotype'
+    }
+    else stop('hg19, hg38 and mm10 are the only supported genomes atm, sorry. :(')
     
     maxLength = 1000
     if ( length(chr) > maxLength ) {

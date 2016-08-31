@@ -8,7 +8,7 @@ importCaptureRegions(bedFile, reference, Rdirectory, genome = "hg19",
   forceRedoCR = F, forceRedoRdirectorySave = F)
 }
 \arguments{
-\item{genome}{Which genome the bed file is on. 'hg19' and 'mm10' only supported atm.}
+\item{genome}{Which genome the bed file is on. 'hg19', 'hg38' and 'mm10' only supported atm.}
 
 \item{file}{Bedfile of the capture regions with extra columns for gc and binding strength information.}
 

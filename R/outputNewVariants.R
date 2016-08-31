@@ -15,6 +15,8 @@ outputNewVariants = function(variants, pairs, genome, directory, cpus=1, forceRe
       pair = pairs[[name]]
       catLog('Looking for new cancer variants in ', name, '\n')
       news[[name]] = newVariants(variants$variants[[pair[1]]], variants$variants[[pair[2]]], genome, cpus=cpus)
+      if ( nrow(news[[name]]) > 65000 ) warning('Truncating .xls new variants: too many rows.')
+      news[[name]] = news[[name]][1:min(nrow(news[[name]]), 65000),]
     }
     WriteXLS('news', outfile)
   }

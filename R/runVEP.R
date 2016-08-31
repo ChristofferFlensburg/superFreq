@@ -223,7 +223,7 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
     return()
   }
   
-  if ( genome == 'hg19' & 'cosmic' %in% names(data$allVariants$variants$variants[[1]]) & !forceRedo ) return()
+  if ( genome %in% c('hg19', 'hg38') & 'cosmic' %in% names(data$allVariants$variants$variants[[1]]) & !forceRedo ) return()
   if ( genome == 'mm10' & 'isCCGD' %in% names(data$allVariants$variants$variants[[1]]) & !forceRedo ) return()
 
   backup = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
@@ -509,7 +509,7 @@ addNullAnnotation = function(q, genome='hg19') {
 #'
 #' @details Just remembers which columns are added by getMoreVEPinfo
 moreVEPnames = function(genome='hg19') {
-  if ( genome == 'hg19' ) return(c('polyPhen', 'sift', 'exon', 'AApos', 'AAbefore', 'AAafter', 'domain', 'cosmic', 'isCosmicCensus', 'cosmicVariantMPM', 'cosmicGeneMPMPB'))
+  if ( genome %in% c('hg19', 'hg38') ) return(c('polyPhen', 'sift', 'exon', 'AApos', 'AAbefore', 'AAafter', 'domain', 'cosmic', 'isCosmicCensus', 'cosmicVariantMPM', 'cosmicGeneMPMPB'))
   if ( genome == 'mm10' ) return(c('polyPhen', 'sift', 'exon', 'AApos', 'AAbefore', 'AAafter', 'domain', 'isCCGD', 'CCGDstudies', 'CCGDcancerTypes', 'CCGDcosmic', 'CCGDcgc', 'CCGDranks'))
 }  
 

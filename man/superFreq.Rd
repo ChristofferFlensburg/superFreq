@@ -58,7 +58,7 @@ The directory will be created if needed, but the parent directory must exist.}
 
 \item{reference}{Character. Path to the indexed fasta file the bams were aligned to.}
 
-\item{genome}{Character. The reference genome the samples are aligned to, such as "hg19"
+\item{genome}{Character. The reference genome the samples are aligned to, such as "hg19", "hg38"
 or "mm10". Defaults to "hg19".}
 
 \item{BQoffset}{Integer. The offset of the base quality encoding. Defaults to 33.}

@@ -26,7 +26,7 @@ runDE(bamFiles, names, externalNormalBams, captureRegions, Rdirectory,
 
 \item{settings}{Settings as passed to analyse(...).}
 
-\item{genome}{Character string of the genome, such as 'hg19' or 'mm10'. Defaults to 'hg19'.}
+\item{genome}{Character string of the genome, such as 'hg19', 'hg38' or 'mm10'. Defaults to 'hg19'.}
 
 \item{cpus}{The number of parallel cpus to be used. Defaults to 1.}
 
