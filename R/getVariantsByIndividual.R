@@ -245,7 +245,8 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
     q$dbValidated = rep(NA, nrow(q))
     return(q)
   })
-  
+
+  if ( genome == 'hg38' ) dir = paste0(dir, '/hg38')
   
   for (chr in names(chrLengths(genome)) ) {
     chr = gsub('^M$', 'MT', chr)
@@ -283,7 +284,7 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
     variants = mclapply(variants, function(q) {
       thisChr = which(xToChr(q$x, genome) == chr)
       if ( length(thisChr) == 0 ) return(q)
-      varPos = xToPos(q$x)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
+      varPos = xToPos(q$x, genome)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
       dbQ = db[db$pos %in% varPos,]
 
       q$db[thisChr] = varPos %in% dbQ$pos
@@ -398,7 +399,7 @@ matchToExac = function(variants, dir, genome='hg19', cpus=1) {
     variants = mclapply(variants, function(q) {
       thisChr = which(xToChr(q$x, genome) == chr)
       if ( length(thisChr) == 0 ) return(q)
-      varPos = xToPos(q$x)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
+      varPos = xToPos(q$x, genome)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
       qName = paste0(chrToX(chr, varPos), q$variant[thisChr])
       exac = subExac[subExac$pos %in% varPos,]
       exacName = paste0(chrToX(chr, exac$pos), exac$variant)

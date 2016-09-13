@@ -55,14 +55,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
 
-      if ( any(normals[ts]) ) {
-        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.95 & q$severity < 11 & !is.na(q$severity)))
-        rareGermline = apply(rareGermlineMx, 1, any)
-        catLog('Found ', sum(rareGermline), ' rare germline variants to track.\n', sep='')
-      }
-      else
-        rareGermline = rep(FALSE, nrow(qs[[1]]))
-      somaticQs = lapply(qs, function(q) q[somatic | rareGermline,])
+      somaticQs = lapply(qs, function(q) q[somatic,])
 
       #switch to effective coverage, to not overestimate the accuracy of high-coverage SNPs
       #not too low though, keep at least 100.
@@ -125,9 +118,22 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       #add in previously filtered SNV and CNA stories if they fit with the found clones
       #also reassign anchor mutations to best fitting clone.
       #accept somatic SNVs down to 0.5 somaticP for these
-      somaticMx = do.call(cbind, lapply(qs, function(q) q$somaticP > 0.5))
-      somatic = apply(somaticMx, 1, any)
-      somaticQs = lapply(qs, function(q) q[somatic,])
+      if ( any(!normals[ts]) ) {
+        somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.5))
+        somatic = apply(somaticMx, 1, any)
+        catLog('Found ', sum(somatic), ' somatic SNVs to track.\n', sep='')
+      }
+      else
+        somatic = rep(FALSE, nrow(qs[[1]]))
+      if ( any(normals[ts]) ) {
+        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.9 & q$severity < 11 & !is.na(q$severity)))
+        rareGermline = apply(rareGermlineMx, 1, any)
+        catLog('Found ', sum(rareGermline), ' rare germline variants to track.\n', sep='')
+      }
+      else
+        rareGermline = rep(FALSE, nrow(qs[[1]]))
+      somaticQs = lapply(qs, function(q) q[rareGermline | somatic,])
+      
       snpStories = findSNPstories(somaticQs, cnvs[ts], normals[ts], filter=F)
       cnvStories = getCNVstories(cnvs[ts], normals[ts], genome, filter=F)
       allStories = data.frame(row.names=c('germline', rownames(snpStories), rownames(cnvStories)), stringsAsFactors=F)

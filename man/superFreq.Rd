@@ -10,7 +10,7 @@ superFreq(metaDataFile, captureRegions, normalDirectory, Rdirectory,
   normalCoverageDirectory = "", systematicVariance = 0.02, maxCov = 150,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
   cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
-  participants = "all", manualStoryMerge = F)
+  participants = "all", manualStoryMerge = F, vepCall = "vep")
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -121,14 +121,27 @@ is located. If the directory doesn't exist, it will be created and the
 data will be downloaded. Defaults to superFreqCOSMIC (in the directory
 where R is run).}
 
-\item{mode}{Character. The mode to run in. The default 'Exome' is almost always used. An experimental}
+\item{mode}{Character. The mode to run in. The default 'Exome' is almost always used. If running on RNA,
+switch to "RNA", which seems to work decently, but beware of limitations of the data.}
+
+\item{splitRun}{logical. If the superFreq run should be split by individual. Runs each individual separately,
+which decrease memory footprint. Default is FALSE, but TRUE is recommended when running on
+multiple individuals in the same batch.}
+
+\item{participants}{character. When run in split mode, this allows you to run on a subset of individuals.
+Default is "all" which runs on all individuals.}
+
+\item{manualStoryMerge}{logical. A flag which gives you some manual control over the merging of mutations into clones.
+Requires babysitting and not recommended. Do not press this button. Default FALSE.}
+
+\item{vepCall}{character. The call for the variant effect predictor on the command line. Default "vep",
+otherwise try the path to variant_effect_predictor.pl.}
 }
 \description{
 Wrapper to run default superFreq analysis
 }
 \details{
-This function runs a full SNV, SNP, CNV and clonality analysis in the input exome data.
-         Note that a lot of settings go by default, such as base quality offset (33) and genome (hg19).
+This function runs a full SNV, CNV and clonality analysis of the input exome data. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf
 }
 \examples{
 \dontrun{

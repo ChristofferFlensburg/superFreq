@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.14')
+superVersion = function() return('0.9.15')
 
 
 #' Wrapper to run default superFreq analysis
@@ -104,11 +104,21 @@ superVersion = function() return('0.9.14')
 #'                       is located. If the directory doesn't exist, it will be created and the
 #'                       data will be downloaded. Defaults to superFreqCOSMIC (in the directory
 #'                       where R is run).
-#' @param mode Character. The mode to run in. The default 'Exome' is almost always used. An experimental
-#                         'genome' is also allowed, that doesnt do MA correction for counts.
+#' @param mode Character. The mode to run in. The default 'Exome' is almost always used. If running on RNA,
+#'                        switch to "RNA", which seems to work decently, but beware of limitations of the data.
+#                         "genome" is also allowed, but is in an early developmental stage.
+#' @param splitRun logical. If the superFreq run should be split by individual. Runs each individual separately,
+#'                        which decrease memory footprint. Default is FALSE, but TRUE is recommended when running on
+#'                        multiple individuals in the same batch.
+#' @param participants character. When run in split mode, this allows you to run on a subset of individuals.
+#'                        Default is "all" which runs on all individuals.
+#' @param manualStoryMerge logical. A flag which gives you some manual control over the merging of mutations into clones.
+#'                        Requires babysitting and not recommended. Do not press this button. Default FALSE.
+#' @param vepCall character. The call for the variant effect predictor on the command line. Default "vep",
+#'                        otherwise try the path to variant_effect_predictor.pl. 
 #'
-#' @details This function runs a full SNV, SNP, CNV and clonality analysis in the input exome data.
-#'          Note that a lot of settings go by default, such as base quality offset (33) and genome (hg19).
+#' @details This function runs a full SNV, CNV and clonality analysis of the input exome data. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf
+#'          
 #'
 #' @export
 #'
@@ -128,7 +138,7 @@ superVersion = function() return('0.9.14')
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F) {
+  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep') {
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -178,7 +188,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   outputDirectories = superOutputDirectories(Rdirectory=Rdirectory, plotDirectory=plotDirectory)
   #sanityCheckSuperOutputDirectories(outputDirectories)
 
-  settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset)
+  settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset, vepCall=vepCall)
   if ( mode == 'genome' ) settings$MAcorrection = F
   if ( mode == 'RNA' ) settings$RNA = T
 
@@ -193,7 +203,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
                  runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge)
 
-  postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory,
+  postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory, vepCall=vepCall,
                  cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
 
 }
@@ -306,14 +316,15 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   if ( byIndividual ) neededInput = c('metaDataFile', 'normalDirectory', 'captureRegionsFile', 'dbSNPdirectory')
   if ( !all(neededInput %in% names(inputFiles)) )
     stop(paste(c('inputFiles need all entries:', neededInput), collapse=' '))
-  if ( !all(c('BQoffset', 'genome') %in% names(settings)) )
-    stop('settings need all entries: BQoffset, genome.')
+  if ( !all(c('BQoffset', 'genome', 'vepCall') %in% names(settings)) )
+    stop('settings need all entries: BQoffset, genome, vepCall.')
   if ( !all(c('cpus') %in% names(runtimeSettings)) )
     stop('runtimeSettings need all entries: cpus.')
   
   cpus = runtimeSettings$cpus
   
   genome = settings$genome
+  vepCall = settings$vepCall
   sampleMetaDataFile = inputFiles$metaDataFile
   vcfFiles = inputFiles$vcfFiles
   if ( 'reference' %in% names(inputFiles) ) reference = inputFiles$reference
@@ -491,15 +502,21 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   timeSeries = metaToTimeSeries(names, individuals, normals)
 
   if ( any(!file.exists(bamFiles)) ) {
-    catLog('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
-    warning('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
+    catLog('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], '.\n')
+    stop('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)])
+  }
+  if ( 'VCF' %in% colnames(sampleMetaData) ) {
+    if ( any(!file.exists(sampleMetaData$VCF)) ) {
+      catLog('Missing (or misnamed) bam files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '.\n')
+      stop('Missing (or misnamed) bam files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)])
+    }
   }
   bamIndexFiles = paste0(bamFiles, '.bai')
   bamIndexFiles2 = gsub('.bam$', '.bai', bamFiles)
   if ( any(!(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2))) ) {
     missingIndex = !(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2))
-    catLog('Could not find bam index files for:' , bamFiles[missingIndex], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
-    warning('Could not find bam index files for:' , bamFiles[missingIndex], '. This will crash the run unless coverage and variants are already imported in previously saved data.\n')
+    catLog('Could not find bam index files for:' , bamFiles[missingIndex], '.\n')
+    stop('Could not find bam index files for:' , bamFiles[missingIndex])
   }
   
   catLog('##################################################################################################\n\n',
@@ -557,25 +574,12 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
         variants = getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, forceRedoSNPs=forceRedoSNPs,
           forceRedoVariants=forceRedoVariants)
-      #if ( class(variants) == 'try-error' ) {
-      #  catLog('Error in getVariants.\n')
-      #  stop('Error in getVariants.')
-      #}
       
       #Get variants from the external normals
       normalVariants =
         getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions,
                         genome, BQoffset, dbSNPdirectory, normalRdirectory, Rdirectory, plotDirectory, cpus=cpus,
                         forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants)
-      #if ( class(normalVariants) == 'try-error' ) {
-      #  catLog('Error in getVariants for normals.\n')
-      #  dumpInput(Rdirectory, list('variants'=variants, 'externalNormalBams'=externalNormalBams,
-      #                             'names'=names(externalNormalBams), 'captureRegions'=captureRegions,
-      #                             'genome'=genome, 'BQoffset'=BQoffset, 'Rdirectory'=Rdirectory,
-      #                             'normalRdirectory'=normalRdirectory, 'plotDirectory'=plotDirectory, 'cpus'=cpus,
-      #                             'forceRedoSNPs'=forceRedoNormalSNPs, 'forceRedoVariants'=forceRedoNormalVariants))
-      #  stop('Error in getVariants for normals.')
-      #}
       
       #share variants with normals
       flaggingVersion = 'new'
@@ -1091,7 +1095,7 @@ requireFileExists = function(file) {
 #' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperSettings()
-defaultSuperSettings = function(genome='', BQoffset='') {
+defaultSuperSettings = function(genome='', BQoffset='', vepCall='') {
   if ( genome == '' ) {
     cat('Defaulting genome to hg19.\n')
     genome = 'hg19'
@@ -1100,8 +1104,12 @@ defaultSuperSettings = function(genome='', BQoffset='') {
     cat('Defaulting base quality offset to 33.\n')
     BQoffset = 33
   }
+  if ( vepCall == '' ) {
+    cat('Defaulting vepCall to vep.\n')
+    vepCall = 'vep'
+  }
 
-  return(list(genome=genome, BQoffset=BQoffset))
+  return(list(genome=genome, BQoffset=BQoffset, vepCall=vepCall))
 }
 
 

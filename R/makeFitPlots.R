@@ -9,17 +9,17 @@ makeFitPlots = function(fit, plotDirectory, genome, forceRedoVolcanoes=F, forceR
 
   catLog('Plotting volcanoes to ', dirname, '..', sep='')
   for (col in colnames(fit$fit) ) {
-    volcanoFile = paste0(dirname, col, '.jpg')
+    volcanoFile = paste0(dirname, col, '.png')
     if ( !file.exists(volcanoFile) | forceRedoVolcanoes ) {
       catLog(col, '..', sep='')
-      jpeg(volcanoFile, height = 10, width = 15, res=300, units='in')
+      png(volcanoFile, height = 10, width = 15, res=300, units='in')
       plotVolcano(fit$fit, coef=col)
       dev.off()
     }
-    volcanoFile = paste0(dirname, col, '.exon.jpg')
+    volcanoFile = paste0(dirname, col, '.exon.png')
     if ( !file.exists(volcanoFile) | forceRedoVolcanoes ) {
       catLog(col, '..', sep='')
-      jpeg(volcanoFile, height = 10, width = 15, res=300, units='in')
+      png(volcanoFile, height = 10, width = 15, res=300, units='in')
       try(plotVolcano(fit$exonFit, coef=col))
       dev.off()
     }

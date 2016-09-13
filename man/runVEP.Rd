@@ -4,7 +4,8 @@
 \alias{runVEP}
 \title{Run VEP on the provided variants}
 \usage{
-runVEP(variants, plotDir, cpus = 1, genome = "hg19", forceRedoVEP = F)
+runVEP(variants, plotDir, cpus = 1, genome = "hg19", vepCall = "vep",
+  forceRedoVEP = F)
 }
 \arguments{
 \item{variants}{variants: The variants to be VEPed.}

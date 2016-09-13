@@ -5,7 +5,8 @@
 \title{Runs VEP on a R and plot directory that superFreq has been run on.}
 \usage{
 postAnalyseVEP(outputDirectories, inputFiles = NA, metaData = NA,
-  genome = "hg19", cpus = 1, cosmicDirectory = "", forceRedo = F)
+  genome = "hg19", cpus = 1, cosmicDirectory = "", vepCall = "vep",
+  forceRedo = F)
 }
 \arguments{
 \item{outputDirectories}{named list with Rdirectory and plotDirectory.}

@@ -7,7 +7,7 @@ outputNewVariants = function(variants, pairs, genome, directory, cpus=1, forceRe
     news = list()
     reversePairs = lapply(pairs, function(pair) c(pair[2], pair[1]))
     pairs = c(pairs, reversePairs)
-    names = sapply(pairs, function(pair) substring(gsub('\\.', '', paste0(pair[1], ' to ', pair[2])), 1, 30))
+    names = sapply(pairs, function(pair) substring(gsub('\\.', '', paste0(pair[1], ' to ', pair[2])), 1, 28))
     names(pairs) = names
     pairs = pairs[order(names(pairs))]
     names(pairs) = make.names(names(pairs), unique=T)

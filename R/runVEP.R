@@ -8,7 +8,7 @@
 #' @param forceRedoVEP Logical: if VEP should be rerun even if saved data already exists.
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
-runVEP = function(variants, plotDir, cpus=1, genome='hg19', forceRedoVEP=F) {
+runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', forceRedoVEP=F) {
   catLog('VEP-ing..')
   dir = paste0(plotDir, '/somatics/')
   for ( name in names(variants$variants) ) {
@@ -24,11 +24,28 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', forceRedoVEP=F) {
         setwd(wd)
         next
       }
-      if ( cpus == 1 )
-        call = paste0('vep -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite')
-      else
-        call = paste0('vep -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --fork ', cpus)
-      if ( genome == 'mm10' ) call = paste0(call, ' --species mus_musculus')
+      assembly = genomeToAssembly(genome)
+      vepHelp = system(paste0(vepCall, ' --help'), intern=T)
+      versionLine = strsplit(vepHelp[grep('^version', vepHelp)], ' ')[[1]]
+      vepVersion = as.numeric(versionLine[length(versionLine)])
+      if ( vepVersion < 76 & genome == 'hg38' ) {
+        warning('VEP seems to be pre version 76, which isnt supported for hg38. Please update VEP. Running without annotation for now.')
+        return(variants)
+      }
+      if ( vepVersion < 76 ) {
+        catLog('Using pre-76 VEP version call. Not supported, but trying...\n')
+        if ( cpus == 1 )
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite')
+        else
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --fork ', cpus)        
+      }
+      else {
+        if ( cpus == 1 )
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --assembly ', assembly)
+        else
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --assembly ', assembly, ' --fork ', cpus)
+      }
+      if ( genome == 'mm10' ) call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --fork ', cpus, ' --species mus_musculus')
       catLog(call, '\n')
       call = paste0(call, '\n')
       systemRet = system(call, intern=T)
@@ -104,6 +121,12 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', forceRedoVEP=F) {
   }
   catLog('done.\n')
   return(variants)
+}
+
+genomeToAssembly = function(genome) {
+  if ( genome == 'hg19' ) return('GRCh37')
+  if ( genome == 'hg38' ) return('GRCh38')
+  return('')
 }
 
 #' Ranks the variant effects
@@ -214,7 +237,7 @@ severityToType = function(severity) {
 #' @export
 #' @details Runs VEP on the variants, and saves the variants (retrivable with loadData) with the addition
 #'          information from VEP, and COSMIC if provided.
-postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome='hg19', cpus=1, cosmicDirectory='', forceRedo=F) {
+postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome='hg19', cpus=1, cosmicDirectory='', vepCall='vep', forceRedo=F) {
   Rdirectory = outputDirectories$Rdirectory
   plotDirectory = outputDirectories$plotDirectory
   data = loadData(Rdirectory)
@@ -253,7 +276,7 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
   timeSeries = metaToTimeSeries(names, individuals, normals)
 
   outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedo)
-  variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, forceRedoVEP=forceRedo)
+  variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedo)
   variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
   allVariants = data$allVariants
   allVariants$variants = variants

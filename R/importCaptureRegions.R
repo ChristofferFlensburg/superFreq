@@ -276,8 +276,7 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
       biotype = 'gene_biotype'
     }
     else if ( genome == 'hg38' ) {
-      mart = useMart(biomart='ensembl', dataset = 'hsapiens_gene_ensembl',
-        version='Ensembl Genes', host='grch38.ensembl.org')
+      mart = useMart(biomart='ensembl', dataset = 'hsapiens_gene_ensembl')
       symbolName = 'hgnc_symbol'
       ensemblName = 'ensembl_transcript_id'
       biotype = 'gene_biotype'
