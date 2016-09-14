@@ -44,11 +44,13 @@ TIMEPOINT: Mostly used as label in plots together with the sample. Can
 \item{captureRegions}{Character. A path to a bed file of the unpadded capture regions.}
 
 \item{normalDirectory}{Character. A path to a directory containing reference normals.
-The directory should contain (links to) indexed .bam for the pool of
-normal samples. These samples can, but dont have to, be matched normals
+The directory should contain a subdirectory called "bam" with (links to)
+.bam and index files for the reference normal
+samples. These samples can, but dont have to, be matched normals
 of the analysed samples. They need to be from the same capture as the
 analysed samples, and preferably sequenced in the same lab. At least
-two are required, but more are better (but slower). 10 is a good number.}
+two are required, but more are better (but slower). ~10 is a good number.
+Another subdirectory called R will be created next to the bam directory.}
 
 \item{Rdirectory}{Character. A path to the directory where data will be stored.
 The directory will be created if needed, but the parent directory must exist.}
@@ -141,7 +143,7 @@ otherwise try the path to variant_effect_predictor.pl.}
 Wrapper to run default superFreq analysis
 }
 \details{
-This function runs a full SNV, CNV and clonality analysis of the input exome data. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf
+This function runs a full SNV, CNV and clonality analysis of the input exome data. Output it sent to the plotDirectory, where diagnostics as well as analysis results are placed. At 12 cpus, the pipeline typically runs overnight on an individual with not too many samples. Large numbers of samples or somatic mutations can increase runtime further. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf about how to set up the run and interpret the output.
 }
 \examples{
 \dontrun{
