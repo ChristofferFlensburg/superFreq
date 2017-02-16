@@ -22,4 +22,3 @@ Run VEP on the provided variants
 \details{
 This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 }
-

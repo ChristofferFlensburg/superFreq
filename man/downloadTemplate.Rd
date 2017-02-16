@@ -24,4 +24,3 @@ downloadTemplate('~/mySuperFreqAnalaysis')
 
 }
 }
-

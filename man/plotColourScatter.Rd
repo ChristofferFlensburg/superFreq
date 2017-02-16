@@ -30,4 +30,3 @@ y = rnorm(10000, ((1:10000)/10000)^3, 0.01)
 plotColourScatter(x, y)
 
 }
-

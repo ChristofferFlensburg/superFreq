@@ -35,17 +35,17 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
       if ( vepVersion < 76 ) {
         catLog('Using pre-76 VEP version call. Not supported, but trying...\n')
         if ( cpus == 1 )
-          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite')
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --cache --everything --force_overwrite')
         else
-          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --fork ', cpus)        
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --cache --everything --force_overwrite --fork ', cpus)        
       }
       else {
         if ( cpus == 1 )
-          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --assembly ', assembly)
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --cache --everything --force_overwrite --assembly ', assembly)
         else
-          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --assembly ', assembly, ' --fork ', cpus)
+          call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --cache --everything --force_overwrite --assembly ', assembly, ' --fork ', cpus)
       }
-      if ( genome == 'mm10' ) call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --everything --force_overwrite --fork ', cpus, ' --species mus_musculus')
+      if ( genome == 'mm10' ) call = paste0(vepCall, ' -i ', basename(infile), ' -o ', basename(VEPfile), ' --cache --everything --force_overwrite --fork ', cpus, ' --species mus_musculus')
       catLog(call, '\n')
       call = paste0(call, '\n')
       systemRet = system(call, intern=T)
@@ -145,6 +145,7 @@ typeToSeverity = function(type) {
   if ( grepl('stop_gained', type) ) return(4)
   if ( grepl('frameshift_variant', type) ) return(5)
   if ( grepl('stop_lost', type) ) return(6)
+  if ( grepl('start_lost', type) ) return(7)
   if ( grepl('initiator_codon_variant', type) ) return(7)
   if ( grepl('transcript_amplification', type) ) return(8)
   if ( grepl('inframe_insertion', type) ) return(9)
@@ -191,7 +192,7 @@ severityToType = function(severity) {
   if ( severity == 4 ) return('stop_gained')
   if ( severity == 5 ) return('frameshift_variant')
   if ( severity == 6 ) return('stop_lost')
-  if ( severity == 7 ) return('initiator_codon_variant')
+  if ( severity == 7 ) return('start_lost')
   if ( severity == 8 ) return('transcript_amplification')
   if ( severity == 9 ) return('inframe_insertion')
   if ( severity == 10 ) return('inframe_deletion')
@@ -371,7 +372,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
         else return('')
       })
 
-      if ( genome == 'hg19' ) {
+      if ( genome %in% c('hg19', 'hg38') ) {
         cosmic = sapply(secondLastCol, function(strs) {
           if ( any(grepl('COSM', strs)) ) return(strs[grep('COSM',strs)[1]])
           else return('')
@@ -389,7 +390,8 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
           cosmicGeneDensity[noHitCensus] = censusDensity[symbol[noHitCensus]]
         }
       }
-      if ( genome == 'mm10' & FALSE ) {
+      if ( genome == 'mm10' ) {
+        catLog('adding CCGD data..')
         CCGDdata = read.table(paste0(cosmicDirectory, '/CCGD_export.csv'), sep=',', header=T, stringsAsFactors=F)
 
         censusGenes = unique(CCGDdata$Mouse.Symbol)
@@ -421,15 +423,19 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
         CCGDsummary$cosmic = as.logical(CCGDsummary$cosmic)
         CCGDsummary$cgc = as.logical(CCGDsummary$cgc)
         
-        #q$CCGDstudies = rep(0, nrow(q))
-        #q$CCGDcancerTypes = rep('', nrow(q))
-        #q$CCGDcosmic = rep(F, nrow(q))
-        #q$CCGDcgc = rep(F, nrow(q))
-        #q$CCGDranks = rep('', nrow(q))
-        
+        CCGDstudies = rep(0, length(symbol))
+        CCGDcancerTypes = rep('', length(symbol))
+        CCGDcosmic = rep('', length(symbol))
+        CCGDcgc = rep('', length(symbol))
+        CCGDranks = rep('', length(symbol))
 
-            
-            
+        CCGDstudies[isCCGD] = CCGDsummary[symbol[isCCGD],]$studies
+        CCGDcancerTypes[isCCGD] = CCGDsummary[symbol[isCCGD],]$cancerTypes
+        CCGDcosmic[isCCGD] = ifelse(CCGDsummary[symbol[isCCGD],]$cosmic, 'YES!', 'no')
+        CCGDcgc[isCCGD] = ifelse(CCGDsummary[symbol[isCCGD],]$cgc, 'YES!', 'no')
+        CCGDranks[isCCGD] = CCGDsummary[symbol[isCCGD],]$ranks
+
+        catLog('found ', sum(isCCGD), ' entries.\n', sep='')
       }
       
       namevar = var
@@ -445,6 +451,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
       polyPhenRet = rep('', length(unique(ID)))
       exonRet = rep('', length(unique(ID)))
       siftRet = rep('', length(unique(ID)))
+      symbolRet = rep('', length(unique(ID)))
       AAposRet = rep('', length(unique(ID)))
       AAbeforeRet = rep('', length(unique(ID)))
       AAafterRet = rep('', length(unique(ID)))
@@ -453,6 +460,11 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
       isCosmicCensusRet = rep(F, length(unique(ID)))
       cosmicVariantDensityRet = rep(0, length(unique(ID)))
       cosmicGeneDensityRet = rep(0, length(unique(ID)))
+      CCGDstudiesRet = rep(0, length(unique(ID)))
+      CCGDcancerTypesRet = rep('', length(unique(ID)))
+      CCGDcosmicRet = rep(F, length(unique(ID)))
+      CCGDcgcRet = rep(F, length(unique(ID)))
+      CCGDranksRet = rep('', length(unique(ID)))
       for ( i in 1:nrow(VEPdata) ) {
         sevI = sev[i]
         IDI = ID[i]
@@ -463,15 +475,23 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
           polyPhenRet[IDI] = polyPhen[i]
           exonRet[IDI] = exon[i]
           siftRet[IDI] = sift[i]
+          symbolRet[IDI] = symbol[i]
           AAposRet[IDI] = AApos[i]
           AAbeforeRet[IDI] = AAbefore[i]
           AAafterRet[IDI] = AAafter[i]
           domainRet[IDI] = domain[i]
-          if ( genome == 'hg19' ) {
+          if ( genome %in% c('hg19', 'hg38') ) {
             cosmicRet[IDI] = cosmic[i]
             isCosmicCensusRet[IDI] = isCosmicCensus[i]
             cosmicVariantDensityRet[IDI] = cosmicVariantDensity[i]
             cosmicGeneDensityRet[IDI] = cosmicGeneDensity[i]
+          }
+          if ( genome == 'mm10' ) {
+            CCGDstudiesRet[IDI] = CCGDstudies[i]
+            CCGDcancerTypesRet[IDI] = CCGDcancerTypes[i]
+            CCGDcosmicRet[IDI] = CCGDcosmic[i]
+            CCGDranksRet[IDI] = CCGDcgc[i]
+            CCGDranksRet[IDI] = CCGDranks[i]
           }
         }
       }
@@ -483,18 +503,26 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
       variants$variants[[name]][qNames,]$type = mostSev
       variants$variants[[name]][qNames,]$polyPhen = polyPhenRet
       variants$variants[[name]][qNames,]$sift = siftRet
+      variants$variants[[name]][qNames,]$inGene[symbolRet != ''] = symbolRet[symbolRet != '']
       variants$variants[[name]][qNames,]$exon = exonRet
       variants$variants[[name]][qNames,]$AApos = AAposRet
       variants$variants[[name]][qNames,]$AAbefore = AAbeforeRet
       variants$variants[[name]][qNames,]$AAafter = AAafterRet
       variants$variants[[name]][qNames,]$domain = domainRet
-      if ( genome == 'hg19' ) {
+      if ( genome %in% c('hg19', 'hg38') ) {
         variants$variants[[name]][qNames,]$cosmic = cosmicRet
         variants$variants[[name]][qNames,]$isCosmicCensus = isCosmicCensusRet
         variants$variants[[name]][qNames,]$cosmicVariantMPM = cosmicVariantDensityRet
         variants$variants[[name]][qNames,]$cosmicGeneMPMPB = cosmicGeneDensityRet
       }
-        catLog(length(mostSev), 'VEPed variants.\n')
+      if ( genome == c('mm10') ) {
+        variants$variants[[name]][qNames,]$CCGDstudies = CCGDstudiesRet
+        variants$variants[[name]][qNames,]$CCGDcancerTypes = CCGDcancerTypesRet
+        variants$variants[[name]][qNames,]$CCGDcosmic = CCGDcosmicRet
+        variants$variants[[name]][qNames,]$CCGDcgc = CCGDcgcRet
+        variants$variants[[name]][qNames,]$CCGDranks = CCGDranksRet
+      }
+      catLog(length(mostSev), 'VEPed variants.\n')
     }
   }
   catLog('done.\n')
@@ -511,7 +539,7 @@ addNullAnnotation = function(q, genome='hg19') {
   q$AAbefore = rep('', nrow(q))
   q$AAafter = rep('', nrow(q))
   q$domain = rep('', nrow(q))
-  if ( genome == 'hg19' ) {
+  if ( genome %in% c('hg19', 'hg38') ) {
     q$cosmic = rep('', nrow(q))
     q$isCosmicCensus = rep(F, nrow(q))
     q$cosmicVariantMPM = rep(0, nrow(q))

@@ -9,4 +9,3 @@ xToGene(x, captureRegions, genome = "hg19")
 \description{
 find the gene closest to the genomic coordinate x
 }
-

@@ -91,4 +91,3 @@ makeHeatmap(mx)
 makeHeatmap(mx, col='sunset')
 
 }
-

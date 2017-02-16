@@ -69,4 +69,3 @@ cohortAnalyseBatch(metaDataFile, outputDirectories, cpus=cpus, genome=genome)
 
 }
 }
-

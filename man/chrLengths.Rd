@@ -23,4 +23,3 @@ chrLengths('mm10')
 plot(c(0, cumsum(chrLengths())), type='b')
 
 }
-

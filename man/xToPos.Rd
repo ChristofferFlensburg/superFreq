@@ -21,4 +21,3 @@ Extracts the position on the chromsome a genomic coordinate is on.
 xToPos(1e9)
 xToPos(1e9, genome='mm10')
 }
-

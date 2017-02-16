@@ -19,4 +19,3 @@ Import more information about the variants
 Extract almost all the information from the VEP run, and cross-checks with COSMIC data as well.
          getCosmicCounts is called by this function, see details of that for requirements.
 }
-

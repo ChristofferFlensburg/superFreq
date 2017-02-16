@@ -35,4 +35,3 @@ cohortAnalyseBatch(targetMetaDataFile, outputDirectories, cpus=6, genome='hg19')
 
 }
 }
-

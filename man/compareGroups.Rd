@@ -44,4 +44,3 @@ Compares sets of individuals for reccuring mutations
 \details{
 This function runs a cohort analysis, comparing two subgroups (within a project) to each other. See cohortAnalyseBatch for details.
 }
-

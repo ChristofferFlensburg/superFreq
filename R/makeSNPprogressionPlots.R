@@ -8,6 +8,7 @@ makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory,
   if ( !file.exists(msDirectory) ) dir.create(msDirectory)
   for ( i in 1:length(timeSeries) ) {
     ts = timeSeries[[i]]
+    if ( length(ts) < 2 ) next
     outfile = paste0(msDirectory, '/', names(timeSeries)[i], '.pdf')
     excelFileDB = paste0(msDirectory, '/', names(timeSeries)[i], '_DB.xls')
     excelFileNotDB = paste0(msDirectory, '/', names(timeSeries)[i], '_NotDB.xls')

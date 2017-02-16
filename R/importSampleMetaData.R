@@ -73,13 +73,13 @@ metaToSamplePairs = function(names, individuals, normals) {
   return(pairs)
 }
 
-#helper function to extract time series frmo emta data.
+#helper function to extract time series from meta data.
 metaToTimeSeries = function(names, individuals, normals) {
   catLog('Deciding which time series to plot..')
   series = list()
   for (individual in unique(individuals)) {
     rows = which(individual == individuals)
-    if ( length(rows) < 2 ) next
+    if ( length(rows) < 1 ) next
     series = c(series, list(names[rows]))
     names(series)[length(series)] = individual
   }

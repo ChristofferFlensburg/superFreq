@@ -13,4 +13,3 @@ internal function for debugging purposes.
 This function saves the input to a function in a directory, so that the exact input triggering the bug
          can be examined.
 }
-

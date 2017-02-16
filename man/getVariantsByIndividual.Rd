@@ -10,4 +10,3 @@ getVariantsByIndividual(metaData, captureRegions, genome, BQoffset, dbDir,
 \description{
 Quality controls the variants in the vcfs, using the bams.
 }
-

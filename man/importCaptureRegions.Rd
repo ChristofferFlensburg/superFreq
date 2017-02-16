@@ -27,4 +27,3 @@ captureRegions = importCaptureRegions('path/to/my/captureRegions.bed')
 plotColourScatter(captureRegions$gc, captureRegions$dn, xlab='GC content', ylab='binding strength')
 
 }
-

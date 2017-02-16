@@ -15,4 +15,3 @@ The variant effect as function of severity
 \details{
 Translated back from severity rank to the variant effect.
 }
-

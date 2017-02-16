@@ -6,7 +6,7 @@
 \usage{
 analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters = defaultSuperParameters(), byIndividual = T,
-  manualStoryMerge = F)
+  manualStoryMerge = F, correctReferenceBias = T)
 }
 \arguments{
 \item{inputFiles}{A named list of input files, containing the entries metaDataFile, vcfFiles, normalDirectory, captureRegionsFile and dbSNPdirectory}
@@ -66,4 +66,3 @@ data = analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettin
 \keyword{analyse}
 \keyword{clonality}
 \keyword{exomes}
-

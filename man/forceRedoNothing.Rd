@@ -39,4 +39,3 @@ parameters = list('systematicVariance'=0.02, 'maxCov'=150)
 data = analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings, parameters=parameters)
 }
 }
-

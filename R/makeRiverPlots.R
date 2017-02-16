@@ -16,15 +16,17 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       plotRiver(cloneTree=stories[[ts]]$consistentClusters$cloneTree, cloneStories=stories[[ts]]$consistentClusters$cloneStories,
                 storyList=stories[[ts]]$consistentClusters$storyList, allStories=stories[[ts]]$allConsistent,
                 variants=patVar, genome=genome)
-    plotStories(stories[[ts]]$consistentClusters$cloneStories, patVar, col=cloneCols, genome=genome)
-    heatmapStories(stories[[ts]]$allConsistent, stories[[ts]]$consistentClusters$storyList,
-                   patVar, col=cloneCols, genome=genome)
-    for ( subclone in names(stories[[ts]]$consistentClusters$storyList) ) {
-      i = which(names(stories[[ts]]$consistentClusters$storyList) == subclone)
-      plotStories(stories[[ts]]$allConsistent[stories[[ts]]$consistentClusters$storyList[[subclone]],],
-                  patVar, alpha=0.2, genome=genome)
-      plotStories(stories[[ts]]$consistentClusters$cloneStories[i,], patVar, add=T,
-                  col=cloneCols[i], genome=genome)
+    if ( ncol(stories[[ts]]$all$stories) > 1 ) {
+      plotStories(stories[[ts]]$consistentClusters$cloneStories, patVar, col=cloneCols, genome=genome)
+      heatmapStories(stories[[ts]]$allConsistent, stories[[ts]]$consistentClusters$storyList,
+                     patVar, col=cloneCols, genome=genome)
+      for ( subclone in names(stories[[ts]]$consistentClusters$storyList) ) {
+        i = which(names(stories[[ts]]$consistentClusters$storyList) == subclone)
+        plotStories(stories[[ts]]$allConsistent[stories[[ts]]$consistentClusters$storyList[[subclone]],],
+                    patVar, alpha=0.2, genome=genome)
+        plotStories(stories[[ts]]$consistentClusters$cloneStories[i,], patVar, add=T,
+                    col=cloneCols[i], genome=genome)
+      }
     }
     dev.off()
 
@@ -36,15 +38,17 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       cloneCols = plotRiver(stories[[ts]]$cloneTree, stories[[ts]]$clusters$cloneStories,
                             stories[[ts]]$clusters$storyList, stories[[ts]]$all,
                             variants=patVar, genome=genome)
-      plotStories(stories[[ts]]$clusters$cloneStories, patVar, col=cloneCols, genome=genome)
-      heatmapStories(stories[[ts]]$all, stories[[ts]]$clusters$storyList,
-                     patVar, col=cloneCols, genome=genome)
-      for ( subclone in names(stories[[ts]]$clusters$storyList) ) {
-        i = which(names(stories[[ts]]$clusters$storyList) == subclone)
-        plotStories(stories[[ts]]$all[stories[[ts]]$clusters$storyList[[subclone]],],
-                    patVar, alpha=0.2, genome=genome)
-        plotStories(stories[[ts]]$clusters$cloneStories[i,], patVar, add=T,
-                    col=cloneCols[i], genome=genome)
+      if ( ncol(stories[[ts]]$all$stories) > 1 ) {
+        plotStories(stories[[ts]]$clusters$cloneStories, patVar, col=cloneCols, genome=genome)
+        heatmapStories(stories[[ts]]$all, stories[[ts]]$clusters$storyList,
+                       patVar, col=cloneCols, genome=genome)
+        for ( subclone in names(stories[[ts]]$clusters$storyList) ) {
+          i = which(names(stories[[ts]]$clusters$storyList) == subclone)
+          plotStories(stories[[ts]]$all[stories[[ts]]$clusters$storyList[[subclone]],],
+                      patVar, alpha=0.2, genome=genome)
+          plotStories(stories[[ts]]$clusters$cloneStories[i,], patVar, add=T,
+                      col=cloneCols[i], genome=genome)
+        }
       }
       dev.off()
     }
@@ -95,48 +99,76 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
 }
 
 #helper function converting internal event names to informative labels for the plots.
-storyToLabel = function(stories, variants, genome, maxLength=30) {
+storyToLabel = function(stories, variants, genome, maxLength=30, mergeCNAs=F) {
   call = stories$call
   isSNP = grepl('[0-9]', call)
-  label = rep('', nrow(stories))
-  font = rep(1, nrow(stories))
-  colour = rep('black', nrow(stories))
-  severity = rep(100, nrow(stories))
+  x1 = stories$x1
+  clonename = rownames(stories)
+  dist = stories$x2-stories$x1  
+  isCNA = !isSNP & !is.na(dist)
+  chr = xToChr(stories$x1, genome=genome)
+  if ( mergeCNAs & any(isCNA) ) {
+    dups = unique(cbind(call, chr)[isCNA,,drop=F][duplicated(cbind(call, chr)[isCNA,,drop=F]),,drop=F])
+    if ( nrow(dups) > 0 ) {
+      for ( row in 1:nrow(dups) ) {
+        thisCall = dups[row,'call']
+        thisChr = dups[row,'chr']
+        muts = call == thisCall & chr == thisChr
+        thisDist = sum(dist[muts])
+        thisX1 = min(x1[muts])
+        thisName = clonename[muts][1]
+        call = c(thisCall, call[!muts])
+        chr = c(thisChr, chr[!muts])
+        dist = c(thisDist, dist[!muts])
+        x1 = c(thisX1, x1[!muts])
+        clonename = c(thisName, clonename[!muts])
+      }
+      isSNP = grepl('[0-9]', call)
+      isCNA = !isSNP & !is.na(dist)
+    }
+  }
+  
+  label = rep('', length(dist))
+  font = rep(1, length(dist))
+  colour = rep('black', length(dist))
+  severity = rep(100, length(dist))
 
   q = variants$variants[[1]]
-  q = q[q$x %in% stories$x1[isSNP],]  
-  gene = q[stories$call,]$inGene[isSNP]
+  q = q[q$x %in% x1[isSNP],]  
+  gene = q[call,]$inGene[isSNP]
   if ( 'severity' %in% names(variants$variants[[1]]) & any(isSNP) ) {
-    severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[call[isSNP],]$severity), 100, q[call[isSNP],]$severity))
+    severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[call[isSNP],]$severity), 100, sapply(q[call[isSNP],]$type, typeToSeverity)))
     if ( sum(isSNP) == 1 ) severityMx = matrix(severityMx, nrow=sum(isSNP))
     mostSevere = ceiling(apply(severityMx, 1, min))
     severity[isSNP] = mostSevere
     type = sapply(mostSevere, severityToType)
     type[type=='unknown'] = ''
-    label[isSNP] = substr(paste0(gene, ' (', xToChr(stories$x1[isSNP], genome=genome), ') ', type), 1, maxLength)
+    label[isSNP] = substr(paste0(gene, ' (', chr[isSNP], ') ', type), 1, maxLength)
   }
   else
-    label[isSNP] = substr(paste0(gene, ' (', xToChr(stories$x1[isSNP], genome=genome), ') '), 1, maxLength)
+    label[isSNP] = substr(paste0(gene, ' (', chr[isSNP], ') '), 1, maxLength)
 
   if ( 'isCosmicCensus' %in% names(variants$variants[[1]]) & any(isSNP) ) {
-    cosmicMx = sapply(variants$variants, function(q) q[call[isSNP],]$isCosmicCensus)
-    if ( sum(isSNP) == 1 ) cosmicMx = matrix(cosmicMx, nrow=sum(isSNP))
+    cosmicMx = sapply(variants$variants, function(q) {
+      if ( !('isCosmicCensus' %in% names(q)) ) return(rep(F, sum(isSNP)))
+      return(q[call[isSNP],]$isCosmicCensus)
+    })
+    if ( sum(isSNP) == 1 ) cosmicMx = matrix(unlist(cosmicMx), nrow=sum(isSNP))
     isCensus = apply(cosmicMx, 1, any)
     colour[isSNP] = ifelse(isCensus, mcri('green'), 'black')
     font[isSNP] = ifelse(isCensus, 2, 1)
   }
 
-  dist = stories$x2-stories$x1
   distText = ifelse(dist >= 1e6, paste0(round(dist/1e6), 'Mbp '), ifelse(dist >= 1e3, paste0(round(dist/1e3), 'kbp '), paste0(dist, 'bp ')))
-  label[!isSNP & !is.na(dist)] = paste0(distText, call, ' (', xToChr(stories$x1, genome=genome), ')')[!isSNP & !is.na(dist)]
+  label[!isSNP & !is.na(dist)] = paste0(distText, call, ' (', chr, ')')[!isSNP & !is.na(dist)]
   label[!isSNP & !is.na(dist)] = shortenCalls(label[!isSNP & !is.na(dist)])
   font[!isSNP & !is.na(dist)] = ifelse(grepl('[0-9]AB', label[!isSNP & !is.na(dist)]), 4, 3)
   severity[!isSNP & !is.na(dist)] = 0
   #label[!isSNP & is.na(dist)] = gsub('^clone$', 'clone.0', make.names(call[!isSNP & is.na(dist)], unique=T))
-  label[!isSNP & is.na(dist)] = paste0('clone.', rownames(stories)[!isSNP & is.na(dist)])
+  label[!isSNP & is.na(dist)] = paste0('clone.', clonename[!isSNP & is.na(dist)])
   font[!isSNP & is.na(dist)] = 4
   severity[!isSNP & is.na(dist)] = -1
-  return(data.frame(label=label, colour=colour, font=font, severity=severity, stringsAsFactors=F))
+  return(data.frame(label=label, colour=colour, font=font, severity=severity, stringsAsFactors=F)[order(dist, decreasing=T),])
 }
 
 addAnnotationToOutput = function(output, variants, genome='hg19') {
@@ -160,7 +192,7 @@ addAnnotationToOutput = function(output, variants, genome='hg19') {
 
 
 #main plotting function
-plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c()) {
+plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2) {
   variants$variants = variants$variants[colnames(cloneStories$stories)]
   
   if ( length(colourPool) == 0 )
@@ -179,7 +211,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
   dodgyness = getDodgyness(storyList, cloneStories)
   if ( !markDodgy ) dodgyness = 0*dodgyness
   
-  cloneLabels = lapply(storyList, function(rows) storyToLabel(allStories[rows,], variants, genome=genome, maxLength=20))
+  cloneLabels = lapply(storyList, function(rows) storyToLabel(allStories[rows,], variants, genome=genome,maxLength=20,  mergeCNAs=T))
   names(cloneLabels) = rownames(cloneStories)
   stories = abs(cloneStories$stories)
   rownames(stories) = rownames(cloneStories)
@@ -189,7 +221,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
     leadingNormal = T
     purity[purity==0] = 1
   }
-  stories[stories < cloneStories$errors*2 & stories < 0.5] = 0
+  stories[stories < cloneStories$errors*ignoreStoriesBelowSigma & stories < 0.5] = 0
   if ( normalise ) stories = t(t(stories)/purity)
   if ( !leadingNormal ) {
     stories = cbind(rep(0, nrow(stories)), stories)
@@ -409,7 +441,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
 
   if ( !add ) {
     if ( legend ) {
-      lbls = storyToLabel(stories, variants, genome)
+      lbls = storyToLabel(stories, variants, genome, mergeCNAs=T)
       legCex = pmin(1, pmax(0.5, 45/nrow(lbls)))
       font = lbls$font
       severity = lbls$severity
@@ -418,7 +450,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
       legend('topright', lbls$label[ord], lwd=2, col=errcol[1:nrow(stories)][ord], lty=errlty[1:nrow(stories)][ord],
              cex= legCex, text.col=lbls$colour[ord], text.font=lbls$font[ord], seg.len=4)
     }
-    if ( labels ) text(1:Nsample, -0.02, colnames(stories$stories), srt=20, cex=0.9)
+    if ( labels ) text(1:Nsample, -0.02, colnames(clon), srt=20, cex=0.9)
     if ( setPar ) {
       par(oma=rep(0, 4))
       par(mar=rep(4, 4))
@@ -483,7 +515,7 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
 makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', scale='none', label='', DEsaturation=log2(10), reverseGradient=F, ...) {
   if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
   if ( nrow(mx) < 2 | ncol(mx) < 2 ) {
-    warning('Not two lines and two columns in the heatmap. skip.')
+    cat('Not two lines and two columns in the heatmap. skip.')
     return()
   }
   if ( maxVal == 'default' ) maxVal = max(mx, na.rm=T)

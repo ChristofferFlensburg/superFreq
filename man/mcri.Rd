@@ -24,4 +24,3 @@ text(1:9, rep(1.1,9), c('blue', 'orange', 'green', 'magenta',
      col=mcri(0:8), cex=1.5, font=2)
 
 }
-

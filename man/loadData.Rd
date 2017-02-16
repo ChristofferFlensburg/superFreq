@@ -4,7 +4,7 @@
 \alias{loadData}
 \title{Loads saved data}
 \usage{
-loadData(Rdirectory, setVariantLoss = F)
+loadData(Rdirectory, setVariantLoss = F, correctReferenceBias = T)
 }
 \arguments{
 \item{Rdirectory}{A character string pointing to the Rdirectory of the analysis.}
@@ -25,4 +25,3 @@ plotCR(cnvs[['aSample']]$clusters)
 \keyword{data}
 \keyword{load}
 \keyword{saved}
-

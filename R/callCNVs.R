@@ -7,7 +7,7 @@
 #It then calls the CN of each clustered region, as well as clonality, uncertainty estimate and p-value
 #for normal CN.
 #returns a list of data frames with each region of the genome on a row.
-callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F) {
+callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T) {
   clustersSaveFile = paste0(Rdirectory, '/clusters.Rdata')
   if ( file.exists(clustersSaveFile) & !forceRedoCNV ) {
     catLog('Loading saved CNV results.\n')
@@ -33,7 +33,8 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
                                   moreNormalVariants=normalVariants$variants,
                                   fit = subsetFit(fitS, cols=paste0(name, '-normal')),
                                   plotDirectory, name, individuals, SNPs,
-                                  genome=genome, cpus=cpus))
+                                  genome=genome, cpus=cpus,
+                                  correctReferenceBias=correctReferenceBias))
     }
     else
       return(callCancerNormalCNVs(cancerVariants=variants$variants[[name]],
@@ -41,7 +42,8 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
                                   moreNormalVariants=normalVariants$variants,
                                   fit = subsetFit(fitS, cols=paste0(name, '-normal')),
                                   plotDirectory, name, individuals, SNPs,
-                                  genome=genome, cpus=cpus))
+                                  genome=genome, cpus=cpus,
+                                  correctReferenceBias=correctReferenceBias))
   })
 
   names(clusters) = names
@@ -51,9 +53,9 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
 
 
 #the high level function that controls the steps of the CNV calling for given sample and normal variant objects.
-callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1) {
+callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T) {
   #estimate reference bias and variance from the selected normal hets.
-  a=setVariantLoss(moreNormalVariants)
+  setVariantLoss(moreNormalVariants, correctReferenceBias=correctReferenceBias)
 
   #select good germline het variants from normals:
   if ( class(normalVariants) == 'logical')
@@ -593,6 +595,7 @@ redoHetCalculations = function(clusters, eFreqs, plot=F, cpus=1) {
   pAlt = pnorm(-Z[1,], -Z[3,], Z[5,])
   pAlt[is.nan(pAlt)] = 0.5
   pHet = pnorm(Z[1,], Z[2,], Z[4,])
+  pHet = pmax(pHet, 10^(pmin(0,Z[1,])*10))  #if the stat signal is small, het is always likely
   pHet[is.nan(pHet)] = 0.5
   pHet[pAlt == 0 & pHet == 0] = 1e-10
   
@@ -1041,7 +1044,7 @@ plotMAFLFC = function(clusters, xlim=c(-1.2, 1.2)) {
   f = clusters$f
   ferr = ifelse(clusters$cov == 0, 0.25, clusters$ferr)
   f = ifelse(clusters$cov == 0, 0.25, f)
-  if ( !(call %in% names(clusters)) ) clusters$call = rep('', nrow(clusters))
+  if ( !('call' %in% names(clusters)) ) clusters$call = rep('', nrow(clusters))
   points(clusters$M, f, pch=16, cex = pmin(1.5,pmax(0.2, sqrt((0.1/(w/2))^2 + (0.1/(ferr/0.5))^2))), col=callsToCol(clusters$call))
   segments(clusters$M+w, f, clusters$M-w, f,
            lwd = pmin(1.5,pmax(0.2, 0.1/(w/2))), col=callsToCol(clusters$call))

@@ -17,4 +17,3 @@ Returns the input files in a format to be passed to analyse(). Returns detailed 
 \examples{
 superInputFiles()
 }
-

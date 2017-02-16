@@ -21,4 +21,3 @@ Extracts which chromsome a genomic coordinate is on.
 xToChr(1e9)
 xToChr(1e9, genome='mm10')
 }
-

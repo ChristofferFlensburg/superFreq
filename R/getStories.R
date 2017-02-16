@@ -21,9 +21,9 @@
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
-  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F) {
+  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T) {
   catLog('Setting reference bias..')
-  setVariantLoss(normalVariants$variants)
+  setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
   catLog('done.\n')
   stories = list()
   saveFile = paste0(Rdirectory, '/stories.Rdata')
@@ -126,15 +126,16 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
       if ( any(normals[ts]) ) {
-        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.9 & q$severity < 11 & !is.na(q$severity)))
+        rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.5 & q$severity < 10 & !is.na(q$severity)))
         rareGermline = apply(rareGermlineMx, 1, any)
         catLog('Found ', sum(rareGermline), ' rare germline variants to track.\n', sep='')
       }
       else
         rareGermline = rep(FALSE, nrow(qs[[1]]))
       somaticQs = lapply(qs, function(q) q[rareGermline | somatic,])
+      rareGermlineNames = rownames(qs[[1]])[rareGermline]
       
-      snpStories = findSNPstories(somaticQs, cnvs[ts], normals[ts], filter=F)
+      snpStories = findSNPstories(somaticQs, cnvs[ts], normals[ts], filter=F, germlineVariants=rareGermlineNames)
       cnvStories = getCNVstories(cnvs[ts], normals[ts], genome, filter=F)
       allStories = data.frame(row.names=c('germline', rownames(snpStories), rownames(cnvStories)), stringsAsFactors=F)
       allStories$x1 = c(NA, snpStories$x1, cnvStories$x1)
@@ -147,7 +148,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
 
       #reassign mutations to the consistent clones
       consistentClusteredStories$storyList = lapply(consistentClusteredStories$storyList, function(l) c())
-      consistentClusteredStories = mergeStories(consistentClusteredStories, allStories)
+      consistentClusteredStories = mergeStories(consistentClusteredStories, allStories, germlineVariants=rareGermlineNames)
 
       #redo clustering of mutations, this time using unfiltered mutations, and no consistency contstraints.
       clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus)
@@ -211,7 +212,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
   return(stories)
 }
 
-findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
+findSNPstories = function(somaticQs, cnvs, normal, filter=T, germlineVariants=c()) {
   if ( filter ) {
     cov10 = rowMeans(do.call(cbind, lapply(somaticQs, function(q) q$cov))) >= 10
     somaticQs = lapply(somaticQs, function(q) q[cov10,])
@@ -234,10 +235,12 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
   colnames(ret$stories) = colnames(ret$errors) = names(somaticQs)
   if ( !filter ) {
     if ( any(normal) & nrow(ret) > 0 ) {
-      presentInNormal = ret$stories[,normal] > ret$errors[,normal] | ret$stories[,normal] > 0.2
+      allowed = rownames(ret) %in% germlineVariants
+      presentInNormal = ret$stories[,normal,drop=F] > ret$errors[,normal,drop=F] | ret$stories[,normal,drop=F] > 0.2
+      presentInNormal = apply(presentInNormal, 1, any)
       if ( class(presentInNormal) == 'matrix' ) presentInNormal = apply(presentInNormal, 1, any)
-      ret = ret[!presentInNormal,,drop=F]
-      catLog('Filtered ', sum(presentInNormal), ' present in normal stories.\n', sep='')
+      ret = ret[!presentInNormal | allowed,,drop=F]
+      catLog('Filtered ', sum(presentInNormal & !allowed), ' present in normal stories.\n', sep='')
     }
     return(ret)
   }
@@ -249,7 +252,8 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T) {
   indel = grepl('[-\\+]', rownames(ret))
   ret = ret[!indel,,drop=F]
   if ( any(normal) & nrow(ret) > 0 ) {
-    presentInNormal = ret$stories[,normal] > ret$errors[,normal] | ret$stories[,normal] > 0.2
+    presentInNormal = ret$stories[,normal,drop=F] > ret$errors[,normal,drop=F] | ret$stories[,normal,drop=F] > 0.2
+    presentInNormal = apply(presentInNormal, 1, any)
     if ( class(presentInNormal) == 'matrix' ) presentInNormal = apply(presentInNormal, 1, any)
     ret = ret[!presentInNormal,,drop=F]
     catLog('Filtered ', sum(allSmall), ' small, ', sum(uncertain), ' uncertain, ', sum(indel), ' indel and ', sum(presentInNormal), ' present in normal stories.\n', sep='')
@@ -501,19 +505,19 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
         subStories = stories[rows,,drop=F]
         subSigmas = sigmas[rows,,drop=F]
         subKeep = keep[rows]
-        while ( any(colSums(subStories[subKeep,]) > 1) ) {
-          presence = rowMeans(subStories[subKeep,])
-          inconsistency = sqrt(rowMeans(subSigmas[subKeep,]^2))
+        while ( any(colSums(subStories[subKeep,,drop=F]) > 1) ) {
+          presence = rowMeans(subStories[subKeep,,drop=F])
+          inconsistency = sqrt(rowMeans(subSigmas[subKeep,,drop=F]^2))
           score = presence - inconsistency/3
           subKeep[subKeep][which.min(score)] = F
         }
         keep[rows] = subKeep
       }
       catLog(sum(!keep), 'overlapping stories filtered..')
-      events = events[keep,]
-      stories = stories[keep,]
-      errors = errors[keep,]
-      sigmas = sigmas[keep,]
+      events = events[keep,,drop=F]
+      stories = stories[keep,,drop=F]
+      errors = errors[keep,,drop=F]
+      sigmas = sigmas[keep,,drop=F]
     }
   }
   else {
@@ -663,7 +667,7 @@ storiesToCloneStories = function(stories, storyList='',
   if ( length(storyList) < 2 )
     return(list('cloneStories'=stories, 'storyList'=storyList))
 
-  #if a lot of mutations, merge them in batches, as the algorithm scales as O(N^2)
+  #if a lot of mutations, merge them in batches, as the algorithm scales as O(N^2) otherwise
   #group less in this first pass (minDistance*0.5), and then group as specified last round.
   batchSize = round(pmin(1000, pmax(100, 1e6/length(storyList))))
   if ( length(storyList) > batchSize ) catLog('Cluster mutations by batch. Remaining clusters: ', sep='')
@@ -689,7 +693,7 @@ storiesToCloneStories = function(stories, storyList='',
       err = 1/sqrt(colsums(1/err^2))
       ret = matrix(err, nrow=1)
     }))
-    rownames(err) = rownames(st) = 1:length(storyList)
+    if ( nrow(st) > 0 ) rownames(err) = rownames(st) = 1:length(storyList)
     colnames(err) = colnames(st) = colnames(stories$stories)
     clusters = data.frame('call'=rep('clone', length(storyList)), 'x1'=rep(NA, length(storyList)), 'x2'=rep(NA, length(storyList)), row.names=1:length(storyList), stringsAsFactors=F)
     clusters$stories = st
@@ -699,7 +703,7 @@ storiesToCloneStories = function(stories, storyList='',
   
   distance = do.call(rbind, mclapply(1:length(storyList), function(i) c(sapply(1:i, function(j) pairScore(stories, storyList[[i]], storyList[[j]])), rep(0, length(storyList)-i)), mc.cores=cpus))
   distance = distance + t(distance)
-  distance = distance + ifelse(row(distance) == col(distance), (max(distance)+1), 0)
+  distance = distance + ifelse(row(distance) == col(distance), (max(distance, minDistance)+1), 0)
 
   loops = 0
   while ( any(distance < minDistance) ) {
@@ -778,10 +782,10 @@ pairScore = function(stories, is, js) {
   #}
   #unpairedRms = sqrt(rms1^2+rms2^2)
 
-  err = stories$errors[c(is,js),]
+  err = stories$errors[c(is,js),,drop=F]
   if ( any(err<=0) ) err[err<=0] = rep(min(c(1,err[err>0]))/1e6, sum(err<=0))
   if ( any(is.infinite(err)) ) err[is.infinite(err)] = rep(1e6, sum(is.infinite(err)))
-  st = stories$stories[c(is,js),]
+  st = stories$stories[c(is,js),,drop=F]
   w = t(1/t(err^2)/colsums(1/err^2))
   mean = colSums(st*w)
   sigma = abs(t(t(st)-mean))/err
@@ -861,10 +865,16 @@ enforceTransitive = function(mx) {
 }
 
 #add the filtered stories to the clone stories if consistent.
-mergeStories = function(clusteredStories, filteredStories) {
+mergeStories = function(clusteredStories, filteredStories, germlineVariants=c()) {
+  germlineOnly = rownames(filteredStories) %in% germlineVariants
   distance = sapply(1:nrow(clusteredStories$cloneStories), function(cloneRow) {
+    isGermlineClone = rownames(clusteredStories$cloneStories)[cloneRow] == 'germline'
     sapply(1:nrow(filteredStories), function(storyRow) {
-      cloneStoryRMS(clusteredStories$cloneStories[cloneRow,], filteredStories[storyRow,])
+      ret = cloneStoryRMS(clusteredStories$cloneStories[cloneRow,], filteredStories[storyRow,])
+      if ( germlineOnly[storyRow] & !isGermlineClone ) ret = Inf
+      #be extra generous for rare germline variants matching the germline clone.
+      if ( germlineOnly[storyRow] & isGermlineClone ) ret = ret/2
+      return(ret)
     })
   })
   #if either as only one row, make it a 1-row or 1-column matrix.

@@ -17,4 +17,3 @@ Adds binding strength (essentailly same as GC content) to a bedfile.
 \details{
 Adds the bidning strength as a column to the bedfile, saving it as a copy, replacing .bed with .dn.bed
 }
-

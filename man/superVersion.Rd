@@ -16,4 +16,3 @@ this is the version that goes in the logfile.
          Third digit is minor changes.
          1.0.0 will be the version used in the performance testing in the first preprint.
 }
-

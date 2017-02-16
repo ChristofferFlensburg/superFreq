@@ -44,4 +44,3 @@ y = rpois(3000, 1:3000)
 plotMA(x, y, loess=T)
 
 }
-

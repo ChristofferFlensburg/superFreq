@@ -566,6 +566,8 @@ loessNorm = function(counts1, counts2, span=0.5) {
   else x = 1 + counts1
   if ( is.matrix(counts2) ) y = rowSums(1+counts2)
   else y = 1 + counts2
+  x = 0.1 + noneg(rnorm(length(x), x, 0.001) - 0.1)
+  y = 0.1 + noneg(rnorm(length(y), y, 0.001) - 0.1)
   M = log(x/y)
   A = log(x*y)/2
   lo = loess(M~A, data.frame(M, A), control=loess.control(trace.hat = 'approximate'), span=span)
@@ -581,6 +583,8 @@ loessNormToReference = function(counts1, reference, span=0.5) {
   else x = 1 + counts1
   if ( is.matrix(reference) ) y = rowSums(1+reference)
   else y = 1 + reference
+  x = 0.1 + noneg(rnorm(length(x), x, 0.001) - 0.1)
+  y = 0.1 + noneg(rnorm(length(y), y, 0.001) - 0.1)
   M = log10(x/y)
   A = log10(x*y)/2
   lo = loess(M~A, data.frame(M, A), control=loess.control(trace.hat = 'approximate'), span=span)

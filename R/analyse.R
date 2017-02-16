@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.15')
+superVersion = function() return('0.9.16')
 
 
 #' Wrapper to run default superFreq analysis
@@ -140,7 +140,7 @@ superVersion = function() return('0.9.15')
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep') {
+  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T) {
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -173,7 +173,8 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
                 reference=reference, genome=genome, BQoffset=BQoffset, cpus=cpus,
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
-                dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F)
+                dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
+                correctReferenceBias=correctReferenceBias)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -198,12 +199,13 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
 
   parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut)
 
-  downloadSuperFreqDbSNP(dbSNPdirectory)
-  downloadSuperFreqCOSMIC(cosmicDirectory)
+  downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
+  downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
 
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
-                 runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge)
+          runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
+          correctReferenceBias=correctReferenceBias)
 
   postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory, vepCall=vepCall,
                  cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
@@ -284,7 +286,7 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #'
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
-  parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F) {
+  parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T) {
   options(stringsAsFactors = F)
   options(scipen = 10)
   
@@ -537,27 +539,10 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   fit = runDE(bamFiles, names, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
     normalCoverageRdirectory, settings=settings, cpus=cpus, forceRedoFit=forceRedoFit, forceRedoCount=forceRedoCount,
     forceRedoNormalCount=forceRedoNormalCount)
-  #if ( class(fit) == 'try-error' ) {
-  #  catLog('Error in runDEforSamples! Input was:')
-  #  catLog('bamFiles:', bamFiles, '\nnames:', names, '\nexternalNormalCoverageBams:', externalNormalCoverageBams,
-  #         '\nstart(captureRegions)[1:4]:', start(captureRegions)[1:4], '\nRdirectory:', Rdirectory,
-  #         '\nplotDirectory:', plotDirectory, '\nnormalCoverageRdirectory:', normalCoverageRdirectory, '\ncpus:', cpus,
-  #         '\nforceRedoFit:', forceRedoFit, '\nforceRedoCount', forceRedoCount,
-  #         '\nforceRedoNormalCount', forceRedoNormalCount, '\n')
-  #  dumpInput(Rdirectory, list('bamFiles'=bamFiles, 'names'=names, 'externalNormalCoverageBams'=externalNormalCoverageBams,
-  #                             'captureRegions'=captureRegions, 'Rdirectory'=Rdirectory, 'plotDirectory'=plotDirectory,
-  #                             'normalCoverageRdirectory'=normalCoverageRdirectory, 'cpus'=cpus, 'forceRedoFit'=forceRedoFit,
-  #                             'forceRedoCount'=forceRedoCount, 'forceRedoNormalCount'=forceRedoNormalCount))
-  #  stop('Error in runDEforSamples.')
-  #}
 
   #Plot volcanoes and output an excel file with top DE regions.
   ret = makeFitPlots(fit, plotDirectory, genome,
     forceRedoVolcanoes=forceRedoVolcanoes, forceRedoDifferentRegions=forceRedoDifferentRegions)
-  #if ( class(ret) == 'try-error' ) {
-  #  catLog('Error in makeFitPlots, will continue analysis anyway.')
-  #  warning('Error in makeFitPlots.')
-  #}
 
 
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
@@ -591,100 +576,49 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       allVariants = matchFlagVariants(variants, normalVariants, individuals, normals, genome,
         Rdirectory, flaggingVersion=flaggingVersion, RNA=RNA, cpus=cpus, byIndividual=byIndividual,
         forceRedoMatchFlag=forceRedoMatchFlag)
-      #if ( class(allVariants) == 'try-error' | !all(c('variants', 'normalVariants') %in% names(allVariants)) ) {
-      #  catLog('Error in matchFlagVariants.\n')
-      #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'individuals'=individuals, 'normals'=normals,
-      #                             'Rdirectory'=Rdirectory, 'forceRedoMatchFlag'=forceRedoMatchFlag))
-      #  stop('Error in matchFlagVariants.')
-      #}
     }
   }
   variants = allVariants$variants
   normalVariants = allVariants$normalVariants
-  a=setVariantLoss(normalVariants$variants)
-  #if ( class(a) == 'try-error' ) {
-  #  catLog('Error in setVariantLoss(normalVariants)\n')
-  #  stop('Error in setVariantLoss(normalVariants)!')
-  #}
+  setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
     
 
   #call CNVs compared to the normals.
   cnvs =
     callCNVs(variants=variants, normalVariants=normalVariants, fitS=fit$fit, variants$SNPs,
                  names=names, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
-                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV)
-  #if ( class(cnvs) == 'try-error' ) {
-  #  catLog('Error in callCNVs!\n')
-  #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'fitS'=fit$fit,
-  #                             'names'=names, 'individuals'=individuals, 'normals'=normals, 'Rdirectory'=Rdirectory,
-  #                             'genome'=genome, 'cpus'=cpus, 'forceRedoCNV'=forceRedoCNV))
-  #  stop('Error in callCNVs.')
-  #}
+                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias)
 
 
   #make CNV plots
   cnvplot = makeCNVplots(cnvs, plotDirectory=plotDirectory, genome, forceRedoCNVplots=forceRedoCNVplots)
-  #if ( class(cnvplot) == 'try-error' ) {
-  #  catLog('Error in makeCNVplots! Continuing, but these plots are kindof useful.\n')
-  #  warning('Error in makeCNVplots! Continuing, but these plots are kindof useful.')
-  #}
 
   #combine SNPs and CNVs into stories of subclones.
   stories = getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
-    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge)
-  #if ( class(stories) == 'try-error' ) {
-  #  catLog('Error in getStories!\n')
-  #  dumpInput(Rdirectory, list('variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs,
-  #                             'timeSeries'=timeSeries, 'Rdirectory'=Rdirectory, 'normals'=normals,
-  #                             'plotDirectory'=plotDirectory, 'cpus'=cpus, 'forceRedo'=forceRedoStories))
-  #  stop('Error in getStories!')
-  #}
+    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge,
+    correctReferenceBias=correctReferenceBias)
   variants = stories$variants
   normalVariants = stories$normalVariants
   stories = stories$stories
 
   #do multi-sample heatmaps and frequency progression
   progression = makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression, genome=genome)
-  #if ( class(progression) == 'try-error' ) {
-  #  catLog('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.\n')
-  #  warning('Error in makeSNPprogressionPlots! Continuing anyway, but these plots are kindof useful.')
-  #}
   
   #make summary plots
   summary = makeSummaryPlot(variants, cnvs, normals, individuals, timePoints, plotDirectory,
     genome, cpus, forceRedo=forceRedoSummary)
-  #if ( class(summary) == 'try-error' ) {
-  #  catLog('Error in makeSummaryPlot! Continuing, but these plots are kindof useful.\n')
-  #  warning('Error in makeSummaryPlot! Continuing, but these plots are kindof useful.')
-  #}
   
   #identify and output new variants
   newVar = outputNewVariants(variants, samplePairs, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoNewVariants)
-  #if ( class(newVar) == 'try-error' ) {
-  #  catLog('Error in outputNewVariants! Continuing anyway.\n')
-  #  warning('Error in outputNewVariants! Continuing anyway.')
-  #}
   
   #output somatic variants
   somatics = outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic)
-  #if ( class(somatics) == 'try-error' ) {
-  #  catLog('Error in outputSomaticVariants! Continuing anyway, but this is fairly important information.\n')
-  #  warning('Error in outputSomaticVariants! Continuing anyway, but this is fairly important information.')
-  #}
 
   river = makeRiverPlots(stories, variants, genome, cpus=cpus, plotDirectory, forceRedo=forceRedoRiver)
-  #if ( class(river) == 'try-error' ) {
-  #  catLog('Error in makeRiverPlots!\n')
-  #  warning('Error in makeRiverPlots!')
-  #}
 
   #Make the scatter plots of the pairs
   scatter = makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
     genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
-  #if ( class(scatter) == 'try-error' ) {
-  #  catLog('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.\n')
-  #  warning('Error in makeScatterPlots! Continuing anyway, but these plots are kindof useful.')
-  #}
 
   catLog('First part done! :)\n\n')
   
@@ -705,7 +639,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
 #' cnvs = data$clusters
 #' plotCR(cnvs[['aSample']]$clusters)
 #' }
-loadData = function(Rdirectory, setVariantLoss=F) {
+loadData = function(Rdirectory, setVariantLoss=F, correctReferenceBias=T) {
   saveFiles = list.files(Rdirectory, pattern = '*.Rdata$', full.names=T)
   names = gsub('.Rdata$', '', basename(saveFiles))
   #if allVariants is done, some of the earlier data doesnt have to be loaded.
@@ -732,7 +666,7 @@ loadData = function(Rdirectory, setVariantLoss=F) {
   names(ret) = gsub('.Rdata$', '', basename(saveFiles))
 
   if ( setVariantLoss & 'allvariants' %in% names(ret) )
-    setVariantLoss(ret$allVariants$normalVariants$variants)
+    setVariantLoss(ret$allVariants$normalVariants$variants, correctReferenceBias=correctReferenceBias)
 
   return(ret)
 }
@@ -1268,3 +1202,26 @@ propagateForceRedo = function(forceRedo) {
   }
   return(forceRedo)
 }
+
+
+#' shruggie
+#'
+#' @details ¯\_(ツ)_/¯
+#'
+#' @export
+#'
+#' @examples
+#' cat("I have no idea.", shrug(), '\n')
+shrug = function() return("¯\\_(ツ)_/¯")
+
+
+#' table flip
+#'
+#' @details (╯°□°)╯ ︵ ┻━┻
+#'
+#' @export
+#'
+#' @examples
+#' cat("*** this analysis!!", tableFlip(), '\n')
+tableFlip = function() return("(╯°□°)╯ ︵ ┻━┻")
+

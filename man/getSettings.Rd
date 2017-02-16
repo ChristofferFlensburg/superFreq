@@ -18,4 +18,3 @@ Wrapper for getting settings, containing defaults for missing values.
 If the setting is present in the list, just return settings[[name]].
          Otherwise return a default value.
 }
-

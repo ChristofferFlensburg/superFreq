@@ -21,4 +21,3 @@ Retrieves information about cosmic variant IDs
 \details{
 For each cosmic ID, return whether it is seen in a census gene, and the mutations per million tumors (MPM) for that variant, as well as the average MPM over the gene (mutations per million tumors per basepair, MPMPB).
 }
-

@@ -3,13 +3,13 @@
 #flags variants with suspicious behaviour in the normals.
 #marks the somatic-looking variants in the samples
 #ie non-db variants that are not present in the normals and not flagged as suspicious.
-matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F) {
+matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F, correctReferenceBias=T) {
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')
     load(file=saveFile)
     catLog('Estimating reference bias.\n')
-    setVariantLoss(allVariants$normalVariants$variants)
+    setVariantLoss(allVariants$normalVariants$variants, correctReferenceBias=correctReferenceBias)
     return(allVariants)
   }
   variants$variants = lapply(variants$variants, function(q) q[!is.na(q$cov),])
@@ -31,9 +31,9 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
 
   #Use the normals to flag variants that are noisy in the normals
   if ( flaggingVersion == 'new' )
-    variants = newFlagFromNormals(variants, normalVariants, genome, RNA=RNA, cpus=cpus)
+    variants = newFlagFromNormals(variants, normalVariants, genome, RNA=RNA, cpus=cpus, correctReferenceBias=correctReferenceBias)
   else
-    variants = flagFromNormals(variants, normalVariants, genome, cpus=cpus)
+    variants = flagFromNormals(variants, normalVariants, genome, cpus=cpus, correctReferenceBias=correctReferenceBias)
   
 
   #mark somatic variants
@@ -124,9 +124,9 @@ return(qs)
 
 
 #helper function that flags variants that have suspicious behaviour in the pool of normals.
-flagFromNormals = function(variants, normalVariants, genome, cpus=1) {
+flagFromNormals = function(variants, normalVariants, genome, cpus=1, correctReferenceBias=T) {
   #check normals for recurring noise.
-  setVariantLoss(normalVariants$variants)
+  setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
 
   if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
   
@@ -221,9 +221,9 @@ flagFromNormals = function(variants, normalVariants, genome, cpus=1) {
 
 #new version of flagging from pool of normals. Looks a bit closer and should be able to filter out
 #more low frequency crap without taking real variants. Added as option until tested more.
-newFlagFromNormals = function(variants, normalVariants, genome, RNA=F, cpus=1) {
+newFlagFromNormals = function(variants, normalVariants, genome, RNA=F, cpus=1, correctReferenceBias=T) {
   #check normals for recurring noise.
-  setVariantLoss(normalVariants$variants)
+  setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
 
   if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
 
@@ -360,6 +360,8 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
   names = names(variants$variants)
   #pair up cancer normals
   correspondingNormal = findCorrespondingNormal(names, individuals, normals)
+  #for normal samples, never use other matched normals for this, but instead always call rare germline variants.
+  correspondingNormal[normals] = NA
   CNs = which(!is.na(correspondingNormal))
   names(CNs) = names(variants$variants[CNs])
 
@@ -399,7 +401,7 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     pNormalFreq = pBinom(q$cov, q$var, normalFreq)
     normalOK = pmin(1, noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
     
-    if ( !(name %in% names(CNs)) ) catLog('\nWARNING! No matched normal: removing all validated dbSNPs or ExAC over 0.1% population frequency from the somatic candidates! Remaining somatics will include rare germline variants.\n', sep='')
+    if ( !(name %in% names(CNs)) ) catLog('\nNo matched normal, or normal sample: selecting somatic variants based on population frequencies. Selecting dbSNPs and ExAC below 0.1% population frequency as somatic candidates. These will include rare germline variants, which is desired for normals, but not for cancer samples without matched normals.\n', sep='')
     commonDbSNP = q$db & !is.na(q$dbValidated) & q$dbValidated & !is.na(q$dbMAF) & q$dbMAF > 0.001
     commonExAC = rep(FALSE, length(commonDbSNP))
     if ( 'exac' %in% names(q) )
@@ -411,6 +413,15 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     if ( name %in% names(CNs) ) {
       catLog('Correcting somatics using', correspondingNormal[name], 'as matched normal.\n')
       qn = variants$variants[[correspondingNormal[name]]][use,]
+
+      #in case of multiple matched normals, sum up the reads
+      matchedNormals = individuals == individuals[name] & normals
+      if ( sum(matchedNormals) > 1 ) {
+        qn$var = rowSums(do.call(cbind, lapply(variants$variants[matchedNormals], function(q) q$var[use])))
+        qn$cov = rowSums(do.call(cbind, lapply(variants$variants[matchedNormals], function(q) q$cov[use])))
+        qn$ref = rowSums(do.call(cbind, lapply(variants$variants[matchedNormals], function(q) q$ref[use])))
+      }
+      
       referenceNormal = qn$var <= pmax(0.02*qn$cov, 0.5*sqrt(qn$cov))
       referenceNormalFactor = 1-pmin(1, noneg(qn$var/pmax(1, 0.02*qn$cov, 0.5*sqrt(qn$cov)) - 1))
       pNormalHet = pBinom(qn$cov[referenceNormal], qn$var[referenceNormal], 0.3)
@@ -504,10 +515,16 @@ fisherTest = function(p) {
   return(c(Xsq = Xsq, pVal = pVal))
 }
 
-setVariantLoss = function(variants, maxLoops = 99, verbose=T) {
+setVariantLoss = function(variants, maxLoops = 99, verbose=T, correctReferenceBias=T) {
+  if ( !correctReferenceBias ) {
+    assign('.variantLoss', 0, envir = .GlobalEnv)
+    if ( verbose ) catLog('Not correcting reference bias.\n')
+    return(.variantLoss)
+  }
+  
   #if called with several samples, take average
   if ( class(variants) == 'list' ) {
-    vL = mean(unlist(lapply(variants, function(var) setVariantLoss(var, maxLoops=maxLoops, verbose=F))))
+    vL = mean(unlist(lapply(variants, function(var) setVariantLoss(var, maxLoops=maxLoops, verbose=F, correctReferenceBias=correctReferenceBias))))
     assign('.variantLoss', vL, envir = .GlobalEnv)
     if ( verbose ) catLog('Average variant loss is', vL, '\n')
     return(.variantLoss)

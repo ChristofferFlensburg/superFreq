@@ -2,6 +2,9 @@
 
 #prints the somatic variants to an excel sheet.
 outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, forceRedo=F) {
+  vcfDir = paste0(plotDirectory, '/somatics')
+  if ( !file.exists(vcfDir) ) dir.create(vcfDir)
+
   outfile = paste0(plotDirectory, '/somaticVariants.xls')
   if ( (!file.exists(outfile) | forceRedo) ) {
     somatics = list()
@@ -15,6 +18,9 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       toReturn = toReturn[order(somaticP[toReturn], decreasing=T)]
       q = q[toReturn,]
       SNPs = variants$SNPs[variants$SNPs$x %in% q$x,]
+
+      vcfFile = paste0(vcfDir, '/', sample, '.vcf')
+      writeToVCF(q, vcfFile, genome=genome)
 
       start=xToPos(q$x, genome)
       end = xToPos(q$x, genome)
@@ -71,7 +77,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       if ( nrow(somatic) > 65000 ) warning('Truncating .xls somatic variants: too many rows.')
       XLsomatics[[sample]] = somatic[1:min(nrow(somatic), 65000),]
     }
-    names(XLsomatics) = substring(names(XLsomatics), 1, 30)
+    names(XLsomatics) = make.unique(substring(names(XLsomatics), 1, 29))
     catLog('writing to xls...')
     WriteXLS('XLsomatics', outfile)
 
@@ -83,8 +89,6 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
     write.csv(allSomatics, gsub('.xls$', '.csv', outfile))
     catLog('done!\n')
 
-    vcfDir = paste0(plotDirectory, '/somatics')
-    if ( !file.exists(vcfDir) ) dir.create(vcfDir)
     catLog('Outputting to directory ', vcfDir, '..')
     for ( name in names(somatics) ) {
       somatic = somatics[[name]]
@@ -112,4 +116,70 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
     }
     catLog('done.\n')
   }
+}
+
+
+#' exports variants to VCF
+#'
+#' @param q A variant data frame from superFreq.
+#' @param vcfFile The path to the output file.
+#' @param genome The genome, such as 'hg19', 'hg38' or 'mm10'. Defaults to 'hg19'.
+#' @param SNVonly boolean. Set to TRUE to only output SNVs, not indels. Defaults to FALSE.
+#'
+#' @details This function outputs superFreq variants to a VCF for access from other software.
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' data = loadData(Rdirectory)
+#' q = data$allVariants$variants$variants$mySample
+#' writeToVCF(q, 'mySample.superFreq.vcf')
+#' }
+writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F) {
+  if ( snvOnly ) q = q[q$variant %in% c('A', 'T', 'C', 'G'),]
+  
+  preambula = c('##fileformat=VCFv4.0',
+    '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tCOVERAGE\tVARIANTREADS\tVAF')
+  chrom = xToChr(q$x, genome)
+  pos = xToPos(q$x, genome)
+  ID = rownames(q)
+  ref = q$reference
+  alt = q$variant
+  if ( any(grepl('\\+', alt)) ) {
+    insertions = grepl('\\+', alt)
+    nIns = nchar(alt[insertions])-1
+    alt[insertions] = paste0(substr(ref[insertions], 1, 1), gsub('\\+', '', alt[insertions]))
+  }
+  qual = pmin(60, -log10(1-q$somaticP)*10)
+  filter = gsub('^$', 'PASS', expandFlags(q$flag))
+  info = rep('', nrow(q))
+  cov = q$cov
+  var = q$var
+  f = ifelse(q$cov > 0, q$var/q$cov, 0)
+
+  out = cbind(chrom, pos, ID, ref, alt, qual, filter, info, cov, var, f)
+  body = apply(out, 1, function(strs) do.call(paste, c(as.list(strs), sep='\t')))
+  body = do.call(paste, c(as.list(preambula), as.list(body), sep='\n'))
+
+  write.table(body, file=vcfFile, row.names=F, col.names=F, quote=F)
+}
+
+expandFlags = function(flags) {
+  flags = gsub('(Rep)([A-Z]|$)', 'Repeatregion:\\2', flags)
+  flags = gsub('(Bq)([A-Z]|$)', 'Basecallquality:\\2', flags)
+  flags = gsub('(Mq)([A-Z]|$)', 'Mappingquality:\\2', flags)
+  flags = gsub('(Svr)([A-Z]|$)', 'Singlevariantread:\\2', flags)
+  flags = gsub('(Nnc)([A-Z]|$)', 'Normalnoiseconsistent:\\2', flags)
+  flags = gsub('(Nnn)([A-Z]|$)', 'Normalnoisenonconsistent:\\2', flags)
+  flags = gsub('(Vn)([A-Z]|$)', 'Variablenormals:\\2', flags)
+  flags = gsub('(Mv)([A-Z]|$)', 'Minorvariant:\\2', flags)
+  flags = gsub('(St)([A-Z]|$)', 'Stutter:\\2', flags)
+  flags = gsub('(Sb)([A-Z]|$)', 'Strandbias:\\2', flags)
+  flags = gsub('(Pa)([A-Z]|$)', 'Palindromic:\\2', flags)
+  flags = gsub('(Mc)([A-Z]|$)', 'Manycopies:\\2', flags)
+  flags = gsub('(Pn)([A-Z]|$)', 'Polymorphicnormals:\\2', flags)
+  flags = gsub('(Nr)([A-Z]|$)', 'Noisyregion:\\2', flags)
+
+  return(flags)
 }

@@ -52,7 +52,7 @@ makeFitPlots = function(fit, plotDirectory, genome, forceRedoVolcanoes=F, forceR
             'XRank'=fit$fit$XRank[,col]
             )[ord,]
     }
-    names(tops) = substring(names(tops), 1, 30)
+    names(tops) = make.unique(substring(names(tops), 1, 29))
     WriteXLS('tops', differentRegionFile)
     catLog('done!\n', sep='')
   }
@@ -82,7 +82,7 @@ makeFitPlots = function(fit, plotDirectory, genome, forceRedoVolcanoes=F, forceR
             'XRank'=fit$exonFit$XRank[,col]
             )[ord,]
     }
-    names(tops) = substring(names(tops), 1, 30)
+    names(tops) = make.unique(substring(names(tops), 1, 29))
     WriteXLS('tops', differentRegionFile)
     catLog('done!\n', sep='')
   }

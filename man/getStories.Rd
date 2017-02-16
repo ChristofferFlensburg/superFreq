@@ -6,7 +6,7 @@
 \usage{
 getStories(variants, normalVariants, cnvs, timeSeries, normals, genome,
   cloneDistanceCut = -qnorm(0.01), Rdirectory, plotDirectory, cpus = 1,
-  forceRedo = F, manualStoryMerge = F)
+  forceRedo = F, manualStoryMerge = F, correctReferenceBias = T)
 }
 \arguments{
 \item{variants}{variants: The variants.}
@@ -35,4 +35,3 @@ Combines variants and CNAs to clonal evolution
 \details{
 This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 }
-

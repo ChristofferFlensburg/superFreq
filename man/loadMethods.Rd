@@ -15,4 +15,3 @@ loadMethods()
 \keyword{analyse}
 \keyword{load}
 \keyword{methods}
-

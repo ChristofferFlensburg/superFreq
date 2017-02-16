@@ -12,4 +12,3 @@ internal function
 \details{
 Just remembers which columns are added by getMoreVEPinfo
 }
-

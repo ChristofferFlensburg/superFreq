@@ -15,4 +15,3 @@ Outputs some infomration about what the paths should be if called empty.
 \examples{
 superOutputDirectories()
 }
-

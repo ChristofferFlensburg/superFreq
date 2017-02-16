@@ -15,4 +15,3 @@ Ranks the variant effects
 \details{
 Returns a low score for severe effects, higher for less severe, 100 for unknown. 11 and below alters the protein.
 }
-

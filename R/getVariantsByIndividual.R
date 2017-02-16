@@ -247,69 +247,28 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
   })
 
   if ( genome == 'hg38' ) dir = paste0(dir, '/hg38')
+  if ( genome == 'mm10' ) dir = paste0(dir, '/mm10')
+
+  RsaveFile = paste0(dir,'/dbAF.Rdata')
+  if ( !file.exists(RsaveFile) ) stop('dbSNP file not found at expected path ', RsaveFile)
+  catLog('Importing dbSNP allele frequencies from ', RsaveFile, '...', sep='')
+  load(RsaveFile)
+  catLog('done. Match against variants...')
+  qNames = unique(do.call(c, lapply(variants, rownames)))
+  dbNames = names(dbAF)
+  relevantDB = dbNames %in% qNames
+  dbAF = dbAF[relevantDB]
+  dbNames = names(dbAF)
+  isDB = qNames %in% dbNames
+  dbAF = dbAF[qNames]
   
-  for (chr in names(chrLengths(genome)) ) {
-    chr = gsub('^M$', 'MT', chr)
-
-    nSNPs = sum(sapply(variants, function(q) {
-      sum(xToChr(q$x, genome) == chr)
-    }))
-    if ( nSNPs == 0 ) next
-      
-    RsaveFile = paste0(dir,'/ds_flat_ch', chr, '.Rdata')
-    if ( !file.exists(RsaveFile) ) {
-      flatFile = paste0(dir,'/ds_flat_ch', chr, '.dbSNP')
-      if ( !file.exists(flatFile) ) {
-        catLog('Chromosome ', chr, ': no SNP file found at', flatFile,'. Marking all as not dbSNP.\n', sep='')
-        if ( chr %in% c('M', 'MT') ) {
-          warning(' mitochondrial dbSNP file not found!')
-          next
-        }
-        else stop('dbSNP file not found!')
-      }
-      catLog('Chromosome ', chr, ': reading from file..')
-      db = read.table(flatFile, header = T, fill=T)
-      catLog('extracting positions..')
-      db = db[,c('pos', 'validated', 'MAF', 'minorAllele')]
-      db = db[db$pos != '?',] #without position, the dbSNP is useless
-      catLog('saving positions for future use..')
-      save('db', file=RsaveFile)
-    }
-    else {
-      catLog('Chromosome ', chr, ': loading db positions..')
-      load(file=RsaveFile)
-    }
-    
-    catLog('matching to variant positions..')
-    variants = mclapply(variants, function(q) {
-      thisChr = which(xToChr(q$x, genome) == chr)
-      if ( length(thisChr) == 0 ) return(q)
-      varPos = xToPos(q$x, genome)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
-      dbQ = db[db$pos %in% varPos,]
-
-      q$db[thisChr] = varPos %in% dbQ$pos
-
-      dbVal = dbQ[dbQ$validated,]
-      if ( class(dbQ$validated) == 'character' )
-        dbVal = dbQ[dbQ$validated=='YES',]
-      q$dbValidated[thisChr] = varPos %in% dbVal$pos
-
-      dbQ = dbQ[order(dbQ$pos, -dbQ$MAF),]
-      dbQ = dbQ[!duplicated(dbQ$pos),]
-      dbMAF = dbQ$MAF
-      names(dbMAF) = dbQ$pos
-      dbMA = dbQ$minorAllele
-      names(dbMA) = dbQ$pos
-      dbMAF = dbMAF[as.character(varPos)][q$db[thisChr]]
-      dbMA = dbMA[as.character(varPos)][q$db[thisChr]]
-      dbMA[is.na(dbMA)] = 'X'
-      reference = q$reference[thisChr][q$db[thisChr]]
-      dbMAF[dbMA == reference] = 1 - dbMAF[dbMA == reference]
-      q$dbMAF[thisChr][q$db[thisChr]] = dbMAF
-      return(q)
-    }, mc.cores=cpus)
-    catLog('done.\n')
-  }
+  variants = lapply(variants, function(q) {
+    q$db = isDB
+    q$dbMAF = dbAF
+    q$dbValidated = !is.na(dbAF) & dbAF > 0
+    return(q)
+  })
+  catLog('done.\n')
   
   return(variants)
 }
@@ -317,7 +276,8 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
 
 #hepler function that marks the variants in a SNPs object as db or non db SNPs.
 matchToExac = function(variants, dir, genome='hg19', cpus=1) {
-  if ( genome != 'hg19' ) return(variants)
+  if ( !(genome %in% c('hg19', 'hg38')) ) return(variants)
+  if ( genome == 'hg38' ) dir = paste0(dir, '/hg38')
 
   variants = lapply(variants, function(q) {
     q$exac = rep(F, nrow(q))
@@ -326,98 +286,29 @@ matchToExac = function(variants, dir, genome='hg19', cpus=1) {
     q$exacFilter = rep(NA, nrow(q))
     return(q)
   })
-  
-  for (chr in names(chrLengths(genome)) ) {
-    chr = gsub('^M$', 'MT', chr)
-    if ( chr %in% c('M', 'MT') ) next
 
-    nSNPs = sum(sapply(variants, function(q) {
-      sum(xToChr(q$x, genome) == chr)
-    }))
-    if ( nSNPs == 0 ) next
+  RsaveFile = paste0(dir,'/exac.Rdata')
+  if ( !file.exists(RsaveFile) ) stop('exac file not found at expected path ', RsaveFile)
+  catLog('Importing exac allele frequencies from ', RsaveFile, '...', sep='')
+  load(RsaveFile)
+  catLog('done. Match against variants...')
+  qNames = unique(do.call(c, lapply(variants, rownames)))
+  exacNames = rownames(exac)
+  relevantEXAC = exacNames %in% qNames
+  exac = exac[relevantEXAC,]
+  exacNames = rownames(exac)
 
-    RsaveFile = paste0(dir,'/', chr, '.Rdata')
-    if ( !file.exists(RsaveFile) ) {
-      vcfFile = paste0(dir,'/ExAC.r0.3.nonTCGA.sites.vep.vcf')
-      if ( !file.exists(vcfFile) ) {
-        catLog('Couldnt find ExAC save file ', RsaveFile, ' or ExAC source file ', vcfFile, '. Marking all as not in ExAC.\n', sep='')
-        stop('ExAC file not found!')
-      }
-      catLog('Importing from ExAC file..')
-      exac = read.table(vcfFile, fill=T)
-      catLog('splitting by chromsome..')
-      
-      for (loopChr in names(chrLengths(genome)) ) {
-        loopSaveFile = paste0(dir,'/', loopChr, '.Rdata')
-        if ( file.exists(loopSaveFile) ) next
-        catLog(loopChr, '..', sep='')
-        subExac = exac[exac[,1]==loopChr,]
-        af = gsub(';.+$', '', gsub('^.+;AF=', '',subExac[,8]))
-        exacVariant = subExac[,5]
-        toSplit = grep(',', af)
-        splitVariants = strsplit(exacVariant[toSplit], split=',')
-        firstVariant = exacVariant
-        firstVariant[toSplit] = sapply(splitVariants, function(vs) vs[1])
-        newVariant = lapply(splitVariants, function(vs) vs[2:length(vs)])
-        splitAf = strsplit(af[toSplit], split=',')
-        firstAf = af
-        firstAf[toSplit] = sapply(splitAf, function(vs) vs[1])
-        newAf = lapply(splitAf, function(vs) as.numeric(vs[2:length(vs)]))
-        chrN = cbind(subExac[toSplit,1], sapply(newAf, length))
-        newChr = apply(chrN, 1, function(row) rep(row[1], as.numeric(row[2])))
-        posN = cbind(subExac[toSplit,2], sapply(newAf, length))
-        newPos = apply(posN, 1, function(row) rep(row[1], as.numeric(row[2])))
-        referenceN = cbind(subExac[toSplit,4], sapply(newAf, length))
-        newReference = apply(referenceN, 1, function(row) rep(row[1], as.numeric(row[2])))
-        qualN = cbind(subExac[toSplit,6], sapply(newAf, length))
-        newQual = apply(qualN, 1, function(row) rep(row[1], as.numeric(row[2])))
-        filterN = cbind(subExac[toSplit,7], sapply(newAf, length))
-        newFilter = apply(filterN, 1, function(row) rep(row[1], as.numeric(row[2])))
+  variants = lapply(variants, function(q) {
+    q$exac = rownames(q) %in% exacNames
+    q$exacAF[q$exac] = exac[rownames(q)[q$exac],]$alleleFrequency
+    q$exacQual[q$exac] = exac[rownames(q)[q$exac],]$qual
+    q$exacFilter[q$exac] = exac[rownames(q)[q$exac],]$filter
+    return(q)
+  })
 
-        exacChr = c(subExac[,1], unlist(newChr))
-        exacPos = c(subExac[,2], unlist(newPos))
-        exacReference = c(subExac[,4], unlist(newReference))
-        exacVariant = c(firstVariant, unlist(newVariant))
-        exacQuality = c(subExac[,6], unlist(newQual))
-        exacFilter = c(subExac[,7], unlist(newFilter))
-        exacAf = c(firstAf, unlist(newAf))
-
-        subExac =
-          data.frame(chr=exacChr, pos=exacPos, reference=exacReference, variant=exacVariant,
-                     qual=exacQuality, filter=exacFilter, alleleFrequency=exacAf, stringsAsFactors=F)
-        catLog('saving..')
-        save(subExac, file = loopSaveFile)
-      }
-      load(file=RsaveFile)
-    }
-    else {
-      catLog('Chromosome ', chr, ': loading ExAC positions..')
-      load(file=RsaveFile)
-    }
-    
-    catLog('matching to variant positions..')
-    variants = mclapply(variants, function(q) {
-      thisChr = which(xToChr(q$x, genome) == chr)
-      if ( length(thisChr) == 0 ) return(q)
-      varPos = xToPos(q$x, genome)[thisChr] + ifelse(grepl('[-]', q$variant[thisChr]), 1, 0)
-      qName = paste0(chrToX(chr, varPos), q$variant[thisChr])
-      exac = subExac[subExac$pos %in% varPos,]
-      exacName = paste0(chrToX(chr, exac$pos), exac$variant)
-      rownames(exac) = exacName
-
-      q$exac[thisChr] = qName %in% exacName
-      exac = exac[qName[q$exac[thisChr]],]
-
-      q[thisChr,][q$exac[thisChr],]$exacFilter = exac$filter
-      q$exacAF[thisChr][q$exac[thisChr]] = as.numeric(exac$alleleFrequency)
-      q$exacQual[thisChr][q$exac[thisChr]] = as.numeric(exac$qual)
-
-      return(q)
-    }, mc.cores=cpus)
-    catLog('done.\n')
-  }
   
   return(variants)
+  
 }
 
 
@@ -454,7 +345,7 @@ getQuality = function(file, chr, pos, BQoffset, cpus=1) {
     chr = paste0('chr', chr)
   which = GRanges(chr, IRanges(pos-3, pos+3))
   chr = gsub('chr', '', chr)
-  p1 = ScanBamParam(which=which, what=c('pos', 'seq', 'cigar', 'qual', 'mapq', 'strand'),
+  p1 = ScanBamParam(which=which, what=c('pos', 'seq', 'cigar', 'qual', 'mapq', 'strand', 'qname'),
     flag=scanBamFlag(isSecondaryAlignment=FALSE))
   index = paste0(file, '.bai')
   if ( !file.exists(index) ) {
@@ -466,7 +357,7 @@ getQuality = function(file, chr, pos, BQoffset, cpus=1) {
   }
   regionReads = scanBam(file, index=index, param=p1)
   regionReads = lapply(regionReads, function(reads) {
-    keep = !is.na(reads$mapq)
+    keep = !is.na(reads$mapq) & !duplicated(reads$qname)
     if ( length(keep) == 0 ) return(reads)
     if ( sum(!keep) > 0 ) {
       reads$pos = reads$pos[keep]
@@ -565,6 +456,20 @@ readsToPileup = function(reads, pos, BQoffset) {
   #  }
   #}
 
+  readLengths = sapply(reads$seq, length)
+
+  #look for palindromic regions.
+  hasNeighourhood = !easy & seqI > 10 & readLengths > seqI + 10
+  before = substring(reads$seq[hasNeighourhood], seqI[hasNeighourhood]-11, seqI[hasNeighourhood]-1)
+  after = substring(reads$seq[hasNeighourhood], seqI[hasNeighourhood]+1, seqI[hasNeighourhood]+11)
+  after = gsub('C', 'g', after)
+  after = gsub('G', 'c', after)
+  after = gsub('T', 'a', after)
+  after = gsub('A', 't', after)
+  compAfter = toupper(after)
+  revCompAfter = sapply(lapply(strsplit(compAfter, NULL), rev), paste, collapse="")
+  isPalindromic = revCompAfter == before
+  note[hasNeighourhood][isPalindromic] = paste0(note[hasNeighourhood][isPalindromic], 'palindrome')
 
   ret = data.frame('call'=call, 'qual'=qual, 'mapq'=mapq, 'strand'=strand, 'note'=note)
   if ( any(is.na(as.matrix(ret))) ) {
@@ -767,7 +672,16 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
     ref = pileup$call == reference
     var = pileup$call == variant
   }
-  
+
+  #check for palindromic reads and remove. Flag variant if more than half.
+  if ( any(pileup$note == 'palindrome') ) {
+    if ( sum(pileup$note == 'palindrome')/nrow(pileup) > 0.5 )
+      flag = paste0(flag, 'Pa')
+    pileup = pileup[!grepl('palindrome', pileup$note),]
+    ref = pileup$call == reference
+    var = pileup$call == variant
+  }
+
   #compare base quality scores between variant and reference
   pbq = 1 
   if ( sum(ref) > 0 & sum(var) > 0 ) {
@@ -800,11 +714,11 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
     if ( psr < 0.001 ) flag = paste0(flag, 'Sb')
   }
 
-  #compare strand ratio between variant and reference
+  #check for stutter note
   if ( any(pileup$note == 'stutter') ) {
     flag = paste0(flag, 'St')
   }
-
+  
   #probabilities that the base call and mapping is correct.
   bqW = 1-10^(-pileup$qual/10)
   mqW = 1-10^(-pileup$mapq/10)
@@ -911,21 +825,22 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
       
       #fill in any missing variants
       missingVariants = variantsToCheck[!(variantsToCheck %in% rownames(q))]
+      catLog('Can reuse ', sum(variantsToCheck %in% rownames(q)), ' calls.\n', sep='')
       if ( length(missingVariants) > 0 ) {
-        missingX = as.numeric(gsub('[+-ATCGN]', '', missingVariants))
+        missingX = variants[[1]][missingVariants,]$x
         missingSNPs = SNPs[SNPs$x %in% missingX,]
 
         catLog('Filling in missing normal variants from ', name,'.\n', sep='')
         qNew =
-          QCsnps(pileups=importQualityScores(SNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
-                 positions=SNPs, cpus=cpus)
+          QCsnps(pileups=importQualityScores(missingSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
+                 positions=missingSNPs, cpus=cpus)
         q = rbind(q, qNew)
         q = q[!duplicated(paste0(q$x, q$variant)),]
         q = q[order(q$x, q$variant),]
         q = q[apply(!is.na(q), 1, any),]
   
         #save the union of the calls for future batches
-        catLog('Saving normal variants to', preExistingVariantsFile, '..')
+        catLog('Saving new normal variants back to', preExistingVariantsFile, '..')
         save(q, file=preExistingVariantsFile)
         catLog('done.\n')
       }

@@ -23,4 +23,3 @@ convert chromsome and position to the single genomic coordinate x.
 xToPos(1e9)
 xToPos(1e9, genome='mm10')
 }
-

@@ -28,4 +28,3 @@ Runs VEP on a R and plot directory that superFreq has been run on.
 Runs VEP on the variants, and saves the variants (retrivable with loadData) with the addition
          information from VEP, and COSMIC if provided.
 }
-

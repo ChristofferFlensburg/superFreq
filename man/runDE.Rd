@@ -45,4 +45,3 @@ Run differential coverage analysis.
 \details{
 Reads in the bed file into GRanges format, with extra columns for GC and binding strength.
 }
-

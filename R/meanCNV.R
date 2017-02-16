@@ -110,7 +110,7 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T) {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, dontCountRepeatedSNVs=F) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
@@ -519,7 +519,7 @@ mergeDoubleLoss = function(snvRates, cnvRates, individuals) {
 
 plotMultipageMutationMatrix =
   function(metaData, meanCNV, project, meanCNVs=NA, cosmicDirectory='',
-           priorCnvWeight=1, nGenes=30,
+           priorCnvWeight=1, nGenes=30, dontCountRepeatedSNVs=F,
            pages=1, forceRedo=F, plotFile='', cancerGenes=NA, genome='hg19') {
   if ( plotFile == '' )
     plotFile = paste0(metaData$project[project,]$plotDirectory, '/mutationMatrix.pdf')
@@ -527,14 +527,14 @@ plotMultipageMutationMatrix =
 
   pdf(plotFile, width=20, height=10)
   for ( page in 1:pages ) {
-    plotMutationMatrix(metaData, meanCNV, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight,
+    plotMutationMatrix(metaData, meanCNV, cosmicDirectory=cosmicDirectory, priorCnvWeight=priorCnvWeight, dontCountRepeatedSNVs=dontCountRepeatedSNVs,
                        nGenes=nGenes, skipFirst=(page-1)*nGenes, forceRedo=forceRedo, cancerGenes=cancerGenes, genome=genome)
   }
   dev.off()
   
 }
 
-cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filterTR=T, genome='hg19') {
+cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filterTR=T, genome='hg19', dontCountRepeatedSNVs=F) {
   xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
   delimiter = xs %in% c(0, cumsum(chrLengths(genome=genome)))
   
@@ -545,6 +545,12 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filt
   hasMatchedNormal = !is.na(findCorrespondingNormal(metaData$samples$NAME, individuals, normals))[samples]
 
   weightedxMx = t((1+hasMatchedNormal)*t(meanCNV$snvRates$xMx))
+  if ( dontCountRepeatedSNVs ) {
+    weightedxMx = t(apply(weightedxMx, 1, function(row) {
+      row[1:length(row) != which(row == max(row))[1]] = 0
+      return(row)
+      }))
+  }
   individuals = sampleToIndividual(metaData, samples)
   uInd = unique(individuals)
   indSamples = lapply(uInd, function(i) which(individuals == i))
@@ -565,6 +571,22 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filt
   #indSamples = lapply(uInd, function(i) which(individuals == i))
   #indMut = apply(weightedHitMx, 1, FUN=function(weight) sum(sapply(indSamples, function(is) max(weight[is]))))
   #weightedMutationRate = indMut/length(uInd)
+
+  if ( dontCountRepeatedSNVs ) {
+    names(geneMx) = snvGenes
+    for ( gene in snvGenes ) {
+      if ( !(gene %in% rownames(meanCNV$cnvRates$lossMx)) ) next
+      lostOne = meanCNV$cnvRates$lossMx[gene,]
+      notSNV = colSums(geneMx[[gene]]) == 0
+      dl = meanCNV$doubleLossRates$doubleLossMx[gene,]
+      fp = lostOne & notSNV & dl
+      if ( any(fp) ) {
+        meanCNV$doubleLossRates$doubleLossMx[gene,fp] = FALSE
+        meanCNV$doubleLossRates$doubleLossRate[gene] =
+          sum(meanCNV$doubleLossRates$doubleLossMx[gene,])/ncol(meanCNV$doubleLossRates$doubleLossMx)
+      }
+    }
+  }
 
   genes = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
   allMutationRates = rep(0, length(genes))
@@ -601,13 +623,13 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filt
 
 #This function takes the output from meanCNV, selects the most interesting genes
 #and plots the mutation and CNV status of those genes for all samples.
-plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWeight=1, nGenes=30, filterIG=T,
+plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWeight=1, nGenes=30, filterIG=T, dontCountRepeatedSNVs=F,
                               skipFirst=0, forceRedo=F, meanCNV2=NA, add=F, cancerGenes=NA, genome='hg19') {
   if ( is.na(cancerGenes[1]) ) {
-    score = cohortGeneScore(metaData, meanCNV, priorCnvWeight=priorCnvWeight, filterIG=filterIG)
+    score = cohortGeneScore(metaData, meanCNV, priorCnvWeight=priorCnvWeight, filterIG=filterIG, dontCountRepeatedSNVs=dontCountRepeatedSNVs)
     score[names(score)=='?'] = 0
     if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
-      score2 = cohortGeneScore(metaData, meanCNV2, priorCnvWeight=priorCnvWeight, filterIG=filterIG, genome=genome)
+      score2 = cohortGeneScore(metaData, meanCNV2, priorCnvWeight=priorCnvWeight, filterIG=filterIG, genome=genome, dontCountRepeatedSNVs=dontCountRepeatedSNVs)
       score = abs(score-score2)
     }
     cancerGenes = names(sort(score, decreasing=T)[skipFirst + 1:nGenes])

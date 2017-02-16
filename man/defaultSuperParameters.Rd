@@ -16,4 +16,3 @@ feed the output of this function to analyse, or just call superFreq.
 \examples{
 defaultSuperParameters()
 }
-

@@ -10,4 +10,3 @@ makeFitPlots(fit, plotDirectory, genome, forceRedoVolcanoes = F,
 \description{
 Plots results from differential coverage analysis
 }
-

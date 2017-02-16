@@ -15,4 +15,3 @@ Internal method to give approapriate errors for missing files.
 \examples{
 requireFileExists('a/path/to/a/file.txt')
 }
-

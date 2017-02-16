@@ -10,7 +10,8 @@ superFreq(metaDataFile, captureRegions, normalDirectory, Rdirectory,
   normalCoverageDirectory = "", systematicVariance = 0.02, maxCov = 150,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
   cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
-  participants = "all", manualStoryMerge = F, vepCall = "vep")
+  participants = "all", manualStoryMerge = F, vepCall = "vep",
+  correctReferenceBias = T)
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -160,4 +161,3 @@ data = superFreq(metaDataFile, captureRegions, normalDirectory,
                  Rdirectory, plotDirectory, reference)
 }
 }
-
