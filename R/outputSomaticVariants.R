@@ -1,7 +1,7 @@
 
 
 #prints the somatic variants to an excel sheet.
-outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, forceRedo=F) {
+outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, forceRedo=F, onlyForVEP=F) {
   vcfDir = paste0(plotDirectory, '/somatics')
   if ( !file.exists(vcfDir) ) dir.create(vcfDir)
 
@@ -20,7 +20,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       SNPs = variants$SNPs[variants$SNPs$x %in% q$x,]
 
       vcfFile = paste0(vcfDir, '/', sample, '.vcf')
-      writeToVCF(q, vcfFile, genome=genome)
+      if ( !onlyForVEP ) writeToVCF(q, vcfFile, genome=genome)
 
       start=xToPos(q$x, genome)
       end = xToPos(q$x, genome)
@@ -78,16 +78,16 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       XLsomatics[[sample]] = somatic[1:min(nrow(somatic), 65000),]
     }
     names(XLsomatics) = make.unique(substring(names(XLsomatics), 1, 29))
-    catLog('writing to xls...')
-    WriteXLS('XLsomatics', outfile)
+    if ( !onlyForVEP ) catLog('writing to xls...')
+    if ( !onlyForVEP ) WriteXLS('XLsomatics', outfile)
 
-    catLog('Writing to .csv...')
+    if ( !onlyForVEP ) catLog('Writing to .csv...')
     for ( sample in names(somatics) ) {
       somatics[[sample]]$sample = rep(sample, nrow(somatics[[sample]]))
     }
     allSomatics = do.call(rbind, somatics)
-    write.csv(allSomatics, gsub('.xls$', '.csv', outfile))
-    catLog('done!\n')
+    if ( !onlyForVEP ) write.csv(allSomatics, gsub('.xls$', '.csv', outfile))
+    if ( !onlyForVEP ) catLog('done!\n')
 
     catLog('Outputting to directory ', vcfDir, '..')
     for ( name in names(somatics) ) {

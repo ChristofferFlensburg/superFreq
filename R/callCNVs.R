@@ -476,6 +476,7 @@ fixFalseSNPcall = function(clusters, eFreqs) {
   lfcDist = abs(clusters$M[2:nrow(clusters)] - clusters$M[1:(nrow(clusters)-1)])/
             sqrt(clusters$width[2:nrow(clusters)]^2 + clusters$width[1:(nrow(clusters)-1)]^2)
   basedOnSNPs = c(F, lfcDist < 1) | c(lfcDist < 1, F)
+  if ( nrow(clusters) == 1 ) basedOnSNPs = F
   smallRegion = clusters$x2 - clusters$x1 < 1e7
   x = eFreqs$x
   snps = lapply(1:nrow(clusters), function(row) which(x < clusters$x2[row] & x > clusters$x1[row]))

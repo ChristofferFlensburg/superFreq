@@ -4,7 +4,7 @@
 #marks the somatic-looking variants in the samples
 #ie non-db variants that are not present in the normals and not flagged as suspicious.
 matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F, correctReferenceBias=T) {
-  saveFile = paste0(Rdirectory, '/allVariants.Rdata')
+  saveFile = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')
     load(file=saveFile)
@@ -402,13 +402,25 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     normalOK = pmin(1, noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
     
     if ( !(name %in% names(CNs)) ) catLog('\nNo matched normal, or normal sample: selecting somatic variants based on population frequencies. Selecting dbSNPs and ExAC below 0.1% population frequency as somatic candidates. These will include rare germline variants, which is desired for normals, but not for cancer samples without matched normals.\n', sep='')
-    commonDbSNP = q$db & !is.na(q$dbValidated) & q$dbValidated & !is.na(q$dbMAF) & q$dbMAF > 0.001
-    commonExAC = rep(FALSE, length(commonDbSNP))
-    if ( 'exac' %in% names(q) )
-      commonExAC = q$exac & !is.na(q$exacFilter) & q$exacFilter == 'PASS' & !is.na(q$exacAF) & q$exacAF > 0.001
+    notDbSNP = !q$db
+    rareDbSNP =  q$db & !is.na(q$dbMAF) & q$dbMAF < 0.001
+    unknownDbSNP = q$db & is.na(q$dbMAF)
 
-    #Let's be conservative and filter variants present in either dbSNP or ExAC.
-    notInNormal = !commonDbSNP & !commonExAC
+    #if no exac data (such as if not human), require not dbSNP or low pop freq.
+    notInNormal = notDbSNP | rareDbSNP
+    
+    if ( 'exac' %in% names(q) ) {
+      notExac = !q$exac
+      rareExac = q$exac & !is.na(q$exacAF) & q$exacAF < 0.001
+      unknownExac = q$exac & is.na(q$exacAF)
+      #if exac, require low pop freq or not present in both dbSNP and exac.
+      #also allow unkown pop freq if the other data base has a known low frequency.
+      notInNormal = (
+                     ((notDbSNP | rareDbSNP) & (notExac | rareExac)) |
+                     (unknownDbSNP & rareExac) |
+                     (rareDbSNP & unknownExac))
+    }
+
     
     if ( name %in% names(CNs) ) {
       catLog('Correcting somatics using', correspondingNormal[name], 'as matched normal.\n')

@@ -326,7 +326,7 @@ importQualityScores = function(positions, files, BQoffset, genome='hg19', cpus=1
       listRet = mclapply(unique(chr), function(ch) {
         use = chr == ch
         return(getQuality(file, chr[use], positions$start[use], BQoffset, cpus=1))
-      }, mc.cores=cpus)
+      }, mc.cores=cpus, mc.preschedule=F)
     }
     else {
       listRet = lapply(unique(chr), function(ch) {

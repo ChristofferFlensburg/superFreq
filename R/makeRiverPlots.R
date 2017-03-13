@@ -407,16 +407,16 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
   if ( lty[1] == 'default' | !(length(lty) %in% c(1,Nmut)) ) {
     iMx = floor(1+(row(clon)-1)/8)
     seglty = randomLtys(iMx[,2:Nsample])
-    errlty = randomLtys(iMx)
+    errlty = rep(1, Nsample)
   }
   else if ( length(lty) == 1 ) {
     lty = rep(lty, Nmut)
     seglty = rep(lty, Nsample-1)
-    errlty = rep(lty, Nsample)
+    errlty = rep(1, Nsample)
   }
   else if ( length(lty) == Nmut ) {
     seglty = rep(lty, Nsample-1)
-    errlty = rep(lty, Nsample)
+    errlty = rep(1, Nsample)
   }
 
   
@@ -577,9 +577,9 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
 #This function takes two colours (in a format that can be handled by col2rgb, such as "red", or rgb(0.1, 0.2, 0.3))
 #and two weights and returns a weighted average between the two colours.
 #Mainly a helper function for colourGradient, but can potentially find uses on itself.
-combineColours = combineColors = function (col1, col2, w1=0.5, w2=0.5) {
-  rgb1 = col2rgb(col1)
-  rgb2 = col2rgb(col2)
+combineColours = combineColors = function (col1, col2, w1=0.5, w2=0.5, alpha=NA) {
+  rgb1 = col2rgb(col1, alpha=T)
+  rgb2 = col2rgb(col2, alpha=T)
   if ( w1 == Inf & w2 == Inf ) {
     w1 = 0.5
     w2 = 0.5
@@ -593,6 +593,7 @@ combineColours = combineColors = function (col1, col2, w1=0.5, w2=0.5) {
     w2 = 1
   }
   combinedRgb = (rgb1*w1 + rgb2*w2)/(w1+w2)
+  if ( !is.na(alpha) ) combinedRgb['alpha',] = 255*alpha
   combinedColour = do.call(rgb, as.list(pmin(1, pmax(0, combinedRgb/255))))
   return(combinedColour)
 }

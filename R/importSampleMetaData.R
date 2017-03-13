@@ -54,6 +54,7 @@ The meta data file should be a tab separated file with headings.\n')
 }
 
 #helper function to extract sample pairs from meta data
+#cuts at 100 pairs.
 metaToSamplePairs = function(names, individuals, normals) {
   catLog('Deciding which pairs to scatter plot..')
   pairs = list()
@@ -69,6 +70,7 @@ metaToSamplePairs = function(names, individuals, normals) {
       }
     }
   }
+  if ( length(pairs) > 100 ) pairs = pairs[1:100]
   catLog('done.\n')
   return(pairs)
 }

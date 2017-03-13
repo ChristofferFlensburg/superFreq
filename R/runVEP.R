@@ -25,6 +25,8 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
         next
       }
       assembly = genomeToAssembly(genome)
+      catLog('Checking VEP version.\n')
+      catLog(paste0(vepCall, ' --help'), '\n')
       vepHelp = system(paste0(vepCall, ' --help'), intern=T)
       versionLine = strsplit(vepHelp[grep('^version', vepHelp)], ' ')[[1]]
       vepVersion = as.numeric(versionLine[length(versionLine)])

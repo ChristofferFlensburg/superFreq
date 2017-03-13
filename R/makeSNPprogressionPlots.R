@@ -2,7 +2,7 @@
 
 #prints heatmaps and line plots of the frequency of the SNVs in the samples of the same individual
 #also outputs the results to excel files.
-makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', maxRowCluster=1500, cpus=1, Colv=NULL, forceRedo=F) {
+makeSNPprogressionPlots = function(variants, timeSeries, normals, plotDirectory, genome='hg19', maxRowCluster=1500, cpus=1, Colv=NA, forceRedo=F) {
   msDirectory = paste0(plotDirectory, '/multiSample')
   if ( length(timeSeries) == 0 ) return()
   if ( !file.exists(msDirectory) ) dir.create(msDirectory)
@@ -70,6 +70,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
   var = do.call(cbind, lapply(qs, function(q) q$var))
   keep = rowSums(var) > 0
   qs = lapply(qs, function(q) q[keep,])
+  qs = qs[sapply(qs, function(q) sum(q$cov) > 0)]
   fs = do.call(cbind, lapply(qs, function(q) q$var/q$cov))
   colnames(fs) = names(qs)
   cov = do.call(cbind, lapply(qs, function(q) q$cov))

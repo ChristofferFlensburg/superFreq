@@ -465,6 +465,16 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   geneXes = which(aggregate(grepl('^X', annotation$Chr), list(rownames(counts)), FUN = 'any')[geneOrder,2])
   geneYes = which(aggregate(grepl('^Y', annotation$Chr), list(rownames(counts)), FUN = 'any')[geneOrder,2])
 
+  #if only one gene has reads (running on amplicons for example), hack a copy of the gene just for
+  #voom to have something to estimate variance on. Not accurate, but you won't call CNA from amplicons...
+  doubleHack = F
+  while ( sum(rowSums(countsOri) > 0) < ncol(countsOri) | sum(rowSums(counts) > 0) < ncol(counts) ) {
+    doubleHack = T
+    catLog('Too few exons have nonzero counts. Hacking voom.\n')
+    counts = rbind(counts, counts*2)
+    countsOri = rbind(countsOri, countsOri*2)
+  }
+
   catLog('Running voom on exons..')
   png(paste0(diagnosticPlotsDirectory, '/voomVariance.exon.png'), height=10, width=20, res=144, unit='in')
   voomWeights = voomWithQualityWeights(countsOri, design=design, plot=T)
@@ -488,6 +498,8 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   exonFit$longNames = annotation$GeneID
   catLog('done.\n')
 
+  if ( doubleHack ) exonFit = subsetFit(exonFit, rows=1:length(normalMean))
+
   #remember stats from counting
   catLog('Importing stats about feature counts..')
   tots = colSums(fCsExon$stat[,-1,drop=F])
@@ -500,8 +512,18 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   exonFit$sex = fitSex
   catLog('done.\n')
 
+  #if only few genes have reads (running on amplicons for example), hack a copy of the gene just for
+  #voomWithQualityWeights to have enough DOF. Not accurate, but you won't call CNA from amplicons anyway...
+  doubleHack = F
+  while ( sum(rowSums(geneCountsOri) > 0) < ncol(geneCountsOri) | sum(rowSums(geneCounts) > 0) < ncol(geneCounts) ) {
+    doubleHack = T
+    catLog('Too few gene have nonzero counts. Hacking voom.\n')
+    geneCounts = rbind(geneCounts, geneCounts*2)
+    geneCountsOri = rbind(geneCountsOri, geneCountsOri*2)
+  }
+
   catLog('Running voom on genes..')
-  png(paste0(diagnosticPlotsDirectory, '/voomVariance.exon.png'), height=10, width=20, res=144, unit='in')
+  png(paste0(diagnosticPlotsDirectory, '/voomVariance.gene.png'), height=10, width=20, res=144, unit='in')
   voomWeights = voomWithQualityWeights(geneCountsOri, design=design, plot=T)
   voomWeights$weights[geneYes,design[,'normal']==1 & sex == 'female'] = 0
   dev.off()
@@ -522,6 +544,8 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   fit$sex = fitSex
   fit$longNames = rownames(geneCounts)
   catLog('done.\n')
+
+  if ( doubleHack ) fit = subsetFit(fit, rows=1:length(geneOrder))
 
   fit = list('fit'=fit, 'exonFit'=exonFit)
   

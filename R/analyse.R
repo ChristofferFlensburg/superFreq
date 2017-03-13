@@ -174,7 +174,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
-                correctReferenceBias=correctReferenceBias)
+                correctReferenceBias=correctReferenceBias, vepCall=vepCall)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -205,10 +205,10 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
-          correctReferenceBias=correctReferenceBias)
+          correctReferenceBias=correctReferenceBias, vepCall=vepCall, cosmicDirectory=cosmicDirectory)
 
-  postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory, vepCall=vepCall,
-                 cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
+  #postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory, vepCall=vepCall,
+  #               cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
 
 }
 
@@ -286,7 +286,8 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #'
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
-  parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T) {
+  parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T,
+  vepCall='vep', cosmicDirectory=cosmicDirectory) {
   options(stringsAsFactors = F)
   options(scipen = 10)
   
@@ -444,6 +445,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   forceRedoSummary = forceRedo$forceRedoSummary
   forceRedoStories = forceRedo$forceRedoStories
   forceRedoRiver = forceRedo$forceRedoRiver
+  forceRedoVEP = forceRedo$forceRedoVEP
 
   externalNormalBams =
     c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
@@ -460,10 +462,6 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog(externalNormalCoverageBams, sep='\n')
 
   captureRegions = importCaptureRegions(captureRegionsFile, reference=reference, Rdirectory=Rdirectory, genome=genome)
-  #if ( class(captureRegions) != 'GRanges' ) {
-  #  catLog('Failed to import capture regions, aborting.\n')
-  #  stop('Failed to import capture regions, aborting.\n')
-  #}
   if ( length(captureRegions) == 0 ) {
     catLog('Empty capture regions, aborting.\n')
     stop('Empty capture regions, aborting.\n')
@@ -482,10 +480,6 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   
   #read in metadata
   sampleMetaData = importSampleMetaData(sampleMetaDataFile)
-  #if ( class(sampleMetaData) != 'data.frame' ) {
-  #  catLog('Failed to import meta data, aborting.\n')
-  #  stop('Failed to import meta data, aborting.\n')
-  #}
   if ( !all(c('BAM', 'INDIVIDUAL', 'NAME', 'TIMEPOINT', 'NORMAL') %in% colnames(sampleMetaData)) ) {
     missing = c('BAM', 'INDIVIDUAL', 'NAME', 'TIMEPOINT', 'NORMAL')[!(c('BAM', 'INDIVIDUAL', 'NAME', 'TIMEPOINT', 'NORMAL') %in% colnames(sampleMetaData))]
     catLog('Missing columns in meta data:' , missing, ', aborting.\n')
@@ -545,7 +539,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     forceRedoVolcanoes=forceRedoVolcanoes, forceRedoDifferentRegions=forceRedoDifferentRegions)
 
 
-  saveFile = paste0(Rdirectory, '/allVariants.Rdata')
+  saveFile = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
   {
     if ( file.exists(saveFile) & !forceRedoMatchFlag & !forceRedoVariants & !forceRedoNormalVariants ) {
       catLog('Loading final version of combined variants.\n')
@@ -581,7 +575,21 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   variants = allVariants$variants
   normalVariants = allVariants$normalVariants
   setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
-    
+
+  #run VEP
+  saveFile = paste0(Rdirectory, '/allVariants.Rdata')
+  if ( file.exists(saveFile) & !forceRedoVEP ) {
+    catLog('Loading final version of combined variants.\n')
+    load(file=saveFile)
+  }
+  else {
+    outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T)
+    variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP)
+    variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
+    allVariants$variants = variants
+    save(allVariants, file=saveFile)
+  }
+
 
   #call CNVs compared to the normals.
   cnvs =
@@ -620,7 +628,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   scatter = makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
     genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
 
-  catLog('First part done! :)\n\n')
+  catLog('\nDone! :)\n\n')
   
   return(list('fit'=fit, 'variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs, 'stories'=stories))
 }
@@ -1179,7 +1187,8 @@ propagateForceRedo = function(forceRedo) {
     forceRedo$forceRedoMatchFlag = T
   }
   if ( forceRedo$forceRedoMatchFlag ) {
-    catLog('Redoing flagmatching of normals, so need to redo frequency scatters, variant sheets, frequency progressions and CNVs.\n')
+    catLog('Redoing flagmatching of normals, so need to redo frequency scatters, variant sheets, frequency progressions, CNVs and variant annotation.\n')
+    forceRedo$forceRedoVEP = T
     forceRedo$forceRedoSNPprogression = T
     forceRedo$forceRedoCNV = T
   }
@@ -1187,6 +1196,10 @@ propagateForceRedo = function(forceRedo) {
     catLog('Redoing CNVs, so need to redo CNV plots, summary plot and clonality stories.\n')
     forceRedo$forceRedoCNVplots = T
     forceRedo$forceRedoSummary = T
+    forceRedo$forceRedoStories = T
+  }
+  if ( forceRedo$forceRedoVEP ) {
+    catLog('Redoing variant annotations, so need to redo clonal tracking.\n')
     forceRedo$forceRedoStories = T
   }
   if ( forceRedo$forceRedoStories ) {
