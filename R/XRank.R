@@ -254,6 +254,8 @@ plotVolcano = function(fit, coef=1, print = 20, main = NA, shrink=T, line='nGene
   xlim = c(-xmax, xmax)
 
   if ( is.na(main) ) main = coef
+
+  ps = pmax(ps, pmin(min(ps[ps > 0], 1e-10)))
   
   #plot the points and segments
   plot(1, type='n', xlim = xlim, ylim=c(0, max(-log10(ps))), xlab=xlab, ylab=ylab, main = main, ...)

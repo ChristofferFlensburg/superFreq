@@ -13,7 +13,7 @@ postAnalyseVEP(outputDirectories, inputFiles = NA, metaData = NA,
 
 \item{inputFiles}{named list as in analyse.}
 
-\item{genome}{character: 'hg19' or 'mm10'}
+\item{genome}{character: such as 'hg19', 'hg38' or 'mm10'}
 
 \item{cpus}{integer. maximum number of parallel threads.}
 

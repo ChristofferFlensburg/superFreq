@@ -61,7 +61,7 @@ getVariant = function(metaData, samples, fillInMissing=F, cpus=1) {
         allVariants$variants$variants = allVariants$variants$variants[names]
         #don't bother with variants that arent supported by at least two reads
         presentVariants = unique(do.call(c, lapply(allVariants$variants$variants, function(q) rownames(q[q$var > 1,]))))
-        allVariants$variants$variants = lapply(allVariants$variants$variants, function(q) q[presentVariants,])
+        allVariants$variants$variants = lapply(allVariants$variants$variants, function(q) q[presentVariants[presentVariants %in% rownames(q)],])
         if ( length(variants$variants) > 0 ) {
           if ( fillInMissing ) {
             variants = fillInMissingVariants(metaData, variants, allVariants$variants, cpus=cpus)

@@ -59,6 +59,8 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
 
     #extract variant information over the identified positions
     bamFiles = metaData[samples,]$BAM
+    #variants = bamToVariants(bamFiles, positions, BQoffset, genome=genome, cpus=cpus)
+    
     variants = lapply(bamFiles, function(file) {
       QCsnps(pileups=importQualityScores(positions, file, BQoffset, genome=genome, cpus=cpus)[[1]],
              positions=positions, cpus=cpus)
@@ -887,3 +889,82 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
   return(normalVariantsBI)
 }
 
+
+
+bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', cpus=1) {
+  
+  variants = lapply(bamFiles, function(file) {
+    catLog(as.character(Sys.time()), '\n')
+    catLog('Importing', nrow(positions), 'pileups by chr from', file, '\n')
+    varList = mclapply(unique(positions$chr), function(ch) {
+      use = positions$chr == ch
+      thisChr = positions$chr[use]
+      pos = positions$start[use]
+      catLog(thisChr[1], '.. ', sep='')
+      if ( any(grepl('^chr1', names(scanBamHeader(file)[[1]]$targets))) )
+        thisChr = paste0('chr', thisChr)
+      which = GRanges(thisChr, IRanges(pos-3, pos+3))
+      thisChr = gsub('chr', '', thisChr)
+      p1 = ScanBamParam(which=which, what=c('pos', 'seq', 'cigar', 'qual', 'mapq', 'strand', 'qname'),
+        flag=scanBamFlag(isSecondaryAlignment=FALSE))
+      index = paste0(file, '.bai')
+      if ( !file.exists(index) ) {
+        index = gsub('.bam$', '.bai', file)
+        if ( !file.exists(index) ) {
+          catLog('Could not find an index file for', file, '\nI want either', paste0(file, '.bai'), 'or', index)
+          stop(paste('Could not find an index file for', file, '\nI want either', paste0(file, '.bai'), 'or', index))
+        }
+      }
+      regionReads = scanBam(file, index=index, param=p1)
+      regionReads = lapply(regionReads, function(reads) {
+        keep = !is.na(reads$mapq) & !duplicated(reads$qname)
+        if ( length(keep) == 0 ) return(reads)
+        if ( sum(!keep) > 0 ) {
+          reads$pos = reads$pos[keep]
+          reads$seq = reads$seq[keep]
+          reads$cigar = reads$cigar[keep]
+          reads$qual = reads$qual[keep]
+          reads$mapq = reads$mapq[keep]
+          reads$strand = reads$strand[keep]
+        }
+        return(reads)
+      })
+      pileups = lapply(1:length(pos), function(i) readsToPileup(regionReads[[i]], pos[i], BQoffset=BQoffset))
+      catLog('(done pileup ', thisChr[1], ') ', sep='')
+      
+      references = as.character(positions$reference[use])
+      variants = as.character(positions$variant[use])
+      xs = positions$x[use]
+      ret = lapply(1:length(pileups), function(i) {
+        return(QCsnp(pileups[[i]], references[i], xs[i], variant='', defaultVariant=variants[i]))
+      })
+      ret = mergeVariantList(ret)
+      ret = ret[ret$reference != ret$variant,]
+      rownames(ret) = paste0(ret$x, ret$variant)
+      catLog('(done QCing ', thisChr[1], ') ', sep='')
+      
+      return(ret)
+    }, mc.cores=cpus, mc.preschedule=F)
+    catLog('done!\n')
+    
+    ret = mergeVariantList(varList)
+    ret = ret[ret$reference != ret$variant,]
+    rownames(ret) = paste0(ret$x, ret$variant)
+    catLog('done.\n')
+    catLog('Variants:', nrow(ret), '\n')
+    catLog('Unflagged :', sum(ret$flag==''), '\n')
+    catLog('Unflagged over 0%  freq :', sum(ret$var > 0 & ret$flag==''), '\n')
+    catLog('Unflagged over 20% freq :', sum(ret$var > ret$cov/5 & ret$flag==''), '\n')
+    catLog('Median coverage over unflagged variants:', median(ret$cov[ret$flag=='']), '\n')
+    catLog('Repeat flags:', length(grep('Rep', ret$flag)), '\n')
+    catLog('Mapping quality flags:', length(grep('Mq', ret$flag)), '\n')
+    catLog('Base quality flags:', length(grep('Bq', ret$flag)), '\n')
+    catLog('Strand bias flags:', length(grep('Sb', ret$flag)), '\n')
+    catLog('Single variant read flags:', length(grep('Svr', ret$flag)), '\n')
+    catLog('Minor variant flags:', length(grep('Mv', ret$flag)), '\n')
+    catLog('Stutter flags:', length(grep('St', ret$flag)), '\n')
+    return(ret)
+  })
+  
+  return(variants)
+}

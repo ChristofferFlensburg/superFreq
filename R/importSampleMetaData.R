@@ -19,9 +19,9 @@ importSampleMetaData = function(sampleMetaDataFile) {
   if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
   if ( !file.exists(sampleMetaDataFile) ) stop("Meta data file ", sampleMetaDataFile, ' doesnt exist.')
   catLog('Loading sample meta data from file...')
-  metaData = read.table(sampleMetaDataFile, header=T, as.is=T, fill=T)
-  if ( any(!(c('BAM', 'INDIVIDUAL', 'NAME', 'NORMAL') %in% colnames(metaData))) )
-    stop('Could not find required columns BAM, INDIVIDUAL, NAME, NORMAL in sample meta data.\n
+  metaData = read.table(sampleMetaDataFile, header=T, as.is=T, fill=T, sep='\t')
+  if ( any(!(c('BAM', 'VCF', 'INDIVIDUAL', 'NAME', 'NORMAL') %in% colnames(metaData))) )
+    stop('Could not find required columns BAM, VCF, INDIVIDUAL, NAME, NORMAL in sample meta data.\n
 The meta data file should be a tab separated file with headings.\n')
   catLog('done.\n')
   newNames = make.names(c('normal', metaData$NAME), unique=T)[-1]
@@ -41,13 +41,11 @@ The meta data file should be a tab separated file with headings.\n')
     paste0(dirname(sampleMetaDataFile), '/', metaData$BAM),
     metaData$BAM))
 
-  #resolve vcf path, if present
-  if ( 'VCF' %in% names(metaData) ) {
-    relativePath = !grepl('^[~/]', metaData$VCF)
-    metaData$VCF = normalizePath(ifelse(relativePath,
-      paste0(dirname(sampleMetaDataFile), '/', metaData$VCF),
-      metaData$VCF))
-  }
+  #resolve vcf path
+  relativePath = !grepl('^[~/]', metaData$VCF)
+  metaData$VCF = normalizePath(ifelse(relativePath,
+    paste0(dirname(sampleMetaDataFile), '/', metaData$VCF),
+    metaData$VCF))
 
   rownames(metaData) = metaData$NAME
   return(metaData)

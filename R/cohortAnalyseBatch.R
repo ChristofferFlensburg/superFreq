@@ -173,8 +173,8 @@ makeMetaDataFromBatch =
   rownames(projects) = projects$project
   
   paths = list(
-    'sources'=metaDataFile,
-    'dataDirectory'=dataDirectory,
+    'sources'=normalizePath(metaDataFile),
+    'dataDirectory'=normalizePath(dataDirectory),
     'outputDirectories'=outputDirectories)
 
   ret = list('samples'=samples,

@@ -64,12 +64,13 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     chr = xToChr(output$x1, genome)
     start = xToPos(output$x1, genome)
     end = xToPos(output$x2, genome)
-    label = storyToLabel(output, patVar, genome, maxLength=100)$label
-    names(start) = names(end) = names(chr) = names(label) = rownames(output)
+    label = storyToLabel(output, patVar, genome, maxLength=100)
+    label = label[as.character(1:nrow(output)),]
+    names(start) = names(end) = names(chr) = rownames(output)
     clonality = as.data.frame(output$stories)
     error = as.data.frame(output$errors)
-    names(chr) = names(start) = names(end) = names(label) = rownames(clonality)
-    output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
+    names(chr) = names(start) = names(end) = rownames(clonality)
+    output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
     output = addAnnotationToOutput(output, patVar, genome=genome)
     WriteXLS('output', excelFile)
 
@@ -85,11 +86,12 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       chr = xToChr(output$x1, genome)
       start = xToPos(output$x1, genome)
       end = xToPos(output$x2, genome)
-      label = storyToLabel(output, patVar, genome, maxLength=100)$label
-      names(start) = names(end) = names(chr) = names(label) = rownames(output)
+      label = storyToLabel(output, patVar, genome, maxLength=100)
+      label = label[as.character(1:nrow(output)),]
+      names(start) = names(end) = names(chr) = rownames(output)
       clonality = as.data.frame(output$stories)
       error = as.data.frame(output$errors)
-      output = cbind(chr = chr, start=start, end=end, name=label, clone=output$clone, clonality=clonality, error=error)
+      output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
       output = addAnnotationToOutput(output, patVar, genome=genome)
       WriteXLS('output', excelFile)
     }
@@ -191,8 +193,34 @@ addAnnotationToOutput = function(output, variants, genome='hg19') {
 }
 
 
-#main plotting function
-plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2) {
+#' plots a river plot
+#'
+#' @param stories dataFrame from superFreq. such as data$stories$stories$mySample$all.
+#' @param variants dataFrame from superFreq. such as data$allVariants$variants$variants$mySample
+#' @param col colour. The colour of the lines. Default 'default' sets different colours on all lines.
+#' @param lty linetype. The line type of the lines. Default 'default' sets different line types on all lines.
+#' @param lwd linetype. The line width of the lines. Default 'default' sets different line width from accuracy.
+#' @param errorBars logical. If error bars are used. Default TRUE.
+#' @param add logical. If the data should be plotted on top of whatever is already there. Default FALSE.
+#' @param alpha numerical. A opaqueness multiplier. Default 1.
+#' @param xlab character. The X label. Default "sample'
+#' @param ylab character. The Y label. Default "clonality'
+#' @param xlim numerical. The X limits. Default "default' set it depending on number of samples and clones.
+#' @param setPar logical. If the margins are set. Default TRUE.
+#' @param legend logical. If a legend is plotted. Default TRUE.
+#' @param labels logical. If labels are plotted. Default TRUE.
+#' @param genome character. The genome the sample is aligned to. 'hg19', 'hg38' or 'mm10'
+#' @param xSpread numerical. The stread of the points over a sample. Default 0.25.
+#' @param sampleOrder character. The order of the samples. Default NA retains the order in the input.
+#' @param ...  remaining arguments are passed to base plot(...) if add=F, otherwise ignored.
+#'
+#' @details This function plots the story lines from a superFreq analysis.
+#'          Can be used both for individual mutations or for clones.
+#'
+#'
+#' @export
+#'
+plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2, smallPlot=F) {
   variants$variants = variants$variants[colnames(cloneStories$stories)]
   
   if ( length(colourPool) == 0 )
@@ -210,9 +238,11 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
   
   dodgyness = getDodgyness(storyList, cloneStories)
   if ( !markDodgy ) dodgyness = 0*dodgyness
-  
-  cloneLabels = lapply(storyList, function(rows) storyToLabel(allStories[rows,], variants, genome=genome,maxLength=20,  mergeCNAs=T))
-  names(cloneLabels) = rownames(cloneStories)
+
+  maxLength = 20
+  if ( smallPlot ) maxLength = 17
+  cloneLabels = lapply(storyList, function(rows) storyToLabel(allStories[rows,], variants, genome=genome,maxLength=maxLength,  mergeCNAs=T))
+  names(cloneLabels) = names(storyList)
   stories = abs(cloneStories$stories)
   rownames(stories) = rownames(cloneStories)
   purity = sapply(1:ncol(cloneStories$stories), function(i) max(abs(stories[names(cloneTree),i])))
@@ -236,6 +266,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
   }
   if ( !labels & xlim[1] == 'default' ) xlim = c(1, max(x))
   if ( labels & xlim[1] == 'default' ) xlim = c(1, max(x)+ceiling(nrow(cloneStories)/2)*1.5)
+  if ( smallPlot ) xlim[2] = xlim[2]*1.05
   if ( ylim[1] == 'default' ) ylim = c(-0.02,1)
   plot(1, type='n', xlim=xlim, ylim=ylim, xaxt='n', frame.plot=F,
        ylab='clonality', xlab = '')
@@ -243,6 +274,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
   for (i in 1:nrow(cloneStories)) {
     clone = rownames(cloneStories)[i]
     xText = max(x) + ceiling(i/2)*1.5 - 0.9
+    if ( smallPlot ) xText = max(x) + ceiling(i/2)*1.5 - 1.2
     y0 = i/2 - floor(i/2)
     if ( labels ) {
       clone = names(cloneCols)[i]
@@ -252,18 +284,20 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
       ord = order(severity)
       muts = cloneLabels[[clone]]$label[ord]
       font = cloneLabels[[clone]]$font[ord]
-      if ( length(muts) > 15 ) {
-        muts = c(muts[1:15], 'and more...')
-        font = c(font[1:15], 1)
+      maxNMut = 15
+      if ( smallPlot ) maxNMut = 11
+      if ( length(muts) > maxNMut ) {
+        muts = c(muts[1:maxNMut], 'and more...')
+        font = c(font[1:maxNMut], 1)
       }
       col = cloneCols[i]
-      text(rep(xText, length(muts)), y0 + 0.5 - (1:length(muts))/33, muts, col=col, adj=0, cex=0.9, font=font)
+      text(rep(xText, length(muts)), y0 + 0.5 - (1:length(muts))/(maxNMut*2.2), muts, col=col, adj=0, cex=0.9, font=font)
     }
   }
 
   segments(1:ncol(stories), 0.02, 1:ncol(stories), ylim[2], lwd=5, col=rgb(0.7, 0.7, 0.7, 0.3))
   segments(1:ncol(stories), 0.02, 1:ncol(stories), ylim[2], lwd=2, col=rgb(0.3, 0.3, 0.3, 0.3))
-  text(1:ncol(stories), -0.02, colnames(stories), srt=20, cex=0.9)
+  text(1:ncol(stories), -0.02, gsub('germline', '', colnames(stories)), srt=20, cex=0.9)
 
   par(oma=rep(0, 4))
   par(mar=rep(4, 4))
@@ -380,6 +414,33 @@ excludeClonesFromTree = function(tree, excludeClones) {
   return(tree)
 }
 
+#' plots line plots of clonalities
+#'
+#' @param stories dataFrame from superFreq. such as data$stories$stories$mySample$all.
+#' @param variants dataFrame from superFreq. such as data$allVariants$variants$variants$mySample
+#' @param col colour. The colour of the lines. Default 'default' sets different colours on all lines.
+#' @param lty linetype. The line type of the lines. Default 'default' sets different line types on all lines.
+#' @param lwd linetype. The line width of the lines. Default 'default' sets different line width from accuracy.
+#' @param errorBars logical. If error bars are used. Default TRUE.
+#' @param add logical. If the data should be plotted on top of whatever is already there. Default FALSE.
+#' @param alpha numerical. A opaqueness multiplier. Default 1.
+#' @param xlab character. The X label. Default "sample'
+#' @param ylab character. The Y label. Default "clonality'
+#' @param xlim numerical. The X limits. Default "default' set it depending on number of samples and clones.
+#' @param setPar logical. If the margins are set. Default TRUE.
+#' @param legend logical. If a legend is plotted. Default TRUE.
+#' @param labels logical. If labels are plotted. Default TRUE.
+#' @param genome character. The genome the sample is aligned to. 'hg19', 'hg38' or 'mm10'
+#' @param xSpread numerical. The stread of the points over a sample. Default 0.25.
+#' @param sampleOrder character. The order of the samples. Default NA retains the order in the input.
+#' @param ...  remaining arguments are passed to base plot(...) if add=F, otherwise ignored.
+#'
+#' @details This function plots the story lines from a superFreq analysis.
+#'          Can be used both for individual mutations or for clones.
+#'
+#'
+#' @export
+#'
 plotStories = function(stories, variants, col='default', lty='default', add=F, alpha=1, xlab='sample', ylab='clonality', lwd='default', errorBars=T, setPar=T, legend=T, labels=T, xlim='default', genome='hg19', xSpread=0.25, sampleOrder=NA,...) {
   if ( is.na(sampleOrder[1]) ) sampleOrder = colnames(stories$stories)
   clon = stories$stories[,sampleOrder,drop=F]
@@ -472,7 +533,7 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
   clonalityMx = stories$stories
 
   labels = storyToLabel(stories, variants, genome)
-  rownames(clonalityMx) = labels$label
+  rownames(clonalityMx) = labels[as.character(1:nrow(stories)),]$label
 
   if ( nrow(clonalityMx) < 1000 ) {
     worked = try(makeHeatmap(clonalityMx, RowSideColors=sideCol, label='clonality'))

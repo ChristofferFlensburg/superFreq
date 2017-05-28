@@ -107,7 +107,7 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 #'
 #' @export
 #'
-plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, ...) {
+plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, ...) {
   showClonality = showClonality & 'subclonality' %in% names(cR)
   if ( nrow(cR) == 0 ) return()
   if ( chr != 'all' ) {
@@ -118,8 +118,10 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   }
   else xlim=c(min(cR$x1), max(cR$x2))
   xlimMar = xlim
-  xlimMar[1] = xlim[1] - (xlim[2]-xlim[1])*0.05
-  xlimMar[2] = xlim[2] + (xlim[2]-xlim[1])*0.05
+  sideSpace = 0.05
+  if ( smallPlot ) sideSpace = 0.11
+  xlimMar[1] = xlim[1] - (xlim[2]-xlim[1])*sideSpace
+  xlimMar[2] = xlim[2] + (xlim[2]-xlim[1])*sideSpace
 
   ylim = c(-2.3, 1.1)
   if ( !showClonality ) ylim = c(-1.1, 1.1)
@@ -154,15 +156,21 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
       lowerTicks = c(0, 0.1, 0.2, 0.3, 0.4, 0.5)
     }
     segments(xlim[1], lineY, xlim[2], lineY, lwd=3, col=lineCol)
-    text(xlim[2] + (xlim[2]-xlim[1])*0.005, lineY, lineName, adj=0, cex=1, col=labelCol)
-    text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.03, 0.6, srt=90, 'coverage LFC vs normals', cex=0.8)
-    text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.03, -0.6, srt=90, lowerLabel, cex=0.8)
-    text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.03, -1.8, srt=90, 'clonality', cex=0.8)
-    addChromosomeLines(ylim=c(-2.3, 1.15), col=mcri('green', 0.6), lwd=1, genome=genome)
+    rightShift = 0.005
+    if ( smallPlot ) rightShift = 0.02
+    text(xlim[2] + (xlim[2]-xlim[1])*rightShift, lineY, lineName, adj=0, cex=1, col=labelCol)
+    if ( smallPlot )
+      text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, 0.6, srt=90, 'LFC vs normals', cex=0.8)
+    else
+      text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, 0.6, srt=90, 'coverage LFC vs normals', cex=0.8)
+    text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, -0.6, srt=90, lowerLabel, cex=0.8)
+    text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, -1.8, srt=90, 'clonality', cex=0.8)
+    if ( smallPlot ) addChromosomeLines(ylim=c(-2.3, 1.18), col=mcri('green', 0.6), lwd=1, genome=genome)
+    else addChromosomeLines(ylim=c(-2.3, 1.15), col=mcri('green', 0.6), lwd=1, genome=genome)
     segments(2*xlim[1]-xlim[2], c(0, -1.2), 2*xlim[2]-xlim[1], c(0, -1.2), lwd=5)
-    axis(side=2, at=0.1 + (0:4)/4, labels=c(-1, -0.5, 0, 0.5, 1), pos=xlim[1])
-    axis(side=2, at=-1.1 + (0:5)/5, labels=lowerTicks, pos=xlim[1])
-    axis(side=2, at=-2.3 + (0:5)/5, labels=c(0, 0.2, 0.4, 0.6, 0.8, 1), pos=xlim[1])
+    axis(side=2, at=0.1 + (0:4)/4, labels=c(-1, -0.5, 0, 0.5, 1), pos=xlim[1], padj=0.75)
+    axis(side=2, at=-1.1 + (0:5)/5, labels=lowerTicks, pos=xlim[1], padj=0.75)
+    axis(side=2, at=-2.3 + (0:5)/5, labels=c(0, 0.2, 0.4, 0.6, 0.8, 1), pos=xlim[1], padj=0.75)
   }
   
   x = (cR$x1 + cR$x2)/2
@@ -176,13 +184,13 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   segments(cR$x1, pmax(0,y), cR$x2, pmax(0, y), lwd=lfcCex, col=col)
   tooHigh = y > 1.2
   tooLow = y < 0
-  if ( any(tooHigh) ) {
+  if ( any(tooHigh) & plotArrows ) {
     highCol = rgb(1*colourDeviation,0,0,alpha)
     if ( !is.na(forceCol)[1] ) highCol = forceCol 
     arrows(x[tooHigh], 1.12, x[tooHigh], 1.18, lwd=2, length=0.1, col=highCol)
     text(x[tooHigh], 1.09, round(cR$M[tooHigh],2), cex=0.8, col=highCol)
   }
-  if ( any(tooLow) ) {
+  if ( any(tooLow) & plotArrows ) {
     lowCol = rgb(0,0,1*colourDeviation,alpha)
     if ( !is.na(forceCol)[1] ) lowCol = forceCol 
     arrows(x[tooLow], 0.11, x[tooLow], 0.05, lwd=2, length=0.1, col=lowCol)
