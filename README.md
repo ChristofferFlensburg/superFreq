@@ -13,10 +13,10 @@ SuperFreq analyses and filters somatic SNVs and short indels, calls copy numbers
 Start R
 
 ```
-install.packages('devtools')
 library(devtools)
 install_github('ChristofferFlensburg/superFreq')
 
+library(superFreq)
 ?superFreq
 ```
 
