@@ -20,6 +20,66 @@ library(superFreq)
 ?superFreq
 ```
 
+A typical analysis first sets the parameters and then calls the `superFreq()` function:
+
+```
+library(superFreq)
+
+cpus=12
+
+#this file needs to be created. See ?superFreq
+metaDataFile = 'metaData.tsv'
+
+#a bed file with the capture regions of the exome. Or just the exones if capture regions are not available.
+captureRegionsFile = '~/resources/captureRegions/myCaptureInThisBatch.bed'
+
+#This directory needs to be created and set up. See ?superFreq
+normalDirectory = '~/resources/superFreq/referenceNormals/myCaptureInThisBatch'
+
+#The reference fasta and name. hg19, hg38 and mm10 available.
+reference = '~/resources/reference/hg19/hg19.fa'
+genome = 'hg19'
+
+#the dbSNP and cosmic directory. This will be created and downloaded if not existing.
+dbSNPdirectory = normalizePath('~/resources/superFreq/dbSNP')
+cosmicDirectory='~/resources/superFreq/COSMIC'
+
+#The directory where the log file and saved .Rdata is stored. Will be created.
+Rdirectory = 'R'
+#The directory where all the plots and tables from the analysis go. Will be created.
+plotDirectory = 'plots'
+
+#superFreq reuses saved data if available. This setting can force it to redo part of the analysis.
+#default forceRedoNothing() means that saved information is used whenever available.
+forceRedo = forceRedoNothing()
+
+#a measure on how much large-scale biases are expected in the coverage.
+#this controls the sensitivity vs accuracy of the coverage part of copy number calls.
+systematicVariance=0.02
+#a measure on how much biases (such as PCR duplication) is expected in the VAFs.
+#this controls the sensitivity vs accuracy of the heterozygous SNP part of copy number calls.
+maxCov=150
+
+#The format of the quality scores of the base calls. Almost always 33 these days.
+BQoffset = 33
+
+#The mode. 'DNA' is for exomes, while 'RNA' has some minor changes when running on RNA.
+mode = 'DNA'
+
+#This setting runs each individual separately (as indicated in the metadata).
+#will create subdirectories in the plotDirectory and Rdirectory.
+#This is suggested whenever there is more than one individual in the batch.
+splitRun = T
+
+data =
+    superFreq(metaDataFile, captureRegions=captureRegionsFile, normalDirectory=normalDirectory,
+              normalCoverageDirectory=normalCoverageDirectory,
+              Rdirectory=Rdirectory, plotDirectory=plotDirectory, reference=reference, genome=genome,
+              BQoffset=BQoffset, cpus=cpus, forceRedo=forceRedo, systematicVariance=systematicVariance,
+              maxCov=maxCov, mode=mode, splitRun=splitRun)
+```
+
+
 More information is in the manual. 
 
 ![](https://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/bfafbe20134792cfd1803e3381849e0a54aa5b9d/images/multisample.png)
