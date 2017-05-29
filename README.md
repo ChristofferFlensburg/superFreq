@@ -12,7 +12,7 @@ SuperFreq analyses and filters somatic SNVs and short indels, calls copy numbers
 # How do I run it?
 Start R
 
-```
+```R
 library(devtools)
 install_github('ChristofferFlensburg/superFreq')
 
@@ -22,7 +22,7 @@ library(superFreq)
 
 A typical analysis first sets the parameters and then calls the `superFreq()` function:
 
-```
+```R
 library(superFreq)
 
 cpus=12
@@ -42,7 +42,7 @@ genome = 'hg19'
 
 #the dbSNP and cosmic directory. This will be created and downloaded if not existing.
 dbSNPdirectory = normalizePath('~/resources/superFreq/dbSNP')
-cosmicDirectory='~/resources/superFreq/COSMIC'
+cosmicDirectory = '~/resources/superFreq/COSMIC'
 
 #The directory where the log file and saved .Rdata is stored. Will be created.
 Rdirectory = 'R'
