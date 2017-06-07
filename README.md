@@ -30,7 +30,7 @@ cpus=12
 #this file needs to be created. See ?superFreq
 metaDataFile = 'metaData.tsv'
 
-#a bed file with the capture regions of the exome. Or just the exones if capture regions are not available.
+#a bed file with the capture regions of the exome. Or just the exons if capture regions are not available.
 captureRegionsFile = '~/resources/captureRegions/myCaptureInThisBatch.bed'
 
 #This directory needs to be created and set up. See ?superFreq
@@ -41,7 +41,7 @@ reference = '~/resources/reference/hg19/hg19.fa'
 genome = 'hg19'
 
 #the dbSNP and cosmic directory. This will be created and downloaded if not existing.
-dbSNPdirectory = normalizePath('~/resources/superFreq/dbSNP')
+dbSNPdirectory = '~/resources/superFreq/dbSNP'
 cosmicDirectory = '~/resources/superFreq/COSMIC'
 
 #The directory where the log file and saved .Rdata is stored. Will be created.
@@ -71,6 +71,9 @@ mode = 'DNA'
 #This is suggested whenever there is more than one individual in the batch.
 splitRun = T
 
+#this performs the actual analysis. output goes to Rdirectory and plotDirectory.
+#runtime is typically ~12 hours the first time at 6 cpus. Can be significantly more if many samples.
+#later runs typically a bit faster as the setup and part of the analysis can be reused.
 data =
     superFreq(metaDataFile, captureRegions=captureRegionsFile, normalDirectory=normalDirectory,
               normalCoverageDirectory=normalCoverageDirectory,
