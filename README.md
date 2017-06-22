@@ -63,8 +63,9 @@ maxCov=150
 #The format of the quality scores of the base calls. Almost always 33 these days.
 BQoffset = 33
 
-#The mode. 'DNA' is for exomes, while 'RNA' has some minor changes when running on RNA.
-mode = 'DNA'
+#The mode. Default 'exome' is for exomes, while 'RNA' has some minor changes when running on RNA.
+#There is also an experimental "genome" mode for genomes that is slowly getting better.
+mode = 'exome'
 
 #This setting runs each individual separately (as indicated in the metadata).
 #will create subdirectories in the plotDirectory and Rdirectory.
