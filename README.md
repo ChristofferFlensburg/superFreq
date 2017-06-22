@@ -76,7 +76,6 @@ splitRun = T
 #later runs typically a bit faster as the setup and part of the analysis can be reused.
 data =
     superFreq(metaDataFile, captureRegions=captureRegionsFile, normalDirectory=normalDirectory,
-              normalCoverageDirectory=normalCoverageDirectory,
               Rdirectory=Rdirectory, plotDirectory=plotDirectory, reference=reference, genome=genome,
               BQoffset=BQoffset, cpus=cpus, forceRedo=forceRedo, systematicVariance=systematicVariance,
               maxCov=maxCov, mode=mode, splitRun=splitRun)
