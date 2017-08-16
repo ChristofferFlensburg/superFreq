@@ -125,6 +125,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
 #' @param vcfFile The path to the output file.
 #' @param genome The genome, such as 'hg19', 'hg38' or 'mm10'. Defaults to 'hg19'.
 #' @param SNVonly boolean. Set to TRUE to only output SNVs, not indels. Defaults to FALSE.
+#' @param addSomaticP boolean. Set to TRUE to include a column with the somaticP score from superFreq. Defaults to FALSE.
 #'
 #' @details This function outputs superFreq variants to a VCF for access from other software.
 #'
@@ -136,11 +137,14 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
 #' q = data$allVariants$variants$variants$mySample
 #' writeToVCF(q, 'mySample.superFreq.vcf')
 #' }
-writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F) {
+writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F, addSomaticP=F) {
   if ( snvOnly ) q = q[q$variant %in% c('A', 'T', 'C', 'G'),]
   
   preambula = c('##fileformat=VCFv4.0',
     '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tCOVERAGE\tVARIANTREADS\tVAF')
+  if ( addSomaticP )
+  preambula = c('##fileformat=VCFv4.0',
+    '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tCOVERAGE\tVARIANTREADS\tVAF\tSOMATICP')
   chrom = xToChr(q$x, genome)
   pos = xToPos(q$x, genome)
   ID = rownames(q)
@@ -159,6 +163,8 @@ writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F) {
   f = ifelse(q$cov > 0, q$var/q$cov, 0)
 
   out = cbind(chrom, pos, ID, ref, alt, qual, filter, info, cov, var, f)
+  if ( addSomaticP )
+      out = cbind(chrom, pos, ID, ref, alt, qual, filter, info, cov, var, f, q$somaticP)
   body = apply(out, 1, function(strs) do.call(paste, c(as.list(strs), sep='\t')))
   body = do.call(paste, c(as.list(preambula), as.list(body), sep='\n'))
 

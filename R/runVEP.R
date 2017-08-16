@@ -68,7 +68,7 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
       next
     }
     VEPfile = paste0(dir, '/', name, '.VEP.txt')
-    VEPdata = try(read.table(VEPfile, fill=T, header=F), silent=T)
+    VEPdata = try(read.table(VEPfile, fill=T, header=F, colClasses='character'), silent=T)
     if ( class(VEPdata) == 'try-error' ) {
       catLog('failed to read VEP file ', VEPfile,'.\n')
       variants$variants[[name]]$type = rep('notChecked', nrow(variants$variants[[name]]))
@@ -328,7 +328,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
     }
     else {
       VEPfile = paste0(dir, '/', name, '.VEP.txt')
-      VEPdata = try(read.table(VEPfile, fill=T, header=F), silent=T)
+      VEPdata = try(read.table(VEPfile, fill=T, header=F, colClasses='character'), silent=T)
       if ( class(VEPdata) == 'try-error' )
         catLog('failed to read VEP file ', VEPfile,'.\n')
       

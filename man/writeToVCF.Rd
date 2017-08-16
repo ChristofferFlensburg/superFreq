@@ -4,7 +4,7 @@
 \alias{writeToVCF}
 \title{exports variants to VCF}
 \usage{
-writeToVCF(q, vcfFile, genome = "hg19", snvOnly = F)
+writeToVCF(q, vcfFile, genome = "hg19", snvOnly = F, addSomaticP = F)
 }
 \arguments{
 \item{q}{A variant data frame from superFreq.}
@@ -12,6 +12,8 @@ writeToVCF(q, vcfFile, genome = "hg19", snvOnly = F)
 \item{vcfFile}{The path to the output file.}
 
 \item{genome}{The genome, such as 'hg19', 'hg38' or 'mm10'. Defaults to 'hg19'.}
+
+\item{addSomaticP}{boolean. Set to TRUE to include a column with the somaticP score from superFreq. Defaults to FALSE.}
 
 \item{SNVonly}{boolean. Set to TRUE to only output SNVs, not indels. Defaults to FALSE.}
 }

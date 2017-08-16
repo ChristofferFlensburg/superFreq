@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.18')
+superVersion = function() return('0.9.19')
 
 
 #' Wrapper to run default superFreq analysis
@@ -549,7 +549,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       #import, filter and QC the variants. Save to file.
       #The information about normals is used for QC, as there will be only true frequencies of 0, 0.5 and 1 in those samples.
       if ( byIndividual )
-        variants = getVariantsByIndividual(sampleMetaData, captureRegions, genome, BQoffset, dbSNPdirectory,
+        variants = getVariantsByIndividual(sampleMetaData, captureRegions, fasta=reference, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, forceRedo=forceRedoVariants)
       else
         variants = getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
@@ -558,7 +558,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       
       #Get variants from the external normals
       normalVariants =
-        getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions,
+        getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions, fasta=reference,
                         genome, BQoffset, dbSNPdirectory, normalRdirectory, Rdirectory, plotDirectory, cpus=cpus,
                         forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants)
       
@@ -779,6 +779,7 @@ loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
   source('getStories.R')
   source('makeRiverPlots.R')
   source('downloadSuperFreqResources.R')
+  source('bamToPileup.R')
 
   if ( !exists('.maxCov', envir = .GlobalEnv) ) {
     catLog('Setting maxCov to default 150.\n')

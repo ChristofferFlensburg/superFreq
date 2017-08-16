@@ -10,7 +10,7 @@
 #' @importFrom biomaRt useMart getBM
 #' @importFrom Rsamtools scanBamHeader ScanBamParam scanBamFlag scanBam
 #' @importFrom R.oo charToInt
-getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, forceRedo=F) {
+getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, forceRedo=F) {
   catLog('Using variants by individual.\n')
   saveFile = paste0(Rdirectory, '/variantsBI.Rdata')
   if ( file.exists(saveFile) & !forceRedo ) {
@@ -60,11 +60,12 @@ getVariantsByIndividual = function(metaData, captureRegions, genome, BQoffset, d
     #extract variant information over the identified positions
     bamFiles = metaData[samples,]$BAM
     #variants = bamToVariants(bamFiles, positions, BQoffset, genome=genome, cpus=cpus)
+    variants = newBamToVariants(bamFiles, positions, fasta, BQoffset, genome=genome, cpus=cpus)
     
-    variants = lapply(bamFiles, function(file) {
-      QCsnps(pileups=importQualityScores(positions, file, BQoffset, genome=genome, cpus=cpus)[[1]],
-             positions=positions, cpus=cpus)
-    })
+    #variants = lapply(bamFiles, function(file) {
+    #  QCsnps(pileups=importQualityScores(positions, file, BQoffset, genome=genome, cpus=cpus)[[1]],
+    #         positions=positions, cpus=cpus)
+    #})
     names(variants) = samples
     variants = lapply(variants, function(q) q[apply(!is.na(q), 1, any),])
     variants = shareVariants(variants)
@@ -251,7 +252,7 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
   if ( genome == 'hg38' ) dir = paste0(dir, '/hg38')
   if ( genome == 'mm10' ) dir = paste0(dir, '/mm10')
 
-  RsaveFile = paste0(dir,'/dbAF.Rdata')
+  RsaveFile = paste0(dir,'/dbAFnew.Rdata')
   if ( !file.exists(RsaveFile) ) stop('dbSNP file not found at expected path ', RsaveFile)
   catLog('Importing dbSNP allele frequencies from ', RsaveFile, '...', sep='')
   load(RsaveFile)
@@ -262,12 +263,20 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
   dbAF = dbAF[relevantDB]
   dbNames = names(dbAF)
   isDB = qNames %in% dbNames
-  dbAF = dbAF[qNames]
+  if ( any(is.na(dbAF)) ) {
+    dbAF = dbAF[qNames]
+    dbValidated = !is.na(dbAF) & dbAF > 0
+  }
+  else {
+    dbAF = dbAF[qNames]
+    dbValidated = dbAF < 3 | dbAF > 70
+    dbAF = ifelse(dbAF > 30, NA, ifelse(dbAF > 3, dbAF-10, dbAF))
+  }
   
   variants = lapply(variants, function(q) {
     q$db = isDB
     q$dbMAF = dbAF
-    q$dbValidated = !is.na(dbAF) & dbAF > 0
+    q$dbValidated = dbValidated
     return(q)
   })
   catLog('done.\n')
@@ -793,7 +802,7 @@ inGene = function(SNPs, genes, noHit = NA, genome='hg19') {
 
 #Takes the sample variants and normal bam files and capture regions.
 #return the variant information for the normals on the positions that the samples are called on.
-getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, BQoffset, dbDir, normalRdirectory, Rdirectory, plotDirectory, cpus, forceRedoSNPs=F, forceRedoVariants=F) {
+getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, genome, BQoffset, dbDir, normalRdirectory, Rdirectory, plotDirectory, cpus, forceRedoSNPs=F, forceRedoVariants=F) {
   SNPs = variants$SNPs
   variants = variants$variants
   variantsToCheck = unique(do.call(c, lapply(variants, rownames)))
@@ -833,9 +842,11 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
         missingSNPs = SNPs[SNPs$x %in% missingX,]
 
         catLog('Filling in missing normal variants from ', name,'.\n', sep='')
-        qNew =
-          QCsnps(pileups=importQualityScores(missingSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
-                 positions=missingSNPs, cpus=cpus)
+        #qNew = bamToVariants(bam, missingSNPs, BQoffset, genome=genome, cpus=cpus)[[1]]
+        qNew = newBamToVariants(bam, missingSNPs, fasta, BQoffset, genome=genome, cpus=cpus)[[1]]
+        #qNew =
+        #  QCsnps(pileups=importQualityScores(missingSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
+        #         positions=missingSNPs, cpus=cpus)
         q = rbind(q, qNew)
         q = q[!duplicated(paste0(q$x, q$variant)),]
         q = q[order(q$x, q$variant),]
@@ -850,8 +861,12 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
     else {
       #extract variant information over the predetermined positions
       catLog('Normal variants from ', name,'.\n', sep='')
-      q = QCsnps(pileups=importQualityScores(SNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
-        positions=SNPs, cpus=cpus)
+
+
+      #q = bamToVariants(bam, SNPs, BQoffset, genome=genome, cpus=cpus)[[1]]
+      q = newBamToVariants(bam, SNPs, fasta, BQoffset, genome=genome, cpus=cpus)[[1]]
+      #q = QCsnps(pileups=importQualityScores(SNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
+      #  positions=SNPs, cpus=cpus)
       q = q[apply(!is.na(q), 1, any),]
 
       #save the union of the calls for future batches
@@ -891,46 +906,116 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, genome, 
 
 
 
-bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', cpus=1) {
+bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', batchSize=1000, cpus=1) {
   
   variants = lapply(bamFiles, function(file) {
     catLog(as.character(Sys.time()), '\n')
-    catLog('Importing', nrow(positions), 'pileups by chr from', file, '\n')
-    varList = mclapply(unique(positions$chr), function(ch) {
-      use = positions$chr == ch
-      thisChr = positions$chr[use]
-      pos = positions$start[use]
-      catLog(thisChr[1], '.. ', sep='')
-      if ( any(grepl('^chr1', names(scanBamHeader(file)[[1]]$targets))) )
-        thisChr = paste0('chr', thisChr)
-      which = GRanges(thisChr, IRanges(pos-3, pos+3))
-      thisChr = gsub('chr', '', thisChr)
-      p1 = ScanBamParam(which=which, what=c('pos', 'seq', 'cigar', 'qual', 'mapq', 'strand', 'qname'),
-        flag=scanBamFlag(isSecondaryAlignment=FALSE))
-      index = paste0(file, '.bai')
-      if ( !file.exists(index) ) {
-        index = gsub('.bam$', '.bai', file)
+    Npos = nrow(positions)
+    Nbatch = ceiling(Npos/batchSize)
+    catLog('Examining', nrow(positions), 'positions from', file, 'in', Nbatch, 'batches.\n')
+    varList = mclapply(1:Nbatch, function(batchI) {
+      setupTime = system.time({
+        use = ((batchI-1)*batchSize+1):min(Npos, batchI*batchSize)
+        thisChr = positions$chr[use]
+        pos = positions$start[use]
+        catLog(batchI, '.', sep='')
+        if ( any(grepl('^chr1', names(scanBamHeader(file)[[1]]$targets))) )
+          thisChr = paste0('chr', thisChr)
+        which = GRanges(thisChr, IRanges(pos-3, pos+3))
+        thisChr = gsub('chr', '', thisChr)
+        p1 = ScanBamParam(which=which, what=c('pos', 'seq', 'cigar', 'qual', 'mapq', 'strand', 'qname'),
+          flag=scanBamFlag(isSecondaryAlignment=FALSE))
+        index = paste0(file, '.bai')
         if ( !file.exists(index) ) {
-          catLog('Could not find an index file for', file, '\nI want either', paste0(file, '.bai'), 'or', index)
-          stop(paste('Could not find an index file for', file, '\nI want either', paste0(file, '.bai'), 'or', index))
+          index = gsub('.bam$', '.bai', file)
+          if ( !file.exists(index) ) {
+            catLog('Could not find an index file for', file, '\nI want either', paste0(file, '.bai'), 'or', index)
+            stop(paste('Could not find an index file for', file, '\nI want either', paste0(file, '.bai'), 'or', index))
+          }
         }
-      }
-      regionReads = scanBam(file, index=index, param=p1)
-      regionReads = lapply(regionReads, function(reads) {
-        keep = !is.na(reads$mapq) & !duplicated(reads$qname)
-        if ( length(keep) == 0 ) return(reads)
-        if ( sum(!keep) > 0 ) {
-          reads$pos = reads$pos[keep]
-          reads$seq = reads$seq[keep]
-          reads$cigar = reads$cigar[keep]
-          reads$qual = reads$qual[keep]
-          reads$mapq = reads$mapq[keep]
-          reads$strand = reads$strand[keep]
-        }
-        return(reads)
       })
-      pileups = lapply(1:length(pos), function(i) readsToPileup(regionReads[[i]], pos[i], BQoffset=BQoffset))
-      catLog('(done pileup ', thisChr[1], ') ', sep='')
+      loadTime = system.time({
+        regionReads = scanBam(file, index=index, param=p1)
+      })
+      pileupTime = system.time({
+        regionReads = lapply(regionReads, function(reads) {
+          keep = !is.na(reads$mapq) & !duplicated(reads$qname)
+          if ( length(keep) == 0 ) return(reads)
+          if ( sum(!keep) > 0 ) {
+            reads$pos = reads$pos[keep]
+            reads$seq = reads$seq[keep]
+            reads$cigar = reads$cigar[keep]
+            reads$qual = reads$qual[keep]
+            reads$mapq = reads$mapq[keep]
+            reads$strand = reads$strand[keep]
+          }
+          return(reads)
+        })
+        pileups = lapply(1:length(pos), function(i) readsToPileup(regionReads[[i]], pos[i], BQoffset=BQoffset))
+        #catLog('(done pileup ', thisChr[1], ') ', sep='')
+        catLog('.', sep='')
+      })
+
+      qcTime = system.time({
+        references = as.character(positions$reference[use])
+        variants = as.character(positions$variant[use])
+        xs = positions$x[use]
+        ret = lapply(1:length(pileups), function(i) {
+          return(QCsnp(pileups[[i]], references[i], xs[i], variant='', defaultVariant=variants[i]))
+        })
+        ret = mergeVariantList(ret)
+        ret = ret[ret$reference != ret$variant,]
+        rownames(ret) = paste0(ret$x, ret$variant)
+        #catLog('(done QCing ', thisChr[1], ') ', sep='')
+      })
+
+      cat('setupTime: ', setupTime[3], ', load time: ', loadTime[3], ', pileup time: ', pileupTime[3], ', qc time: ', qcTime[3], '\n', sep='')
+      
+      return(ret)
+    }, mc.cores=cpus, mc.preschedule=F)
+    catLog('done!\n')
+    gc()
+    
+    ret = mergeVariantList(varList)
+    ret = ret[ret$reference != ret$variant,]
+    rownames(ret) = paste0(ret$x, ret$variant)
+    catLog('done.\n')
+    catLog('Variants:', nrow(ret), '\n')
+    catLog('Unflagged :', sum(ret$flag==''), '\n')
+    catLog('Unflagged over 0%  freq :', sum(ret$var > 0 & ret$flag==''), '\n')
+    catLog('Unflagged over 20% freq :', sum(ret$var > ret$cov/5 & ret$flag==''), '\n')
+    catLog('Median coverage over unflagged variants:', median(ret$cov[ret$flag=='']), '\n')
+    catLog('Repeat flags:', length(grep('Rep', ret$flag)), '\n')
+    catLog('Mapping quality flags:', length(grep('Mq', ret$flag)), '\n')
+    catLog('Base quality flags:', length(grep('Bq', ret$flag)), '\n')
+    catLog('Strand bias flags:', length(grep('Sb', ret$flag)), '\n')
+    catLog('Single variant read flags:', length(grep('Svr', ret$flag)), '\n')
+    catLog('Minor variant flags:', length(grep('Mv', ret$flag)), '\n')
+    catLog('Stutter flags:', length(grep('St', ret$flag)), '\n')
+    return(ret)
+  })
+  
+  return(variants)
+}
+
+
+
+
+newBamToVariants = function(bamFiles, positions, fasta, BQoffset=33, genome='hg19', batchSize=1000, cpus=1) {
+  
+  variants = lapply(bamFiles, function(file) {
+    catLog(as.character(Sys.time()), '\n')
+    hasChr = any(grepl('^chr', names(scanBamHeader(file)[[1]]$targets)))
+    if ( hasChr ) positions$chr = paste0('chr', positions$chr)
+    
+    Npos = nrow(positions)
+    Nbatch = ceiling(Npos/batchSize)
+    catLog('Examining', nrow(positions), 'positions from', file, 'in', Nbatch, 'batches.\n')
+    varList = mclapply(1:Nbatch, function(batchI) {
+      catLog(batchI, '.', sep='')
+      use = ((batchI-1)*batchSize+1):min(Npos, batchI*batchSize)
+      pileups = bamToPileup(file, fasta, positions[use,], batchI, BQoffset=BQoffset)
+      catLog('.', sep='')
       
       references = as.character(positions$reference[use])
       variants = as.character(positions$variant[use])
@@ -941,11 +1026,11 @@ bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', cpus=1) {
       ret = mergeVariantList(ret)
       ret = ret[ret$reference != ret$variant,]
       rownames(ret) = paste0(ret$x, ret$variant)
-      catLog('(done QCing ', thisChr[1], ') ', sep='')
-      
+            
       return(ret)
     }, mc.cores=cpus, mc.preschedule=F)
     catLog('done!\n')
+    gc()
     
     ret = mergeVariantList(varList)
     ret = ret[ret$reference != ret$variant,]

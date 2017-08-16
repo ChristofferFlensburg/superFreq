@@ -8,7 +8,7 @@ downloadSuperFreqDbSNP = function(directory='superFreqDbSNP', genome='hg19') {
     }
 
     #hg19 dbSNP
-    url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/dbAF.Rdata')
+    url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/dbAFnew.Rdata')
     destFile = paste0(directory, '/', basename(url))
     if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
 

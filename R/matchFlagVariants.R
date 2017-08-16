@@ -402,7 +402,7 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     normalOK = pmin(1, noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
     
     if ( !(name %in% names(CNs)) ) catLog('\nNo matched normal, or normal sample: selecting somatic variants based on population frequencies. Selecting dbSNPs and ExAC below 0.1% population frequency as somatic candidates. These will include rare germline variants, which is desired for normals, but not for cancer samples without matched normals.\n', sep='')
-    notDbSNP = !q$db
+    notDbSNP = !q$db | (q$db & !q$dbValidated & is.na(q$dbMAF))
     rareDbSNP =  q$db & !is.na(q$dbMAF) & q$dbMAF < 0.001
     unknownDbSNP = q$db & is.na(q$dbMAF)
 

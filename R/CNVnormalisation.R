@@ -185,7 +185,7 @@ findShiftManually = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T
       i = as.numeric(readline('type index of new shift from the right plot. 0 --> use this normalisation.\nindex: '))
     }
     if ( i == 0 ) {
-      i = nShiftsHalf
+      i = 21
       userHappy = T
     }
     userShift = shifts[i]
