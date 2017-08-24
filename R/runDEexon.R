@@ -30,7 +30,7 @@
 #' @importFrom parallel mclapply
 #'
 runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory, plotDirectory, normalRdirectory,
-  settings=list(), genome='hg19', cpus=1,
+  settings=list(), genome='hg19', cpus=1, mode='exome',
   forceRedoFit=F, forceRedoCount=F, forceRedoNormalCount=F) {
   catLog('Starting differential coverage analysis by sample.\n')
 
@@ -52,7 +52,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   if ( !file.exists(fCsSaveFile) | forceRedoCount ) {
     catLog('Counting reads over capture regions.\n')
     fCsExon = try(featureCounts(bamFiles, annot.ext=captureAnnotation, useMetaFeatures=F,
-      allowMultiOverlap=T, isPairedEnd=T, minMQS=10, nthreads=cpus))
+      allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
     if ( class(fCsExon) != 'list' ) {
       catLog('Error in featureCounts.\nInput was\nbamFiles:', bamFiles,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')
@@ -78,7 +78,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   if ( !file.exists(normalFCsSaveFile) | forceRedoNormalCount ) {
     catLog('Counting normal reads over capture regions.\n')
     normalFCsExon = try(featureCounts(externalNormalBams, annot.ext=captureAnnotation, useMetaFeatures=F,
-      allowMultiOverlap=T, isPairedEnd=T, minMQS=10, nthreads=cpus))
+      allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
     if ( class(normalFCsExon) != 'list' ) {
       catLog('Error in featureCounts.\nInput was\nexternalNormalBams:', externalNormalBams,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')

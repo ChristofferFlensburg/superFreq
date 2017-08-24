@@ -6,7 +6,7 @@
 \usage{
 runDE(bamFiles, names, externalNormalBams, captureRegions, Rdirectory,
   plotDirectory, normalRdirectory, settings = list(), genome = "hg19",
-  cpus = 1, forceRedoFit = F, forceRedoCount = F,
+  cpus = 1, mode = "exome", forceRedoFit = F, forceRedoCount = F,
   forceRedoNormalCount = F)
 }
 \arguments{

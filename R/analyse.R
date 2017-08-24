@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.19')
+superVersion = function() return('0.9.20')
 
 
 #' Wrapper to run default superFreq analysis
@@ -205,7 +205,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
-          correctReferenceBias=correctReferenceBias, vepCall=vepCall, cosmicDirectory=cosmicDirectory)
+          correctReferenceBias=correctReferenceBias, vepCall=vepCall, cosmicDirectory=cosmicDirectory, mode=mode)
 
   #postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory, vepCall=vepCall,
   #               cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
@@ -287,7 +287,7 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T,
-  vepCall='vep', cosmicDirectory=cosmicDirectory) {
+  vepCall='vep', cosmicDirectory=cosmicDirectory, mode='exome') {
   options(stringsAsFactors = F)
   options(scipen = 10)
   
@@ -532,7 +532,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #compare coverage of samples to the pool of normals, using limma-voom.
   fit = runDE(bamFiles, names, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
     normalCoverageRdirectory, settings=settings, cpus=cpus, forceRedoFit=forceRedoFit, forceRedoCount=forceRedoCount,
-    forceRedoNormalCount=forceRedoNormalCount)
+    forceRedoNormalCount=forceRedoNormalCount, mode=mode)
 
   #Plot volcanoes and output an excel file with top DE regions.
   ret = makeFitPlots(fit, plotDirectory, genome,
