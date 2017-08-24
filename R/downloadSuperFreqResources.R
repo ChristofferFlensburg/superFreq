@@ -29,7 +29,7 @@ downloadSuperFreqDbSNP = function(directory='superFreqDbSNP', genome='hg19') {
     }
 
     #hg38 dbSNP
-    url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/hg38/dbAF.Rdata')
+    url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/hg38/dbAFnew.Rdata')
     destFile = paste0(directory, '/', basename(url))
     if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
 
@@ -50,7 +50,7 @@ downloadSuperFreqDbSNP = function(directory='superFreqDbSNP', genome='hg19') {
     }
 
     #mm10 dbSNP
-    url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/mm10/dbAF.Rdata')
+    url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/mm10/dbAFnew.Rdata')
     destFile = paste0(directory, '/', basename(url))
     if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
   }

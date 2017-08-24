@@ -25,11 +25,15 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
         next
       }
       assembly = genomeToAssembly(genome)
-      catLog('Checking VEP version.\n')
-      catLog(paste0(vepCall, ' --help'), '\n')
-      vepHelp = system(paste0(vepCall, ' --help'), intern=T)
-      versionLine = strsplit(vepHelp[grep('^version', vepHelp)], ' ')[[1]]
-      vepVersion = as.numeric(versionLine[length(versionLine)])
+      #seems like veps format of the version output in the --help changed, so skipping version check and assuming 89...
+      if ( FALSE ) {
+        catLog('Checking VEP version.\n')
+        catLog(paste0(vepCall, ' --help'), '\n')
+        vepHelp = system(paste0(vepCall, ' --help'), intern=T)
+        versionLine = strsplit(vepHelp[grep('^version', vepHelp)], ' ')[[1]]
+        vepVersion = as.numeric(versionLine[length(versionLine)])
+      }
+      vepVersion = 89
       if ( vepVersion < 76 & genome == 'hg38' ) {
         warning('VEP seems to be pre version 76, which isnt supported for hg38. Please update VEP. Running without annotation for now.')
         return(variants)

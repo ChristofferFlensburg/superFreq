@@ -1,0 +1,84 @@
+
+
+
+#' Gets pileup from bam over positions.
+bamToPileup = function(bam, fasta, positions, index, BQoffset=33) {
+
+  #read in mpileups, split by chromosome if needed.
+  chrs = unique(positions$chr)
+  posFile = paste0(bam, '.pos.', index)
+  mpileups = lapply(chrs, function(chr) {
+    region = paste0(chr, ':', min(positions$start[positions$chr == chr]), '-',
+      max(positions$start[positions$chr == chr]))
+    write.table(positions[positions$chr == chr,c('chr', 'start')], file=posFile, sep='\t', quote=F, row.names=F, col.names=F)
+    samtoolsCall = paste0('samtools mpileup -OsB -f ', fasta, ' -r ', region, ' -l ', posFile, ' ', bam)
+    #cat('\n', samtoolsCall, '\n')
+    mpileups = system(samtoolsCall, intern=T, ignore.stderr=T)
+    return(mpileups)
+  })
+  mpileups = do.call(c, mpileups)
+
+  #remove pos file.
+  unlink(posFile)
+
+  #match positions, and create empty pileups if missing.
+  coords = sapply(mpileups, function(mpileup) {
+    parts = strsplit(mpileup, split='\t')[[1]]
+    return(paste0(parts[1], ':', parts[2]))
+  })
+  posCoords = paste0(positions$chr, ':', positions$start)
+  allMpileups = paste(positions$chr, positions$start, positions$reference, 0, '*', ' ', ' ', sep='\t')
+  names(allMpileups) = posCoords
+  allMpileups[coords] = mpileups
+
+  #parse the mpileup output
+  pileups = lapply(allMpileups, function(mpileup) {
+    parts = strsplit(mpileup, split='\t')[[1]]
+
+    reference = parts[3]
+    string = gsub('((\\^.)|\\$)', '', parts[5])
+    base = strsplit(string, split='')[[1]]
+    #look for and handle indels
+    inss = which(base == '+')
+    dels = which(base == '-')
+    if ( length(inss) > 0 | length(dels) > 0 ) {
+      toRemove = c()
+      if ( length(inss) > 0 ) {
+        for ( ins in inss ) {
+          insSize = as.numeric(gsub('[a-zA-Z].*$', '', substring(string, ins+1, ins+10)))
+          insertion = substring(string, ins+floor(log10(insSize))+2, ins+floor(log10(insSize))+1+insSize)
+          toRemove = c(toRemove, ins-1, (ins+1):(ins+floor(log10(insSize))+1+insSize))
+          base[ins] = paste0('+', insertion)
+        }
+      }
+      if ( length(dels) > 0 ) {
+        for ( del in dels ) {
+          delSize = as.numeric(gsub('[a-zA-Z].*$', '', substring(string, del+1, del+10)))
+          deletion = substring(string, del+floor(log10(delSize))+2, del+floor(log10(delSize))+1+delSize)
+          toRemove = c(toRemove, del-1, (del+1):(del+floor(log10(delSize))+1+delSize))
+          base[del] = paste0('-', delSize)
+        }
+      }
+      base = base[-toRemove]
+    }
+    
+    strand = ifelse(grepl('[a-z,]', base), '-', '+')
+    isRef = base %in% c('.', ',')
+    base[isRef] = reference
+    base = toupper(base)
+    indel = grepl('[+-]', base)
+
+    baseQuality = charToInt(strsplit(parts[6], split='')[[1]]) - BQoffset
+    mapQuality = charToInt(strsplit(parts[7], split='')[[1]]) - BQoffset
+
+    note = rep('', length(base))
+    
+    ret = data.frame('call'=base, 'qual'=baseQuality, 'mapq'=mapQuality,
+      'strand'=strand, 'note'=note, stringsAsFactors=F)
+    ret = ret[ret$call != '*',]
+    return(ret)
+    })
+
+  return(pileups)
+  #return
+}
