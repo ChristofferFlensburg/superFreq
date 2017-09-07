@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.20')
+superVersion = function() return('0.9.21')
 
 
 #' Wrapper to run default superFreq analysis
@@ -448,15 +448,24 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   forceRedoVEP = forceRedo$forceRedoVEP
 
   externalNormalBams =
-    c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
-      list.files(path=paste0(normalDirectory, '/bam'), pattern = '*.bam$', full.names=T))
+    normalizePath(c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
+      list.files(path=paste0(normalDirectory, '/bam'), pattern = '*.bam$', full.names=T)))
   names(externalNormalBams) = gsub('.bam$', '', basename(externalNormalBams))
   catLog('Normal bamfiles are:\n')
   catLog(externalNormalBams, sep='\n')
 
+  externalNormalbamIndexFiles = paste0(externalNormalBams, '.bai')
+  externalNormalbamIndexFiles2 = gsub('.bam$', '.bai', externalNormalBams)
+  if ( any(!(file.exists(externalNormalbamIndexFiles) | file.exists(externalNormalbamIndexFiles2))) ) {
+    missingIndex = !(file.exists(externalNormalbamIndexFiles) | file.exists(externalNormalbamIndexFiles2))
+    catLog('Could not find bam index files for:' , externalNormalBams[missingIndex], '.\n')
+    stop('Could not find bam index files for:' , externalNormalBams[missingIndex], '\n')
+  }
+
+
   externalNormalCoverageBams =
-        c(list.files(path=paste0(normalCoverageDirectory), pattern = '*.bam$', full.names=T),
-      list.files(path=paste0(normalCoverageDirectory, '/bam'), pattern = '*.bam$', full.names=T))
+        normalizePath(c(list.files(path=paste0(normalCoverageDirectory), pattern = '*.bam$', full.names=T),
+      list.files(path=paste0(normalCoverageDirectory, '/bam'), pattern = '*.bam$', full.names=T)))
   names(externalNormalCoverageBams) = gsub('.bam$', '', basename(externalNormalCoverageBams))
   catLog('Normal coverage bamfiles are:\n')
   catLog(externalNormalCoverageBams, sep='\n')

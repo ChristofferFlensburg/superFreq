@@ -264,7 +264,7 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
 
   if ( 'severity' %in% names(q1) & 'severity' %in% names(q2) & doPlot ) {
     severity = pmin(q1$severity, q2$severity)
-    severe = clean & use & severity <= 11 & !db
+    severe = clean & use & severity <= 11 & (!db | (!q1$dbValidated | is.na(q1$dbValidated)) | (q1$dbMAF < 0.01 | is.na(q1$dbMAF)))
     points(freq1[severe], freq2[severe], cex=cex[severe]+(12-severity[severe])/10,
            lwd=(12-severity[severe])*severityWidth, pch=1, col='orange')
     if ( 'isCosmicCensus' %in% names(q1) & 'isCosmicCensus' %in% names(q2) ) {
@@ -298,7 +298,7 @@ qualityScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, 
     toPrint = red > printRedCut
     if ( 'severity' %in% names(q1) & 'severity' %in% names(q2) ) {
       severity = pmin(q1$severity, q2$severity)
-      severe = clean & use & severity <= 11 & (!db | !q1$dbValidated | q1$dbMAF < 0.01)
+      severe = clean & use & severity <= 11 & (!db | (!q1$dbValidated | is.na(q1$dbValidated)) | (q1$dbMAF < 0.01 | is.na(q1$dbMAF)))
       if ( 'isCosmicCensus' %in% names(q1) & 'isCosmicCensus' %in% names(q2) ) {
         isCosmic = (q1$isCosmicCensus | q2$isCosmicCensus) & severe
         toPrint = toPrint | isCosmic

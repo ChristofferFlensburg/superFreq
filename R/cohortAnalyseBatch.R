@@ -118,7 +118,7 @@ cohortAnalyseBatchContrast = function(metaDataFile, outputDirectories, project, 
   metaData =
     compareGroups(metaDataFile=metaDataFile, outputDirectories=outputDirectories, project=project,
                   subgroups1=subgroups1, subgroups2=subgroups2,
-                  name=name, clonalityCutclonalityCut, excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals,
+                  name=name, clonalityCut=clonalityCut, excludeSamples=excludeSamples, excludeIndividuals=excludeIndividuals,
                   cosmicDirectory=cosmicDirectory, analysisName=analysisName, cpus=cpus, forceRedoVariants=forceRedoVariants,
                   forceRedoMean=forceRedoMean,
                   forceRedoMeanPlot=forceRedoMeanPlot, forceRedoMatrixPlot=forceRedoMatrixPlot, genome=genome)

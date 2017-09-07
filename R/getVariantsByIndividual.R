@@ -1009,11 +1009,12 @@ newBamToVariants = function(bamFiles, positions, fasta, BQoffset=33, genome='hg1
     if ( hasChr ) positions$chr = paste0('chr', positions$chr)
     
     Npos = nrow(positions)
-    Nbatch = ceiling(Npos/batchSize)
+    reducedBatchSize = pmin(batchSize, ceiling(Npos/cpus))
+    Nbatch = ceiling(Npos/reducedBatchSize)
     catLog('Examining', nrow(positions), 'positions from', file, 'in', Nbatch, 'batches.\n')
     varList = mclapply(1:Nbatch, function(batchI) {
       catLog(batchI, '.', sep='')
-      use = ((batchI-1)*batchSize+1):min(Npos, batchI*batchSize)
+      use = ((batchI-1)*reducedBatchSize+1):min(Npos, batchI*reducedBatchSize)
       pileups = bamToPileup(file, fasta, positions[use,], batchI, BQoffset=BQoffset)
       catLog('.', sep='')
       
