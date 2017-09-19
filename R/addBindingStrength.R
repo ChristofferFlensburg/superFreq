@@ -73,7 +73,7 @@ baseScore = function(seq) {
 
 
 importReferenceGenome = function(file='~/data/reference/hg19/hg19.fa') {
-  ret = read.fasta(file, seqtype='DNA')
+  ret = read.fasta(file, seqtype='DNA', seqonly=T)
   return(ret)
 }
 
