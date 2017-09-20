@@ -59,13 +59,13 @@ baseStrength = function() {
 }
 
 dibaseScore = function(seq) {
-  if ( nchar(seq) == 0 ) return(-1)
+  if ( nchar(seq) < 2 ) return(-1)
   bM = dibaseStrength()
   diNucs = substring(seq, 1:(nchar(seq)-1), 2:nchar(seq))
   return(mean(bM[diNucs]))
 }
 baseScore = function(seq) {
-  if ( nchar(seq) == 0 ) return(-1)
+  if ( nchar(seq) < 1 ) return(-1)
   bM = baseStrength()
   nucs = substring(seq, 1:nchar(seq), 1:nchar(seq))
   return(mean(bM[nucs]))
