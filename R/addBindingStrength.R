@@ -71,9 +71,15 @@ baseScore = function(seq) {
   return(mean(bM[nucs]))
 }
 
-
-importReferenceGenome = function(file='~/data/reference/hg19/hg19.fa') {
-  ret = read.fasta(file, seqtype='DNA', seqonly=T)
+#reads in the fasta.
+importReferenceGenome = function(file) {
+  #indexFile = paste0(file, '.fai')
+  #if ( file.exists(indexFile) ) {
+  #  ret = read.fasta(file, seqtype='DNA', seqonly=T)
+  #  names(ret) = read.table(indexFile)[,1]
+  #}
+  #else
+  ret = read.fasta(file, seqtype='DNA')
   return(ret)
 }
 

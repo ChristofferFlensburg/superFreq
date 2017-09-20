@@ -183,7 +183,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
-                correctReferenceBias=correctReferenceBias, vepCall=vepCall, correctReferenceBias=correctReferenceBias,
+                correctReferenceBias=correctReferenceBias, vepCall=vepCall,
                 filterOffTarget=filterOffTarget, rareGermline=rareGermline)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
