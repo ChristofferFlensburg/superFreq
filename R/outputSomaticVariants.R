@@ -1,7 +1,7 @@
 
 
 #prints the somatic variants to an excel sheet.
-outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, forceRedo=F, onlyForVEP=F) {
+outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, forceRedo=F, onlyForVEP=F, rareGermline=T) {
   vcfDir = paste0(plotDirectory, '/somatics')
   if ( !file.exists(vcfDir) ) dir.create(vcfDir)
 
@@ -15,6 +15,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       q = variants$variants[[sample]]
       somaticP = q$somaticP
       toReturn = which(somaticP > 0)
+      if ( !rareGermline ) toReturn = which(somaticP > 0 & !q$germline)
       toReturn = toReturn[order(somaticP[toReturn], decreasing=T)]
       q = q[toReturn,]
       SNPs = variants$SNPs[variants$SNPs$x %in% q$x,]

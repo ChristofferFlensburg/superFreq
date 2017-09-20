@@ -11,7 +11,7 @@ superFreq(metaDataFile, captureRegions, normalDirectory, Rdirectory,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
   cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
   participants = "all", manualStoryMerge = F, vepCall = "vep",
-  correctReferenceBias = T)
+  correctReferenceBias = T, filterOffTarget = T, rareGermline = T)
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -139,6 +139,17 @@ Requires babysitting and not recommended. Do not press this button. Default FALS
 
 \item{vepCall}{character. The call for the variant effect predictor on the command line. Default "vep",
 otherwise try the path to variant_effect_predictor.pl.}
+
+\item{correctReferenceBias}{logical. Corrects for (mainly alignment-caused) bias towards the reference allele in VAF
+calculations. Default TRUE.}
+
+\item{filterOffTarget}{logical. Ignores any point variants more than 300bp outside the capture regions. Default TRUE.}
+
+\item{rareGermline}{logical. Display rare germline variants. This is a by-product of the clonal tracking and can yield
+important information about the sample, but due to ethics this is not always desired.
+This options allows a user to run superFreq while avoiding germline information. The user
+should keep in mind that superFreq, like most open source software, comes with no warranty and
+there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples frmo germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.}
 }
 \description{
 Wrapper to run default superFreq analysis

@@ -21,7 +21,7 @@
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
-  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T) {
+  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T, rareGermline=T) {
   catLog('Setting reference bias..')
   setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
   catLog('done.\n')
@@ -125,15 +125,15 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       }
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
-      if ( any(normals[ts]) ) {
+      if ( any(normals[ts]) & rareGermline ) {
         rareGermlineMx = do.call(cbind, lapply(qs[normals[ts]], function(q) q$somaticP > 0.5 & q$severity < 10 & !is.na(q$severity)))
-        rareGermline = apply(rareGermlineMx, 1, any)
-        catLog('Found ', sum(rareGermline), ' rare germline variants to track.\n', sep='')
+        isRareGermline = apply(rareGermlineMx, 1, any)
+        catLog('Found ', sum(isRareGermline), ' rare germline variants to track.\n', sep='')
       }
       else
-        rareGermline = rep(FALSE, nrow(qs[[1]]))
-      somaticQs = lapply(qs, function(q) q[rareGermline | somatic,])
-      rareGermlineNames = rownames(qs[[1]])[rareGermline]
+        isRareGermline = rep(FALSE, nrow(qs[[1]]))
+      somaticQs = lapply(qs, function(q) q[isRareGermline | somatic,])
+      rareGermlineNames = rownames(qs[[1]])[isRareGermline]
       
       snpStories = findSNPstories(somaticQs, cnvs[ts], normals[ts], filter=F, germlineVariants=rareGermlineNames)
       cnvStories = getCNVstories(cnvs[ts], normals[ts], genome, filter=F)
@@ -191,7 +191,8 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
         if ( length(SNVs) > 0 ) {
           samples = timeSeries[[ind]]
           variants$variants[samples] = lapply(variants$variants[samples], function(q) {
-            q$germline = rownames(q) %in% SNVs
+            if ( rareGermline ) q$germline = rownames(q) %in% SNVs
+            else q$somaticP[rownames(q) %in% SNVs] = 0
             return(q)
           })
         }

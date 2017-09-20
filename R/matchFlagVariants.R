@@ -3,7 +3,7 @@
 #flags variants with suspicious behaviour in the normals.
 #marks the somatic-looking variants in the samples
 #ie non-db variants that are not present in the normals and not flagged as suspicious.
-matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F, correctReferenceBias=T) {
+matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F, correctReferenceBias=T, rareGermline=T) {
   saveFile = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')
@@ -37,7 +37,7 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
   
 
   #mark somatic variants
-  variants = markSomatics(variants, normalVariants, individuals, normals, cpus=cpus)
+  variants = markSomatics(variants, normalVariants, individuals, normals, cpus=cpus, rareGermline=rareGermline)
 
   if ( byIndividual ) {
     catLog('Trimming uninformative variants by individual...')
@@ -353,7 +353,7 @@ newFlagFromNormals = function(variants, normalVariants, genome, RNA=F, cpus=1, c
 
 #This helper function assign probabilities that variants are somatics.
 # the probabilities that the variants are true somatic variants are added in a column 'somaticP'
-markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpus) {
+markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, rareGermline=T) {
 
   if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
 
@@ -459,8 +459,10 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=cpu
     lowFrequencyPenalty = ifelse(q$cov > 0, pmin(1, 10*q$var/q$cov), 0) #penalty below 10% frequency
     lowCoveragePenalty = pmin(1, q$cov/10) #penalty below 10 reads coverage
 
+    censor = as.numeric(!rareGermline & normals[name])
+    
     somaticP = (1-pPolymorphic)*(1-pNormalFreq)*normalOK*pSampleOK*(1-pZero)*
-               notInNormal*lowFrequencyPenalty*lowCoveragePenalty
+               notInNormal*lowFrequencyPenalty*lowCoveragePenalty*(1-censor)
  
     variants$variants[[name]]$somaticP = 0
     variants$variants[[name]]$somaticP[use] = somaticP

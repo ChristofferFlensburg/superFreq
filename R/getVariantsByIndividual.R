@@ -10,7 +10,7 @@
 #' @importFrom biomaRt useMart getBM
 #' @importFrom Rsamtools scanBamHeader ScanBamParam scanBamFlag scanBam
 #' @importFrom R.oo charToInt
-getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, forceRedo=F) {
+getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, forceRedo=F, filterOffTarget=T) {
   catLog('Using variants by individual.\n')
   saveFile = paste0(Rdirectory, '/variantsBI.Rdata')
   if ( file.exists(saveFile) & !forceRedo ) {
@@ -48,10 +48,18 @@ getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQof
       end(paddedCaptureRegions) = end(captureRegions) + 300
       positions = inGene(positions, paddedCaptureRegions, genome=genome)
       inCapture = SNP2GRanges(positions, genome=genome) %within% paddedCaptureRegions
-      catLog('Keeping ', sum(inCapture), ' out of ', length(inCapture),
-             ' (', round(sum(inCapture)/length(inCapture), 3)*100,
-             '%) SNVs that are inside capture regions.\n', sep='')
-      positions = positions[inCapture,]
+      if ( filterOffTarget ) {
+        catLog('Keeping ', sum(inCapture), ' out of ', length(inCapture),
+               ' (', round(sum(inCapture)/length(inCapture), 3)*100,
+               '%) SNVs that are inside capture regions.\n', sep='')
+        positions = positions[inCapture,]
+      }
+      else {
+        catLog(sum(inCapture), ' out of ', length(inCapture),
+               ' (', round(sum(inCapture)/length(inCapture), 3)*100,
+               '%) SNVs are inside capture regions. Not filtering as filterOffTarget is set to FALSE.\n', sep='')
+
+      }
       catLog('saving positions...')
       save(positions, file=positionsSaveFile)
       catLog('done.\n')

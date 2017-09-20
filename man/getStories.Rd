@@ -6,7 +6,8 @@
 \usage{
 getStories(variants, normalVariants, cnvs, timeSeries, normals, genome,
   cloneDistanceCut = -qnorm(0.01), Rdirectory, plotDirectory, cpus = 1,
-  forceRedo = F, manualStoryMerge = F, correctReferenceBias = T)
+  forceRedo = F, manualStoryMerge = F, correctReferenceBias = T,
+  rareGermline = T)
 }
 \arguments{
 \item{variants}{variants: The variants.}

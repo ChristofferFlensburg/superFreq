@@ -118,6 +118,14 @@ superVersion = function() return('0.9.21')
 #'                        Requires babysitting and not recommended. Do not press this button. Default FALSE.
 #' @param vepCall character. The call for the variant effect predictor on the command line. Default "vep",
 #'                        otherwise try the path to variant_effect_predictor.pl. 
+#' @param correctReferenceBias logical. Corrects for (mainly alignment-caused) bias towards the reference allele in VAF
+#'                        calculations. Default TRUE. 
+#' @param filterOffTarget logical. Ignores any point variants more than 300bp outside the capture regions. Default TRUE.
+#' @param rareGermline logical. Display rare germline variants. This is a by-product of the clonal tracking and can yield
+#'                        important information about the sample, but due to ethics this is not always desired.
+#'                        This options allows a user to run superFreq while avoiding germline information. The user
+#'                        should keep in mind that superFreq, like most open source software, comes with no warranty and
+#'                        there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples frmo germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.
 #'
 #' @details This function runs a full SNV, CNV and clonality analysis of the input exome data. Output it sent to the plotDirectory, where diagnostics as well as analysis results are placed. At 12 cpus, the pipeline typically runs overnight on an individual with not too many samples. Large numbers of samples or somatic mutations can increase runtime further. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf about how to set up the run and interpret the output.
 #'          
@@ -140,7 +148,8 @@ superVersion = function() return('0.9.21')
 #' }
 superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T) {
+  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
+  filterOffTarget=T, rareGermline=T) {
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -174,7 +183,8 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
-                correctReferenceBias=correctReferenceBias, vepCall=vepCall)
+                correctReferenceBias=correctReferenceBias, vepCall=vepCall, correctReferenceBias=correctReferenceBias,
+                filterOffTarget=filterOffTarget, rareGermline=rareGermline)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -205,10 +215,8 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
-          correctReferenceBias=correctReferenceBias, vepCall=vepCall, cosmicDirectory=cosmicDirectory, mode=mode)
-
-  #postAnalyseVEP(outputDirectories, inputFiles=inputFiles, genome=genome, cosmicDirectory=cosmicDirectory, vepCall=vepCall,
-  #               cpus=cpus, forceRedo=forceRedo$forceRedoVEP)
+          correctReferenceBias=correctReferenceBias, vepCall=vepCall, cosmicDirectory=cosmicDirectory, mode=mode,
+          filterOffTarget=filterOffTarget, rareGermline=rareGermline)
 
 }
 
@@ -287,7 +295,7 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T,
-  vepCall='vep', cosmicDirectory=cosmicDirectory, mode='exome') {
+  vepCall='vep', cosmicDirectory=cosmicDirectory, mode='exome', filterOffTarget=T, rareGermline=T) {
   options(stringsAsFactors = F)
   options(scipen = 10)
   
@@ -559,7 +567,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       #The information about normals is used for QC, as there will be only true frequencies of 0, 0.5 and 1 in those samples.
       if ( byIndividual )
         variants = getVariantsByIndividual(sampleMetaData, captureRegions, fasta=reference, genome, BQoffset, dbSNPdirectory,
-          Rdirectory, plotDirectory, cpus=cpus, forceRedo=forceRedoVariants)
+          Rdirectory, plotDirectory, cpus=cpus, forceRedo=forceRedoVariants, filterOffTarget=filterOffTarget)
       else
         variants = getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, forceRedoSNPs=forceRedoSNPs,
@@ -578,7 +586,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       if ( 'RNA' %in% names(settings) ) RNA = settings$RNA
       allVariants = matchFlagVariants(variants, normalVariants, individuals, normals, genome,
         Rdirectory, flaggingVersion=flaggingVersion, RNA=RNA, cpus=cpus, byIndividual=byIndividual,
-        forceRedoMatchFlag=forceRedoMatchFlag)
+        rareGermline=rareGermline, forceRedoMatchFlag=forceRedoMatchFlag)
     }
   }
   variants = allVariants$variants
@@ -592,7 +600,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     load(file=saveFile)
   }
   else {
-    outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T)
+    outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T, rareGermline=rareGermline)
     variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP)
     variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
     allVariants$variants = variants
