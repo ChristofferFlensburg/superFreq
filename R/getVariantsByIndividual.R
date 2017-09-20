@@ -68,7 +68,7 @@ getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQof
     #extract variant information over the identified positions
     bamFiles = metaData[samples,]$BAM
     #variants = bamToVariants(bamFiles, positions, BQoffset, genome=genome, cpus=cpus)
-    variants = newBamToVariants(bamFiles, positions, fasta, BQoffset, genome=genome, cpus=cpus)
+    variants = newBamToVariants(bamFiles, positions, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)
     
     #variants = lapply(bamFiles, function(file) {
     #  QCsnps(pileups=importQualityScores(positions, file, BQoffset, genome=genome, cpus=cpus)[[1]],
@@ -851,7 +851,7 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
 
         catLog('Filling in missing normal variants from ', name,'.\n', sep='')
         #qNew = bamToVariants(bam, missingSNPs, BQoffset, genome=genome, cpus=cpus)[[1]]
-        qNew = newBamToVariants(bam, missingSNPs, fasta, BQoffset, genome=genome, cpus=cpus)[[1]]
+        qNew = newBamToVariants(bam, missingSNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
         #qNew =
         #  QCsnps(pileups=importQualityScores(missingSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
         #         positions=missingSNPs, cpus=cpus)
@@ -872,7 +872,7 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
 
 
       #q = bamToVariants(bam, SNPs, BQoffset, genome=genome, cpus=cpus)[[1]]
-      q = newBamToVariants(bam, SNPs, fasta, BQoffset, genome=genome, cpus=cpus)[[1]]
+      q = newBamToVariants(bam, SNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
       #q = QCsnps(pileups=importQualityScores(SNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
       #  positions=SNPs, cpus=cpus)
       q = q[apply(!is.na(q), 1, any),]
@@ -1009,7 +1009,7 @@ bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', batchSize
 
 
 
-newBamToVariants = function(bamFiles, positions, fasta, BQoffset=33, genome='hg19', batchSize=1000, cpus=1) {
+newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33, genome='hg19', batchSize=1000, cpus=1) {
   
   variants = lapply(bamFiles, function(file) {
     catLog(as.character(Sys.time()), '\n')
@@ -1035,6 +1035,15 @@ newBamToVariants = function(bamFiles, positions, fasta, BQoffset=33, genome='hg1
       ret = mergeVariantList(ret)
       ret = ret[ret$reference != ret$variant,]
       rownames(ret) = paste0(ret$x, ret$variant)
+
+      if ( class(ret) != 'data.frame' || !('x' %in% names(ret)) || any(is.na(ret$x)) ) {
+        debugFile = paste0(Rdirectory, '/debug_', basename(file), '_batch', batchI , '.mpileup.Rdata')
+        catLog("Variants from batch ", batchI, ' are corrupt. Saving corresponding mpileups and variants to ', debugFile, '.\n',
+               "Feel free to delete all debug files with\n",
+               'deleteDebugFiles(\'', normalizePath(Rdirectory) ,'\')\n', sep='')
+        debug = list('pileups'=pileups, 'ret'=ret)
+        save(debug, file=debugFile)
+      }
             
       return(ret)
     }, mc.cores=cpus, mc.preschedule=F)
@@ -1061,4 +1070,15 @@ newBamToVariants = function(bamFiles, positions, fasta, BQoffset=33, genome='hg1
   })
   
   return(variants)
+}
+
+
+
+
+deleteDebugFiles = function(Rdirectory, delete=F) {
+  debugFiles = list.files(normalizePath(Rdirectory), pattern='debug_.*\\.Rdata', full.names=T)
+  cat('Identified files for deletion:', debugFiles, sep='\n')
+  if ( !delete )
+    cat('option \'delete\' is set to false. If you want to carry out the deletion, call with \'delete\' set to TRUE.\n')
+  if ( delete ) unlink(debugFiles)
 }

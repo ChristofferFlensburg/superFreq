@@ -392,7 +392,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
                             '. Note that parent directory must exist.')
   }
 
-
+  checkSystem(vepCall)
 
   cat('Runtime tracking and QC information printed to ', logFile, '.\n', sep='')
   catLog('Starting run with input files:',
@@ -478,6 +478,14 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Normal coverage bamfiles are:\n')
   catLog(externalNormalCoverageBams, sep='\n')
 
+    externalNormalCoveragebamIndexFiles = paste0(externalNormalCoverageBams, '.bai')
+  externalNormalCoveragebamIndexFiles2 = gsub('.bam$', '.bai', externalNormalCoverageBams)
+  if ( any(!(file.exists(externalNormalCoveragebamIndexFiles) | file.exists(externalNormalCoveragebamIndexFiles2))) ) {
+    missingIndex = !(file.exists(externalNormalCoveragebamIndexFiles) | file.exists(externalNormalCoveragebamIndexFiles2))
+    catLog('Could not find bam index files for:' , externalNormalCoverageBams[missingIndex], '.\n')
+    stop('Could not find bam index files for:' , externalNormalCoverageBams[missingIndex], '\n')
+  }
+
   captureRegions = importCaptureRegions(captureRegionsFile, reference=reference, Rdirectory=Rdirectory, genome=genome)
   if ( length(captureRegions) == 0 ) {
     catLog('Empty capture regions, aborting.\n')
@@ -522,8 +530,8 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   }
   if ( 'VCF' %in% colnames(sampleMetaData) ) {
     if ( any(!file.exists(sampleMetaData$VCF)) ) {
-      catLog('Missing (or misnamed) bam files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '.\n')
-      stop('Missing (or misnamed) bam files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)])
+      catLog('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '.\n')
+      stop('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)])
     }
   }
   bamIndexFiles = paste0(bamFiles, '.bai')
@@ -1256,3 +1264,41 @@ shrug = function() return("¯\\_(ツ)_/¯")
 #' cat("*** this analysis!!", tableFlip(), '\n')
 tableFlip = function() return("(╯°□°)╯ ︵ ┻━┻")
 
+
+
+checkSystem = function(vepCall) {
+  #check that samtools is callable, and version 1+ otherwise warning
+  catLog('Testing samtools...\n')
+  a = system('samtools --version')
+  if ( a != 0 ) {
+    catLog('\nWARNING: \'samtools --version\' failed. This is likely to cause problems downstream in variant calling.\n\n')
+    warning('\'samtools --version\' failed. This is likely to cause problems downstream in variant calling.')
+  }
+  else {
+    ret = system('samtools --version', intern=T)
+    if ( !grepl('^samtools 1', ret[1]) ) {
+      catLog('\nWARNING: samtools --version did not produce expected output \'samtools 1.x.x\'. This may cause problems in variant calling.\n\n')
+      warning('samtools --version did not produce expected output \'samtools 1.x.x\'. This may cause problems in variant calling.')
+    }
+    else
+      catLog('Found', ret[1], '. Seems ok.\n')
+  }
+
+  #check that VEP is installed, otherwise warning.
+  #Not straight forward to get the version.
+  catLog('Testing VEP...\n')
+  a = system(paste0(vepCall, ' --help'))
+  if ( a != 0 ) {
+    catLog('\nWARNING: \'', vepCall, ' --help\' failed. This is likely to cause problems downstream in variant calling.\n\n')
+    warning('\'samtools --version\' failed. This is likely to cause problems downstream in variant calling.')
+  }
+  else {
+    ret = system(paste0(vepCall, ' --help'), intern=T)
+    if ( length(ret) < 2 || !grepl('ENSEMBL VARIANT EFFECT PREDICTOR', ret[2]) ) {
+      catLog(paste0('\nWARNING: \'', vepCall, ' --help\' did not produce expected output. This may cause problems in variant annotation. VEP version 89 is suggested, although there is some backwards compatibility.\n'))
+      warning('samtools --version did not produce expected output \'samtools 1.x.x\'. This may cause problems in variant calling.')
+    }
+    else
+      catLog('Found VEP. Seems ok.\n')
+  }
+}
