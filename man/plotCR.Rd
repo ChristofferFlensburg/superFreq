@@ -44,5 +44,5 @@ plotCR(cR, showClonality = T, errorBars = T, chr = "all",
 plots a copy number profile
 }
 \details{
-This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+This function plots copy number information from superFreq, either on a by-gene level or by-segment.
 }

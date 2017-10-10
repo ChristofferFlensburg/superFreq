@@ -10,12 +10,12 @@ downloadSuperFreqDbSNP = function(directory='superFreqDbSNP', genome='hg19') {
     #hg19 dbSNP
     url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/dbAFnew.Rdata')
     destFile = paste0(directory, '/', basename(url))
-    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="libcurl")
+    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
 
     #hg19 ExAC
     url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/exac.Rdata')
     destFile = paste0(directory, '/', basename(url))
-    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="libcurl")
+    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
   }
   else if ( genome == 'hg38' ) {
     if ( !dir.exists(directory) ) {
@@ -31,12 +31,12 @@ downloadSuperFreqDbSNP = function(directory='superFreqDbSNP', genome='hg19') {
     #hg38 dbSNP
     url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/hg38/dbAFnew.Rdata')
     destFile = paste0(directory, '/', basename(url))
-    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="libcurl")
+    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
 
     #hg19 ExAC
     url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/hg38/exac.Rdata')
     destFile = paste0(directory, '/', basename(url))
-    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="libcurl")
+    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
   }
   else if ( genome == 'mm10' ) {
     if ( !dir.exists(directory) ) {
@@ -52,7 +52,7 @@ downloadSuperFreqDbSNP = function(directory='superFreqDbSNP', genome='hg19') {
     #mm10 dbSNP
     url = paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/dbSNP/mm10/dbAFnew.Rdata')
     destFile = paste0(directory, '/', basename(url))
-    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="libcurl")
+    if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
   }
   else stop('Genome ', genome, ' not supported for dbSNP in superFreq, sorry.')
 }
@@ -69,7 +69,7 @@ downloadSuperFreqCOSMIC = function(directory='superFreqCOSMIC', genome='hg19') {
              c('allCosmicCounts.Rdata', 'cosmicCounts.Rdata', 'CCGD_export.csv'))
     for ( url in urls ) {
       destFile = paste0(directory, '/', basename(url))
-      if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="libcurl")
+      if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
     }
   
 }

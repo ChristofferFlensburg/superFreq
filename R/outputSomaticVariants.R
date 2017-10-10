@@ -15,7 +15,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       q = variants$variants[[sample]]
       somaticP = q$somaticP
       toReturn = which(somaticP > 0)
-      if ( !rareGermline ) toReturn = which(somaticP > 0 & !q$germline)
+      if ( !rareGermline ) toReturn = which(somaticP > 0 & (!q$germline | is.na(q$germline)))
       toReturn = toReturn[order(somaticP[toReturn], decreasing=T)]
       q = q[toReturn,]
       SNPs = variants$SNPs[variants$SNPs$x %in% q$x,]

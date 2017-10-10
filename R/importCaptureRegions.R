@@ -263,20 +263,20 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
   else {
     if ( verbose ) catLog('waiting for biomaRt/ensembl server...')
     if ( genome == 'hg19' ) {
-      mart = useMart(biomart='ensembl', dataset = 'hsapiens_gene_ensembl',
-        version='Ensembl Genes', host='grch37.ensembl.org')
+      mart = useMart(biomart='ENSEMBL_MART_ENSEMBL', dataset = 'hsapiens_gene_ensembl',
+        version='Ensembl Genes 90', host='grch37.ensembl.org')
       symbolName = 'hgnc_symbol'
       ensemblName = 'ensembl_transcript_id'
       biotype = 'gene_biotype'
     }
     else if ( genome == 'mm10' ) {
-      mart = useMart(biomart='ensembl', dataset = 'mmusculus_gene_ensembl')
+      mart = useMart(biomart='ENSEMBL_MART_ENSEMBL', dataset = 'mmusculus_gene_ensembl')
       symbolName = 'mgi_symbol'
       ensemblName = 'ensembl_transcript_id'
       biotype = 'gene_biotype'
     }
     else if ( genome == 'hg38' ) {
-      mart = useMart(biomart='ensembl', dataset = 'hsapiens_gene_ensembl')
+      mart = useMart(biomart='ENSEMBL_MART_ENSEMBL', dataset = 'hsapiens_gene_ensembl')
       symbolName = 'hgnc_symbol'
       ensemblName = 'ensembl_transcript_id'
       biotype = 'gene_biotype'
@@ -327,8 +327,8 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
 hasParalog = function(genes, genome) {
   
   if ( genome == 'hg19' )
-    mart = useMart(biomart='ensembl', dataset = 'hsapiens_gene_ensembl',
-      version='Ensembl Genes', host='grch37.ensembl.org')
+    mart = useMart(biomart='ENSEMBL_MART_ENSEMBL', dataset = 'hsapiens_gene_ensembl',
+      version='Ensembl Genes 90', host='grch37.ensembl.org')
   bm = getBM(attributes=c('hgnc_symbol', 'ensembl_transcript_id', 'gene_biotype'), filters = c('hgnc_symbol'), value=list(genes), mart=mart)
 
   ensemblGenes = unique(bm$ensembl_transcript_id)

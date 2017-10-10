@@ -21,7 +21,7 @@
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
-  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T, rareGermline=T) {
+  Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T, rareGermline=T, maxStories = 3000) {
   catLog('Setting reference bias..')
   setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
   catLog('done.\n')
@@ -50,7 +50,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       if ( any(!normals[ts]) ) {
         somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
         somatic = apply(somaticMx, 1, any)
-        catLog('Found ', sum(somatic), ' somatic SNVs to track.\n', sep='')
+        catLog('Found ', sum(somatic), ' high quality somatic SNVs to track. These are the anchors SNVs.\n', sep='')
       }
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
@@ -73,6 +73,10 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       #set clonality of SNPs from frequency and local CNV, return stories
       catLog('SNVs..\n')
       snpStories = findSNPstories(somaticQs, cnvs[ts], normals[ts], filter=T)
+      if ( nrow(snpStories) > maxStories ) {
+        catLog('restricting to ', maxStories, ' random somatic SNVs in the interest of time. Rest will be added back in after clustering.\n', sep='')
+        snpStories = snpStories[sample(1:nrow(snpStories), maxStories),]
+      }
       anchorSNVs = snpStories
       catLog('Keeping', nrow(snpStories), 'SNV stories.\n')
       
@@ -121,7 +125,7 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       if ( any(!normals[ts]) ) {
         somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.5))
         somatic = apply(somaticMx, 1, any)
-        catLog('Found ', sum(somatic), ' somatic SNVs to track.\n', sep='')
+        catLog('Found ', sum(somatic), ' somatic SNVs to track. These will be linked to the found clones.\n', sep='')
       }
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
@@ -151,7 +155,12 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       consistentClusteredStories = mergeStories(consistentClusteredStories, allStories, germlineVariants=rareGermlineNames)
 
       #redo clustering of mutations, this time using unfiltered mutations, and no consistency contstraints.
-      clusteredStories = storiesToCloneStories(allStories, minDistance=cloneDistanceCut, cpus=cpus)
+      use = rownames(allStories)
+      if ( length(use) > maxStories ) {
+        catLog('restricting to ', maxStories, ' random mutations in dodgy clustering the interest of time.\n', sep='')
+        use = use[c(1,sample(2:length(use), maxStories))]
+      }
+      clusteredStories = storiesToCloneStories(allStories[use,], minDistance=cloneDistanceCut, cpus=cpus)
       germlineCluster = which(apply(clusteredStories$cloneStories$stories + 1e-3 > 1, 1, all) &
         apply(clusteredStories$cloneStories$errors-1e-5 < 0, 1, all))
       rownames(clusteredStories$cloneStories)[germlineCluster] = clusteredStories$cloneStories$call[germlineCluster] = 'germline'
@@ -753,8 +762,8 @@ storiesToCloneStories = function(stories, storyList='',
   }
 
   clusters = summariseClusters()
-
   names(storyList) = rownames(clusters)
+  
   return(list('cloneStories'=clusters, 'storyList'=storyList))
 }
 

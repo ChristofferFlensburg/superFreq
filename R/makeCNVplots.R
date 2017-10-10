@@ -102,7 +102,7 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 #' @param plotCall logical. If the copy number call should be added to the bottom of the SNP panel. Default TRUE.
 #' @param ...  remaining arguments are passed to base plot(...) if add=F, otherwise ignored. 
 #'
-#' @details This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+#' @details This function plots copy number information from superFreq, either on a by-gene level or by-segment.
 #'
 #'
 #' @export
@@ -280,10 +280,12 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
 }
 
 #helper function that adds vertical chromsome lines to a plot on the genomic x coordinate.
-addChromosomeLines = function(ylim = c(0, 1), col = 'red', cex=1, genome='hg19',...) {
-  lim = c(0, cumsum(chrLengths(genome=genome)))
+addChromosomeLines = function(ylim = c(0, 1), col = 'red', cex=1, genome='hg19', onlyNumbers=F, ...) {
+  chrL = chrLengths(genome=genome)
+  if ( onlyNumbers ) chrL = chrL[grepl('[0-9]', names(chrL))]
+  lim = c(0, cumsum(chrL))
   segments(lim, ylim[1], lim, ylim[2], col=col, cex=cex, ...)
-  text((lim[-1] + lim[-length(lim)])/2, ylim[2], names(chrLengths(genome=genome)), col=col, cex=cex)
+  text((lim[-1] + lim[-length(lim)])/2, ylim[2], names(chrL), col=col, cex=cex)
 }
 
 #Helper function that returns a colour (or line type) depending on the provided index. Cyclic.

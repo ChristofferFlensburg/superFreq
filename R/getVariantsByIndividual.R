@@ -75,7 +75,7 @@ getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQof
     #         positions=positions, cpus=cpus)
     #})
     names(variants) = samples
-    variants = lapply(variants, function(q) q[apply(!is.na(q), 1, any),])
+    variants = lapply(variants, function(q) q[!apply(is.na(q), 1, any),])
     variants = shareVariants(variants)
     catLog('saving variants to ', variantsSaveFile, '...')
     save(variants, file=variantsSaveFile)
@@ -1066,6 +1066,12 @@ newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33,
     catLog('Single variant read flags:', length(grep('Svr', ret$flag)), '\n')
     catLog('Minor variant flags:', length(grep('Mv', ret$flag)), '\n')
     catLog('Stutter flags:', length(grep('St', ret$flag)), '\n')
+    if ( any(is.na(ret$x)) ) {
+      catLog('\nWARNING: Found ', sum(is.na(ret$x)), ' NA variants. This will likely be a problem downstreams, but trying to continue.\n',
+'If no other relevant warnings, then out of memory may be the cause. If so, try increasing available memory or decrease cpus.\n\n', sep='')
+      warning('WARNING: Found ', sum(is.na(ret$x)), ' NA variants. This will likely be a problem downstreams, but trying to continue.\n',
+'If no other relevant warnings, then out of memory may be the cause. If so, try increasing available memory or decrease cpus.')
+    }
     return(ret)
   })
   

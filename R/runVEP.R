@@ -8,7 +8,7 @@
 #' @param forceRedoVEP Logical: if VEP should be rerun even if saved data already exists.
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
-runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', forceRedoVEP=F) {
+runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', forceRedoVEP=F, rareGermline=T) {
   catLog('VEP-ing..')
   dir = paste0(plotDir, '/somatics/')
   for ( name in names(variants$variants) ) {
@@ -18,8 +18,12 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
       wd = getwd()
       catLog('Moving to ', dir, '\n')
       setwd(dir)
-      catLog(name, ': ', sum(variants$variants[[name]]$somaticP > 0 & !is.na(variants$variants[[name]]$somaticP)), ' variants.\n', sep='')
-      if ( sum(variants$variants[[name]]$somaticP > 0 & !is.na(variants$variants[[name]]$somaticP)) == 0 ) {
+      q = variants$variants[[name]]
+      nVariants = sum(q$somaticP > 0 & !is.na(q$somaticP))
+      if ( !rareGermline )
+        nVariants = sum(q$somaticP > 0 & (!q$germline | is.na(q$germline)) & !is.na(q$somaticP))
+      catLog(name, ': ', nVariants, ' variants.\n', sep='')
+      if ( nVariants == 0 ) {
         catLog('Moving back to ', wd, '\n')
         setwd(wd)
         next
