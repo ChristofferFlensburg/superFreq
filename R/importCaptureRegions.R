@@ -322,22 +322,3 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
 
   return(bm)
 }
-
-
-hasParalog = function(genes, genome) {
-  
-  if ( genome == 'hg19' )
-    mart = useMart(biomart='ENSEMBL_MART_ENSEMBL', dataset = 'hsapiens_gene_ensembl',
-      version='Ensembl Genes 90', host='grch37.ensembl.org')
-  bm = getBM(attributes=c('hgnc_symbol', 'ensembl_transcript_id', 'gene_biotype'), filters = c('hgnc_symbol'), value=list(genes), mart=mart)
-
-  ensemblGenes = unique(bm$ensembl_transcript_id)
-  paralogs = getBM(attributes=c('hsapiens_paralog_ensembl_gene', 'ensembl_transcript_id', 'hsapiens_paralog_paralogy_confidence'), filters = c('ensembl_transcript_id'), value=list(ensemblGenes), mart=mart)
-
-  paralogs = paralogs[paralogs$hsapiens_paralog_ensembl_gene != '',]
-  ensemblHasParalog = ensemblGenes %in% paralogs$ensembl_transcript_id
-  ensemblWithParalog = ensemblGenes[ensemblHasParalog]
-    
-  bmWithParalog = bm[bm$ensembl_transcript_id %in% ensemblWithParalog,]
-  hasParalog = genes %in% bmWithParalog$hgnc_symbol
-}
