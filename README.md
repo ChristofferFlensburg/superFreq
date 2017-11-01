@@ -118,4 +118,5 @@ Plots (some shown here), tables, and R objects for downstream analysis. Analysis
 #dependencies
 - R.
 - a bunch of R packages.
-- VEP version 76 or later.
+- VEP (latest version recommended, but may work down to version 76.)
+- samtools 1.x
