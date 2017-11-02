@@ -88,6 +88,12 @@ The most convenient way to set this up is to create a runSuperFreq.R fie with th
 Rscript runSuperFreq.R
 ```
 
+Currently in development (please help if you can!), you can generate a .html to explore the data by adding this line after the superFreq() call. Currently no more than a draft.
+
+``` R
+printHTML(metaDataFile=metaDataFile, outputFile=paste0(plotDirectory, '/superFreq.html'))
+```
+
 
 More information is in the manual. 
 
