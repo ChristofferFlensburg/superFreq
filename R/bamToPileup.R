@@ -21,6 +21,14 @@ bamToPileup = function(bam, fasta, positions, index, BQoffset=33) {
   #remove pos file.
   unlink(posFile)
 
+  #check for overflow: lines that don't have the 7 tabs expected
+  tabs = sapply(mpileups, function(mp) nchar(mp) - nchar(gsub('\t', '', mp)))
+  if ( any(tabs != 7) ) {
+    warning('Some positions dont have expected form of the mpileup, removing these. Could be due to very high (~1000+) read depth, or some samtools issues.')
+    catLog('\nWARNING: Some positions dont have expected form of the mpileup, removing these. Could be due to very high (~1000+) read depth, or some samtools issues.\n\n')
+    mpileups = mpileups[tabs == 7]
+  }
+
   #match positions, and create empty pileups if missing.
   coords = sapply(mpileups, function(mpileup) {
     parts = strsplit(mpileup, split='\t')[[1]]
