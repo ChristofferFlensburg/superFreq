@@ -342,7 +342,8 @@ makeCloneScatterPlots = function(variants, stories, samplePairs, individuals, ti
     dir1 = paste0(scatterDirectory, '/', pair[1])
     if ( !file.exists(dir1) ) dir.create(dir1)
     dir2 = paste0(dir1, '/', pair[2])
-    if ( !file.exists(dir2) | forceRedo ) {
+    outfile = paste0(dir2, '/clones.png')
+    if ( !file.exists(outfile) | forceRedo ) {
       if ( !file.exists(dir2) ) dir.create(dir2)
       boring = variants$variants[[pair[1]]]$var == 0 & variants$variants[[pair[2]]]$var == 0
       q1 = variants$variants[[pair[1]]][!boring,]
@@ -374,7 +375,6 @@ makeCloneScatterPlots = function(variants, stories, samplePairs, individuals, ti
         col[rownames(q1) %in% storyCluster$storyList[[clone]]] = cloneCols[clone]
       }
       
-      outfile = paste0(dir2, '/clones.png')
       catLog('Plotting clone scatter to', outfile, '\n')
       png(outfile, width = 10, height=10, res=300, units='in')
       qualityScatter(q1, q2, verbose=F, forceCol=col,

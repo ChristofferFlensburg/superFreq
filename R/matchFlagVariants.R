@@ -433,12 +433,14 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
         qn$cov = rowSums(do.call(cbind, lapply(variants$variants[matchedNormals], function(q) q$cov[use])))
         qn$ref = rowSums(do.call(cbind, lapply(variants$variants[matchedNormals], function(q) q$ref[use])))
       }
-      
-      referenceNormal = qn$var <= pmax(0.02*qn$cov, 0.5*sqrt(qn$cov))
-      referenceNormalFactor = 1-pmin(1, noneg(qn$var/pmax(1, 0.02*qn$cov, 0.5*sqrt(qn$cov)) - 1))
+
+      #first rough filter on too high VAF in matched normal.
+      #this is to not have the impact of MHC depend too much on number of germline non-reference positions.
+      referenceNormal = qn$var <= pmax(0.1*qn$cov, 0.5*sqrt(qn$cov))
+      referenceNormalFactor = 1-pmin(1, noneg(qn$var/pmax(1, 0.1*qn$cov, 0.5*sqrt(qn$cov)) - 1))
       pNormalHet = pBinom(qn$cov[referenceNormal], qn$var[referenceNormal], 0.3)
       fdrNormalHet = p.adjust(pNormalHet, method='fdr')
-      referenceNormal[referenceNormal] = fdrNormalHet < 0.05
+      referenceNormal[referenceNormal] = pNormalHet < 0.05
       #check that there is a significant difference in the somatic vs matched normal if anything is seen in the normal
       psameF = unlist(mclapply(which(referenceNormal), function(i)
         fisher.test(matrix(c(q$ref[i], q$var[i], qn$ref[i], qn$var[i]), nrow=2))$p.value,

@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.23')
+superVersion = function() return('0.9.24')
 
 
 #' Wrapper to run default superFreq analysis
@@ -652,6 +652,10 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #Make the scatter plots of the pairs
   scatter = makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
     genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
+  #also the version coloured by clone
+  makeCloneScatterPlots(variants, stories, samplePairs, individuals, timePoints,
+                        plotDirectory, genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
+
 
   catLog('\nDone! :)\n\n')
   
