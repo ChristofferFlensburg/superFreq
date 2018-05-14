@@ -5,7 +5,6 @@
 #' Combines variants and CNAs to clonal evolution
 #'
 #' @param variants variants: The variants.
-#' @param normalVariants variants: The normal variants.
 #' @param cnvs cnvs: The copy number calls.
 #' @param timeSeries names list of vectors: samples to be analysed together, named by individual.
 #' @param normals named boolean vector: which sameples (names of vector) are normal.
@@ -20,11 +19,8 @@
 #' @importFrom spam norm
 #'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
-getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
+getStories = function(variants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
   Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T, rareGermline=T, maxStories = 3000) {
-  catLog('Setting reference bias..')
-  setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
-  catLog('done.\n')
   stories = list()
   saveFile = paste0(Rdirectory, '/stories.Rdata')
   if ( file.exists(saveFile) & !forceRedo ) {
@@ -208,14 +204,16 @@ getStories = function(variants, normalVariants, cnvs, timeSeries, normals, genom
       }
     }
   }
-  allVariants = list('variants'=variants, 'normalVariants'=normalVariants)
+  catLog('saving variants back to file...')
   allVariantSaveFile = paste0(Rdirectory, '/allVariants.Rdata')
+  load(allVariantSaveFile)
+  allVariants$variants = variants
   save('allVariants', file=allVariantSaveFile)
   catLog('done!\n')
 
 
   #return clustered and raw stories
-  stories = list('stories'=stories, 'variants'=variants, 'normalVariants'=normalVariants)
+  stories = list('stories'=stories, 'variants'=variants, 'normalVariants'=allVariants$normalVariants)
   catLog('Saving stories..')
   save('stories', file=saveFile)
   catLog('done!\n\n\n')

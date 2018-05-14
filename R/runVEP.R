@@ -59,7 +59,10 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
       catLog(call, '\n')
       call = paste0(call, '\n')
       systemRet = system(call, intern=T)
-      if ( !any(grepl('Finished', systemRet)) ) warning('VEP run didnt finish!')
+      
+      #not sure if the current VEP version use the word "Finished", so removing this warning.
+      #if ( !any(grepl('Finished', systemRet)) ) warning('VEP run didnt finish cleanly!')
+      
       catLog('Moving back to ', wd, '\n')
       setwd(wd)
     }
@@ -278,7 +281,7 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
   else if ( class(inputFiles) == 'list' )
     sampleMetaData = importSampleMetaData(inputFiles$metaDataFile)
   else
-    error('Neither inputFiles nor metaData was defined.')
+    stop('Neither inputFiles nor metaData was defined.')
   normals = as.logical(gsub('YES', 'T', gsub('NO', 'F', sampleMetaData$NORMAL)))
   names = make.names(sampleMetaData$NAME, unique=T)
   names(normals) = names

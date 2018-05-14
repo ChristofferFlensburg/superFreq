@@ -71,7 +71,7 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
           pdf(filename, width=20, height=10)
         else
           png(filename, width=20, height=10, res=300, units='in')
-        plotCR(cnvs[[name]]$clusters, errorBars=F, genome=genome, chr=chr, alpha=0)
+        plotCR(cnvs[[name]]$CR, errorBars=F, genome=genome, chr=chr, alpha=0)
         plotCR(cnvs[[name]]$CR, errorBars=F, genome=genome, chr=chr, alpha=0.3, add=T)
         plotCR(cnvs[[name]]$clusters, errorBars=T, genome=genome, chr=chr, add=T)
         dev.off()

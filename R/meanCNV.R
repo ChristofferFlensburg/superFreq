@@ -73,7 +73,7 @@ getMeanCNV = function(metaData, samples, variants, genome=genome, clonalityCut=0
   cnvs = getCNV(metaData, samples)
     
   #fits = getFit(metaData, samples)
-  sex = ifelse(sapply(1:length(cnvs), function(i) mean(cnvs[[i]]$clusters[xToChr(cnvs[[i]]$clusters$x1, genome)=='X',]$M)-mean(cnvs[[i]]$clusters[xToChr(cnvs[[i]]$clusters$x1, genome)=='Y',]$M)) > 3, 'male', 'female')
+  sex = ifelse(sapply(1:length(cnvs), function(i) mean(cnvs[[i]]$clusters[xToChr(cnvs[[i]]$clusters$x1, genome)=='X',]$M)-mean(cnvs[[i]]$clusters[xToChr(cnvs[[i]]$clusters$x1, genome)=='Y',]$M)) > 3, 'female', 'male')
   if ( any(is.na(sex)) ) sex[is.na(sex)] = 'female'
   names(sex) = names(cnvs)
     

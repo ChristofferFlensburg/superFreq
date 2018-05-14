@@ -73,6 +73,8 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
     output = addAnnotationToOutput(output, patVar, genome=genome)
     WriteXLS('output', excelFile)
+    tsvFile = paste0(riverDirectory, ts, '-river.tsv')
+    write.table(output, file=tsvFile, sep='\t', quote=F, row.names=F)
 
     if ( length(stories[[ts]]$clusters$storyList) > length(stories[[ts]]$consistentClusters$storyList) ) {
       removed = !(names(stories[[ts]]$clusters$storyList) %in% names(stories[[ts]]$consistentClusters$storyList))

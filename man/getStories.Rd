@@ -4,15 +4,13 @@
 \alias{getStories}
 \title{Combines variants and CNAs to clonal evolution}
 \usage{
-getStories(variants, normalVariants, cnvs, timeSeries, normals, genome,
+getStories(variants, cnvs, timeSeries, normals, genome,
   cloneDistanceCut = -qnorm(0.01), Rdirectory, plotDirectory, cpus = 1,
   forceRedo = F, manualStoryMerge = F, correctReferenceBias = T,
   rareGermline = T, maxStories = 3000)
 }
 \arguments{
 \item{variants}{variants: The variants.}
-
-\item{normalVariants}{variants: The normal variants.}
 
 \item{cnvs}{cnvs: The copy number calls.}
 

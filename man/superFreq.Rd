@@ -4,14 +4,15 @@
 \alias{superFreq}
 \title{Wrapper to run default superFreq analysis}
 \usage{
-superFreq(metaDataFile, captureRegions, normalDirectory, Rdirectory,
+superFreq(metaDataFile, captureRegions = "", normalDirectory, Rdirectory,
   plotDirectory, reference, genome = "hg19", BQoffset = 33, cpus = 3,
   outputToTerminalAsWell = T, forceRedo = forceRedoNothing(),
   normalCoverageDirectory = "", systematicVariance = 0.02, maxCov = 150,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
   cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
   participants = "all", manualStoryMerge = F, vepCall = "vep",
-  correctReferenceBias = T, filterOffTarget = T, rareGermline = T)
+  correctReferenceBias = T, filterOffTarget = T, rareGermline = T,
+  exacPopulation = "all")
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -150,6 +151,12 @@ important information about the sample, but due to ethics this is not always des
 This options allows a user to run superFreq while avoiding germline information. The user
 should keep in mind that superFreq, like most open source software, comes with no warranty and
 there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples frmo germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.}
+
+\item{exacPopulation}{character. Which population to use for the exac data. This influences annotation, selection of
+heterozygous SNPs for variant calling and, in case of no matched normal, identification of
+somatic variants. Default 'all' uses the total allele frequency across all of (non-TCGA) ExAC.
+Other available options are 'AFR' (Africa), 'AMR' (America), 'EAS' (East Asia),
+'FIN' (Finland), 'NFE' (Non-Finland Europe), 'OTH' (Other) and 'SAS' (South Asia).}
 }
 \description{
 Wrapper to run default superFreq analysis

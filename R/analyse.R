@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.24')
+superVersion = function() return('0.9.25')
 
 
 #' Wrapper to run default superFreq analysis
@@ -126,6 +126,11 @@ superVersion = function() return('0.9.24')
 #'                        This options allows a user to run superFreq while avoiding germline information. The user
 #'                        should keep in mind that superFreq, like most open source software, comes with no warranty and
 #'                        there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples frmo germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.
+#' @param exacPopulation character. Which population to use for the exac data. This influences annotation, selection of
+#'                        heterozygous SNPs for variant calling and, in case of no matched normal, identification of
+#'                        somatic variants. Default 'all' uses the total allele frequency across all of (non-TCGA) ExAC.
+#'                        Other available options are 'AFR' (Africa), 'AMR' (America), 'EAS' (East Asia),
+#'                        'FIN' (Finland), 'NFE' (Non-Finland Europe), 'OTH' (Other) and 'SAS' (South Asia).
 #'
 #' @details This function runs a full SNV, CNV and clonality analysis of the input exome data. Output it sent to the plotDirectory, where diagnostics as well as analysis results are placed. At 12 cpus, the pipeline typically runs overnight on an individual with not too many samples. Large numbers of samples or somatic mutations can increase runtime further. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf about how to set up the run and interpret the output.
 #'          
@@ -146,10 +151,10 @@ superVersion = function() return('0.9.24')
 #' data = superFreq(metaDataFile, captureRegions, normalDirectory,
 #'                  Rdirectory, plotDirectory, reference)
 #' }
-superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, plotDirectory, reference,
+superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
   systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
-  filterOffTarget=T, rareGermline=T) {
+  filterOffTarget=T, rareGermline=T, exacPopulation='all') {
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -184,7 +189,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
                 correctReferenceBias=correctReferenceBias, vepCall=vepCall,
-                filterOffTarget=filterOffTarget, rareGermline=rareGermline)
+                filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -201,7 +206,7 @@ superFreq = function(metaDataFile, captureRegions, normalDirectory, Rdirectory, 
   outputDirectories = superOutputDirectories(Rdirectory=Rdirectory, plotDirectory=plotDirectory)
   #sanityCheckSuperOutputDirectories(outputDirectories)
 
-  settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset, vepCall=vepCall)
+  settings = defaultSuperSettings(genome=genome, BQoffset=BQoffset, vepCall=vepCall, exacPopulation=exacPopulation)
   if ( mode == 'genome' ) settings$MAcorrection = F
   if ( mode == 'RNA' ) settings$RNA = T
 
@@ -337,6 +342,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   cpus = runtimeSettings$cpus
   
   genome = settings$genome
+  exacPopulation = settings$exacPopulation
   vepCall = settings$vepCall
   sampleMetaDataFile = inputFiles$metaDataFile
   vcfFiles = inputFiles$vcfFiles
@@ -406,6 +412,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Plotting to', plotDirectory, '\n')
   catLog('Saving R files to', Rdirectory, '\n')
   catLog('Genome is', genome, '\n')
+  catLog('exacPopulation is', exacPopulation, '\n')
   catLog('Running on at most', cpus, 'cpus.\n')
 
 
@@ -486,6 +493,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     stop('Could not find bam index files for:' , externalNormalCoverageBams[missingIndex], '\n')
   }
 
+  if ( captureRegionsFile == '' ) captureRegionsFile = downloadCaptureRegions(directory=Rdirectory, genome=genome, mode=mode)
   captureRegions = importCaptureRegions(captureRegionsFile, reference=reference, Rdirectory=Rdirectory, genome=genome)
   if ( length(captureRegions) == 0 ) {
     catLog('Empty capture regions, aborting.\n')
@@ -575,7 +583,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       #The information about normals is used for QC, as there will be only true frequencies of 0, 0.5 and 1 in those samples.
       if ( byIndividual )
         variants = getVariantsByIndividual(sampleMetaData, captureRegions, fasta=reference, genome, BQoffset, dbSNPdirectory,
-          Rdirectory, plotDirectory, cpus=cpus, forceRedo=forceRedoVariants, filterOffTarget=filterOffTarget)
+          Rdirectory, plotDirectory, cpus=cpus, exacPopulation=exacPopulation, forceRedo=forceRedoVariants, filterOffTarget=filterOffTarget)
       else
         variants = getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, forceRedoSNPs=forceRedoSNPs,
@@ -585,7 +593,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       normalVariants =
         getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions, fasta=reference,
                         genome, BQoffset, dbSNPdirectory, normalRdirectory, Rdirectory, plotDirectory, cpus=cpus,
-                        forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants)
+                        exacPopulation=exacPopulation, forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants)
       
       #share variants with normals
       flaggingVersion = 'new'
@@ -600,6 +608,9 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   variants = allVariants$variants
   normalVariants = allVariants$normalVariants
   setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
+  rm(normalVariants)
+  rm(allVariants)
+  gc()
 
   #run VEP
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
@@ -611,14 +622,17 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T, rareGermline=rareGermline)
     variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP)
     variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
+    load(file=paste0(Rdirectory, '/allVariantsPreVEP.Rdata'))
     allVariants$variants = variants
     save(allVariants, file=saveFile)
+    rm(allVariants)
+    gc()
   }
 
 
   #call CNVs compared to the normals.
   cnvs =
-    callCNVs(variants=variants, normalVariants=normalVariants, fitS=fit$fit, variants$SNPs,
+    callCNVs(variants=variants, fitS=fit$fit, variants$SNPs,
                  names=names, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
                  genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias)
 
@@ -627,12 +641,14 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   cnvplot = makeCNVplots(cnvs, plotDirectory=plotDirectory, genome, forceRedoCNVplots=forceRedoCNVplots)
 
   #combine SNPs and CNVs into stories of subclones.
-  stories = getStories(variants=variants, normalVariants=normalVariants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
+  stories = getStories(variants=variants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
     plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge,
     correctReferenceBias=correctReferenceBias)
   variants = stories$variants
   normalVariants = stories$normalVariants
   stories = stories$stories
+  rm(normalVariants)
+  gc()
 
   #do multi-sample heatmaps and frequency progression
   progression = makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression, genome=genome)
@@ -656,10 +672,12 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   makeCloneScatterPlots(variants, stories, samplePairs, individuals, timePoints,
                         plotDirectory, genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
 
-
+  #output smore data
+  outputData(cnvs, stories, plotDirectory, genome=genome)
+      
   catLog('\nDone! :)\n\n')
   
-  return(list('fit'=fit, 'variants'=variants, 'normalVariants'=normalVariants, 'cnvs'=cnvs, 'stories'=stories))
+  return(list('fit'=fit, 'variants'=variants, 'cnvs'=cnvs, 'stories'=stories))
 }
 
 #' Loads saved data
@@ -997,10 +1015,7 @@ explainSuperReference = function() {
 superInputFiles = function(metaDataFile='', captureRegions='', normalDirectory='', dbSNPdirectory='', reference='', normalCoverageDirectory='') {
   if ( metaDataFile == '' )
     explainSuperMetaData()
-  
-  if ( captureRegions == '' )
-    explainSuperCaptureRegions()
-  
+    
   if ( normalDirectory == '' )
     explainSuperNormalDirectory()
   
@@ -1015,10 +1030,10 @@ superInputFiles = function(metaDataFile='', captureRegions='', normalDirectory='
 
   ret = list('metaDataFile'=normalizePath(metaDataFile), 'normalDirectory'=normalizePath(normalDirectory),
           'normalCoverageDirectory'=normalizePath(normalCoverageDirectory), 'reference'=normalizePath(reference),
-          'captureRegionsFile'=normalizePath(captureRegions), 'dbSNPdirectory'=dbSNPdirectory)
+          'captureRegionsFile'=captureRegions, 'dbSNPdirectory'=dbSNPdirectory)
 
-  if ( any(ret=='') ) {
-    error('There are required input files not provided.\n')
+  if ( any(ret[names(ret) != 'captureRegionsFile'] == '') ) {
+    catLog('There are required input files not provided.\n')
     return()
   }
 
@@ -1069,7 +1084,7 @@ requireFileExists = function(file) {
 #' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperSettings()
-defaultSuperSettings = function(genome='', BQoffset='', vepCall='') {
+defaultSuperSettings = function(genome='', BQoffset='', vepCall='', exacPopulation='') {
   if ( genome == '' ) {
     cat('Defaulting genome to hg19.\n')
     genome = 'hg19'
@@ -1082,8 +1097,12 @@ defaultSuperSettings = function(genome='', BQoffset='', vepCall='') {
     cat('Defaulting vepCall to vep.\n')
     vepCall = 'vep'
   }
+  if ( exacPopulation == '' ) {
+    cat('Defaulting exacPopulation to all.\n')
+    exacPopulation = 'all'
+  }
 
-  return(list(genome=genome, BQoffset=BQoffset, vepCall=vepCall))
+  return(list(genome=genome, BQoffset=BQoffset, vepCall=vepCall, exacPopulation=exacPopulation))
 }
 
 

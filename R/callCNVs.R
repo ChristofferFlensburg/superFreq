@@ -7,7 +7,7 @@
 #It then calls the CN of each clustered region, as well as clonality, uncertainty estimate and p-value
 #for normal CN.
 #returns a list of data frames with each region of the genome on a row.
-callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T) {
+callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T) {
   clustersSaveFile = paste0(Rdirectory, '/clusters.Rdata')
   if ( file.exists(clustersSaveFile) & !forceRedoCNV ) {
     catLog('Loading saved CNV results.\n')
@@ -30,7 +30,6 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
       catLog('Using', correspondingNormal[name], 'as matched normal.\n')
       return(callCancerNormalCNVs(cancerVariants=variants$variants[[name]],
                                   normalVariants=variants$variants[[correspondingNormal[name]]],
-                                  moreNormalVariants=normalVariants$variants,
                                   fit = subsetFit(fitS, cols=paste0(name, '-normal')),
                                   plotDirectory, name, individuals, SNPs,
                                   genome=genome, cpus=cpus,
@@ -39,7 +38,6 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
     else
       return(callCancerNormalCNVs(cancerVariants=variants$variants[[name]],
                                   normalVariants=FALSE,
-                                  moreNormalVariants=normalVariants$variants,
                                   fit = subsetFit(fitS, cols=paste0(name, '-normal')),
                                   plotDirectory, name, individuals, SNPs,
                                   genome=genome, cpus=cpus,
@@ -53,15 +51,13 @@ callCNVs = function(variants, normalVariants, fitS, SNPs, names, individuals, no
 
 
 #the high level function that controls the steps of the CNV calling for given sample and normal variant objects.
-callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T) {
-  #estimate reference bias and variance from the selected normal hets.
-  setVariantLoss(moreNormalVariants, correctReferenceBias=correctReferenceBias)
+callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T) {
 
   #select good germline het variants from normals:
   if ( class(normalVariants) == 'logical')
-    use = selectGermlineHetsFromCancer(cancerVariants, moreNormalVariants, fit$sex, SNPs, genome, cpus=cpus)
+    use = selectGermlineHetsFromCancer(cancerVariants, fit$sex, SNPs, genome, cpus=cpus)
   else
-    use = selectGermlineHets(normalVariants, moreNormalVariants, fit$sex, SNPs, genome, cpus=cpus)
+    use = selectGermlineHets(normalVariants, fit$sex, SNPs, genome, cpus=cpus)
   is = rownames(cancerVariants) %in% use
   cancerVariants = cancerVariants[is,]
   
@@ -74,6 +70,7 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVarian
   effectiveVar = round(cancerVariants$var/cancerVariants$cov*effectiveCov)
   effectiveFreqs = data.frame(var=mirrorDown(effectiveVar, cov=effectiveCov),
     cov=effectiveCov, x=cancerVariants$x)
+  effectiveFreqs = effectiveFreqs[effectiveFreqs$cov > 0,]
   cancerCR = unifyCaptureRegions(effectiveFreqs, fit, cpus=cpus)
   catLog('done!\n')
 
@@ -117,7 +114,7 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, moreNormalVarian
 
 
 #helper function that selects germline het SNPs in the presence of a normal sample from the same individual.
-selectGermlineHets = function(normalVariants, moreNormalVariants, sex, SNPs, genome, minCoverage = 10, cpus=1) {
+selectGermlineHets = function(normalVariants, sex, SNPs, genome, minCoverage = 10, cpus=1) {
   #only bother with variants that have enough coverage so that we can actually see a change in frequency
   catLog('Taking variants with minimum coverage of', minCoverage, '...')
   decentCoverage = normalVariants$cov >= minCoverage
@@ -195,7 +192,7 @@ selectGermlineHets = function(normalVariants, moreNormalVariants, sex, SNPs, gen
 }
 
 #helper function that selects germline het SNPs in the absence of a normal sample from the same individual.
-selectGermlineHetsFromCancer = function(cancerVariants, moreNormalVariants, sex, SNPs, genome, minCoverage = 10, cpus=1) {
+selectGermlineHetsFromCancer = function(cancerVariants, sex, SNPs, genome, minCoverage = 10, cpus=1) {
   #only bother with variants that have enough coverage so that we can actually see a change in frequency
   catLog('Taking variants with minimum coverage of', minCoverage, '...')
   decentCoverage = cancerVariants$cov >= minCoverage
@@ -350,7 +347,13 @@ mergeChromosomes = function(cR, eFreqs, genome='hg19', cpus=1, ...) {
       ret = mergeRegions(ret, ...)
     }
     return(ret)
-  }, mc.cores=cpus)
+  }, mc.cores=cpus, mc.preschedule=F)
+  
+  #catch one of the more common places for out-of-memory spots.
+  if ( !all(sapply(clusters, class) == 'data.frame') ) {
+      catLog('\nERROR: Seems like some of the chromosome forks failed segmentation. This may (or may not) be caused by out-of-memory. Out-of-memory can be mitigated by decreasing cpus and rerunning.\n\n')
+      stop('Seems like some of the chromosome forks failed segmentation. This may (or may not) be caused by out-of-memory. Out-of-memory can be mitigated by decreasing cpus and rerunning.')
+  }
   
   clusters = do.call(rbind, clusters)
   catLog('done!\n')

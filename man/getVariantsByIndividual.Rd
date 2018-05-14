@@ -5,8 +5,8 @@
 \title{Quality controls the variants in the vcfs, using the bams.}
 \usage{
 getVariantsByIndividual(metaData, captureRegions, fasta, genome, BQoffset,
-  dbDir, Rdirectory, plotDirectory, cpus, forceRedo = F,
-  filterOffTarget = T)
+  dbDir, Rdirectory, plotDirectory, cpus, exacPopulation = "all",
+  forceRedo = F, filterOffTarget = T)
 }
 \description{
 Quality controls the variants in the vcfs, using the bams.

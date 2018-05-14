@@ -10,7 +10,8 @@
 #' @importFrom biomaRt useMart getBM
 #' @importFrom Rsamtools scanBamHeader ScanBamParam scanBamFlag scanBam
 #' @importFrom R.oo charToInt
-getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, forceRedo=F, filterOffTarget=T) {
+#' @importFrom flock lock unlock
+getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, exacPopulation='all', forceRedo=F, filterOffTarget=T) {
   catLog('Using variants by individual.\n')
   saveFile = paste0(Rdirectory, '/variantsBI.Rdata')
   if ( file.exists(saveFile) & !forceRedo ) {
@@ -67,13 +68,8 @@ getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQof
 
     #extract variant information over the identified positions
     bamFiles = metaData[samples,]$BAM
-    #variants = bamToVariants(bamFiles, positions, BQoffset, genome=genome, cpus=cpus)
     variants = newBamToVariants(bamFiles, positions, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)
     
-    #variants = lapply(bamFiles, function(file) {
-    #  QCsnps(pileups=importQualityScores(positions, file, BQoffset, genome=genome, cpus=cpus)[[1]],
-    #         positions=positions, cpus=cpus)
-    #})
     names(variants) = samples
     variants = lapply(variants, function(q) q[!apply(is.na(q), 1, any),])
     variants = shareVariants(variants)
@@ -87,7 +83,7 @@ getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQof
   #check db SNP for called variants.
   variantsBI = lapply(variantsBI, function(q) q[!is.na(q$x),])
   variantsBI = matchTodbSNPs(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
-  variantsBI = matchToExac(variantsBI, dir=dbDir, genome=genome, cpus=cpus)
+  variantsBI = matchToExac(variantsBI, dir=dbDir, genome=genome, exacPopulation=exacPopulation, cpus=cpus)
   variantsBI = lapply(variantsBI, function(q) q[order(q$x, q$variant),])
     
 
@@ -294,7 +290,7 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
 
 
 #hepler function that marks the variants in a SNPs object as db or non db SNPs.
-matchToExac = function(variants, dir, genome='hg19', cpus=1) {
+matchToExac = function(variants, dir, genome='hg19', exacPopulation='all', cpus=1) {
   if ( !(genome %in% c('hg19', 'hg38')) ) return(variants)
   if ( genome == 'hg38' ) dir = paste0(dir, '/hg38')
 
@@ -317,9 +313,28 @@ matchToExac = function(variants, dir, genome='hg19', cpus=1) {
   exac = exac[relevantEXAC,]
   exacNames = rownames(exac)
 
+  #detect ethnicity and include specific population frequency as well.
+  #what about privacy here? Should this be in the log file? Done quietly, not displayed?
+  #shouldnt be done at all? Leaving out for now.
+  #using highest AF of global AF and population AF seems suitably conservative
+  populations = c('AFR', 'AMR', 'EAS', 'FIN', 'NFE', 'OTH', 'SAS')
+  if ( FALSE & all(populations %in% names(exac)) ) {
+      vars = unique(unlist(lapply(variants, function(q) rownames(q)[q$flag == '' & q$var > 0.25*q$cov])))
+      vars = vars[vars %in% rownames(exac)]
+      subexac = exac[rownames(exac) %in% vars,][vars,]
+      popSums = sapply(populations, function(pop) sum(subexac[[pop]]))
+      thisPop = populations[which(popSums == max(popSums))[1]]
+  }
+
+  popCol = 'alleleFrequency'
+  if ( exacPopulation %in% populations ) popCol = exacPopulation
+  else if ( exacPopulation != 'all' ) warning('Do not know about supplied exacPopulation ', exacPopulation, '. Defaulting to \'all\'. Other available choices are ', paste0('\'', populations, '\', '))
+
+  if ( !(popCol %in% names(exac)) ) stop('The exac population \'', popCol, '\' wasnt found in the exac data. If you expected it to be present, you might have an outdated exac data file. If so, try deleting or renaming ', RsaveFile, ' and rerun: the latest version will be downloaded.')
+
   variants = lapply(variants, function(q) {
     q$exac = rownames(q) %in% exacNames
-    q$exacAF[q$exac] = exac[rownames(q)[q$exac],]$alleleFrequency
+    q$exacAF[q$exac] = exac[rownames(q)[q$exac],][[popCol]]
     q$exacQual[q$exac] = exac[rownames(q)[q$exac],]$qual
     q$exacFilter[q$exac] = exac[rownames(q)[q$exac],]$filter
     return(q)
@@ -810,7 +825,7 @@ inGene = function(SNPs, genes, noHit = NA, genome='hg19') {
 
 #Takes the sample variants and normal bam files and capture regions.
 #return the variant information for the normals on the positions that the samples are called on.
-getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, genome, BQoffset, dbDir, normalRdirectory, Rdirectory, plotDirectory, cpus, forceRedoSNPs=F, forceRedoVariants=F) {
+getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, genome, BQoffset, dbDir, normalRdirectory,  Rdirectory, plotDirectory, cpus, exacPopulation='all', forceRedoSNPs=F, forceRedoVariants=F) {
   SNPs = variants$SNPs
   variants = variants$variants
   variantsToCheck = unique(do.call(c, lapply(variants, rownames)))
@@ -838,48 +853,46 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
 
     preExistingVariantsFile = paste0(normalRdirectory, '/q', name, '.Rdata')
     if ( file.exists(preExistingVariantsFile) ) {
-      #load what variants are already called
-      catLog('Loading normal variants from', preExistingVariantsFile, '.\n')
-      load(preExistingVariantsFile)
+        #load what variants are already called
+        catLog('Loading normal variants from', preExistingVariantsFile, '.\n')
+        rdataLock = flock::lock(preExistingVariantsFile)
+        on.exit(flock::unlock(rdataLock))
+        load(preExistingVariantsFile)
       
-      #fill in any missing variants
-      missingVariants = variantsToCheck[!(variantsToCheck %in% rownames(q))]
-      catLog('Can reuse ', sum(variantsToCheck %in% rownames(q)), ' calls.\n', sep='')
-      if ( length(missingVariants) > 0 ) {
-        missingX = variants[[1]][missingVariants,]$x
-        missingSNPs = SNPs[SNPs$x %in% missingX,]
-
-        catLog('Filling in missing normal variants from ', name,'.\n', sep='')
-        #qNew = bamToVariants(bam, missingSNPs, BQoffset, genome=genome, cpus=cpus)[[1]]
-        qNew = newBamToVariants(bam, missingSNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
-        #qNew =
-        #  QCsnps(pileups=importQualityScores(missingSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
-        #         positions=missingSNPs, cpus=cpus)
-        q = rbind(q, qNew)
-        q = q[!duplicated(paste0(q$x, q$variant)),]
-        q = q[order(q$x, q$variant),]
-        q = q[apply(!is.na(q), 1, any),]
+        #fill in any missing variants
+        missingVariants = variantsToCheck[!(variantsToCheck %in% rownames(q))]
+        catLog('Can reuse ', sum(variantsToCheck %in% rownames(q)), ' calls.\n', sep='')
+        if ( length(missingVariants) > 0 ) {
+            missingX = variants[[1]][missingVariants,]$x
+            missingSNPs = SNPs[SNPs$x %in% missingX,]
+            
+            catLog('Filling in missing normal variants from ', name,'.\n', sep='')
+            qNew = newBamToVariants(bam, missingSNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
+            q = rbind(q, qNew)
+            q = q[!duplicated(paste0(q$x, q$variant)),]
+            q = q[order(q$x, q$variant),]
+            q = q[apply(!is.na(q), 1, any),]
   
-        #save the union of the calls for future batches
-        catLog('Saving new normal variants back to', preExistingVariantsFile, '..')
-        save(q, file=preExistingVariantsFile)
-        catLog('done.\n')
-      }
+            #save the union of the calls for future batches
+            catLog('Saving new normal variants back to', preExistingVariantsFile, '..')
+            save(q, file=preExistingVariantsFile)
+            catLog('done.\n')
+        }
+        flock::unlock(rdataLock)
     }
     else {
       #extract variant information over the predetermined positions
       catLog('Normal variants from ', name,'.\n', sep='')
 
-
-      #q = bamToVariants(bam, SNPs, BQoffset, genome=genome, cpus=cpus)[[1]]
       q = newBamToVariants(bam, SNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
-      #q = QCsnps(pileups=importQualityScores(SNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
-      #  positions=SNPs, cpus=cpus)
       q = q[apply(!is.na(q), 1, any),]
 
       #save the union of the calls for future batches
       catLog('Saving normal variants to', preExistingVariantsFile, '..')
+      rdataLock = flock::lock(preExistingVariantsFile)
+      on.exit(flock::unlock(rdataLock))
       save(q, file=preExistingVariantsFile)
+      flock::unlock(rdataLock)
       catLog('done.\n')
     }
     
@@ -898,7 +911,7 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
   
   #check db SNP for called variants.
   normalVariantsBI = matchTodbSNPs(normalVariantsBI, dir=dbDir, genome=genome, cpus=cpus)
-  normalVariantsBI = matchToExac(normalVariantsBI, dir=dbDir, genome=genome, cpus=cpus)
+  normalVariantsBI = matchToExac(normalVariantsBI, dir=dbDir, genome=genome, exacPopulation=exacPopulation, cpus=cpus)
   normalVariantsBI = lapply(normalVariantsBI, function(q) q[order(q$x, q$variant),])
 
   normalVariantsBI = list('variants'=normalVariantsBI, 'SNPs'=SNPs)

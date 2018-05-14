@@ -84,6 +84,8 @@ bamToPileup = function(bam, fasta, positions, index, BQoffset=33) {
     ret = data.frame('call'=base, 'qual'=baseQuality, 'mapq'=mapQuality,
       'strand'=strand, 'note'=note, stringsAsFactors=F)
     ret = ret[ret$call != '*',]
+    ret = ret[ret$call != '>',]
+    ret = ret[ret$call != '<',]
     return(ret)
     })
 
