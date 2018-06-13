@@ -19,7 +19,7 @@ importSampleMetaData = function(sampleMetaDataFile) {
   if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
   if ( !file.exists(sampleMetaDataFile) ) stop("Meta data file ", sampleMetaDataFile, ' doesnt exist.')
   catLog('Loading sample meta data from file...')
-  metaData = read.table(sampleMetaDataFile, header=T, as.is=T, fill=T, sep='\t')
+  metaData = read.table(sampleMetaDataFile, header=T, as.is=T, fill=T, sep='\t', strip.white=T)
   if ( any(!(c('BAM', 'VCF', 'INDIVIDUAL', 'NAME', 'NORMAL') %in% colnames(metaData))) )
     stop('Could not find required columns BAM, VCF, INDIVIDUAL, NAME, NORMAL in sample meta data.\n
 The meta data file should be a tab separated file with headings.\n')

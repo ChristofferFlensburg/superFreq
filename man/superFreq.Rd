@@ -12,7 +12,7 @@ superFreq(metaDataFile, captureRegions = "", normalDirectory, Rdirectory,
   cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
   participants = "all", manualStoryMerge = F, vepCall = "vep",
   correctReferenceBias = T, filterOffTarget = T, rareGermline = T,
-  exacPopulation = "all")
+  exacPopulation = "all", cosmicSalvageRate = 0.001)
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:

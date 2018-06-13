@@ -128,7 +128,7 @@ makeCaptureFromFeatureCountRegions = function(outputBed, genome='hg19') {
   symbol[is.na(symbol)] = genes$query[is.na(symbol)]
   names(symbol) = genes$query
 
-  chr = annotationToChr(ann, genome)
+  chr = annotationToChr(ann)
   start = ann$Start
   end = ann$End
   x1x2 = annotationToX1X2(ann, genome)
@@ -138,17 +138,6 @@ makeCaptureFromFeatureCountRegions = function(outputBed, genome='hg19') {
   ret = ret[,ret[1,] %in% names(chrLengths(genome))]
 
   write(ret, file=outputBed, sep='\t', ncolumns=4)
-}
-
-
-padCaptureRegions = function(inFile, outFile=gsub('.bed$', '.padded.bed', inFile), padding=100) {
-  if ( file.exists(outFile) ) return()
-  cr = importCaptureRegions(inFile, gcColumn=3, dnColumn=3)
-  outDF = data.frame(seqnames(cr), pmax(1, start(cr)-padding), pmin(end(cr)+padding), names(cr))
-  temp = options()$scipen
-  options(scipen = 100)
-  write.table(outDF, file=outFile, quote=F, col.names=F, row.names=F)
-  options(scipen = temp)
 }
 
 
@@ -314,8 +303,11 @@ importEnsemblData = function(x, saveDirectory, genome, verbose=T) {
     #make sure any empty symbol entries are last, so that we can default to first hit
     bm = bm[order(bm[[symbolName]], decreasing=T),]
     #replace empty symbol entries with ensemble code and remove duplicates
-    bm[[symbolName]][bm[[symbolName]] == ''] = bm[[ensemblName]][bm[[symbolName]] == '']
+    bm[[symbolName]][bm[[symbolName]] == '' | is.na(bm[[symbolName]])] =
+        bm[[ensemblName]][bm[[symbolName]] == '' | is.na(bm[[symbolName]])]
     bm = bm[!duplicated(bm[[symbolName]]),]
+    #sort protein coding genes first
+    bm = bm[order(bm[[symbolName]] != '', bm[[biotype]] == 'protein_coding', decreasing=T),]
     
     if ( file.exists(dirname(saveFile)) ) save(bm, file=saveFile)
   }

@@ -1,4 +1,4 @@
-projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA=T, clonalityCut=0.4, includeNormal=F, cnvWeight=1, forceRedoMean=F, forceRedoVariants=F, forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
+projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA=T, clonalityCut=0.4, includeNormal=F, cnvWeight=1, forceRedoMean=F, forceRedoVariants=F, forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19', ignoreCNAonly=F) {
   samples = inProject(metaData, project, includeNormal=includeNormal, onlyDNA=onlyDNA)
   if  ( length(samples) == 0 ) {
     warning('No cancer to analyse in project', project)
@@ -16,7 +16,7 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
     catLog('done.\n')
   }
   else {
-    meanCNV = getMeanCNV(metaData, samples, variants, genome=genome, clonalityCut=clonalityCut, cpus=cpus)
+    meanCNV = getMeanCNV(metaData, samples, variants, genome=genome, clonalityCut=clonalityCut, cpus=cpus, ignoreCNAonly=ignoreCNAonly)
     
     catLog('Saving meanCNV...')
     save(meanCNV, file=saveFile)
@@ -26,7 +26,7 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
   catLog('Plotting mean CNV...')
   plotMeanCNVtoFile(metaData, project, meanCNV, cosmicDirectory=cosmicDirectory, forceRedo=forceRedoMeanPlot, genome=genome)
   catLog('mutation matrix...')
-  plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot, genome=genome)
+  plotMultipageMutationMatrix(metaData, meanCNV, project, cosmicDirectory=cosmicDirectory, nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot, genome=genome)
   catLog('done.\n')
 
   variants$variants = lapply(variants$variants, function(q) q[q$severity < 11,])
@@ -47,13 +47,13 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
                         plotFile=paste0(plotDirectory, '/meanCNVoutGroup.pdf'), genome=genome)
       
       catLog('mutation matrix...')
-      plotSubgroupMutationMatrix(metaData, meanCNVs, project, subgroup, cosmicDirectory=cosmicDirectory, priorCnvWeight=cnvWeight,
-                                 nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
-      plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory, priorCnvWeight=cnvWeight,
-                                  nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+      plotSubgroupMutationMatrix(metaData, meanCNVs, project, subgroup, cosmicDirectory=cosmicDirectory,
+                                 nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot)    
+      plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory,
+                                  nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot,
                                   plotFile=paste0(plotDirectory, '/mutationMatrixInGroup.pdf'), genome=genome)
-      plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory, priorCnvWeight=cnvWeight,
-                                  nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+      plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory,
+                                  nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot,
                                   plotFile=paste0(plotDirectory, '/mutationMatrixOutGroup.pdf'), genome=genome)
       catLog('done.\n')
     }
@@ -66,7 +66,7 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
 #checks the mutation rates for gain, amplification, loss, complete loss, SNVs and biallelic loss
 #returns matrices for genes over all samples, as well as rates in terms of fraction of individuals
 #that have the gene mutated.
-getMeanCNV = function(metaData, samples, variants, genome=genome, clonalityCut=0.4, cpus=1) {
+getMeanCNV = function(metaData, samples, variants, genome=genome, clonalityCut=0.4, cpus=1, ignoreCNAonly=F) {
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
   indSamples = lapply(uInd, function(i) which(individuals == i))
@@ -87,7 +87,7 @@ getMeanCNV = function(metaData, samples, variants, genome=genome, clonalityCut=0
   mutationRate = snvRates$mutationRate
   hitMx = snvRates$hitMx
   
-  doubleLossRates = mergeDoubleLoss(snvRates, cnvRates, individuals)
+  doubleLossRates = mergeDoubleLoss(snvRates, cnvRates, individuals, ignoreCNAonly=ignoreCNAonly)
   doubleLossRate = doubleLossRates$doubleLossRate
   doubleLossMx = doubleLossRates$doubleLossMx
   
@@ -252,11 +252,13 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
 
   if ( printGeneNames ) {
     mutRate = meanCNV$snvRates$mutationRate
-    isIG = grepl('IG.[VLJC][0-9].*', names(mutRate)) | grepl('IGH[ADG][0-9].*', names(mutRate))
-    isTR = grepl('TR[AD][VJ][0-9].?', names(mutRate))
+    isIG = grepl('IG.[VLJC][0-9].*', genes) | grepl('IGH[ADG][0-9].*', genes) | grepl('LILR.*', genes)
+    isTR = grepl('TR[AD][VJ][0-9].?', genes)
+    isHLA = grepl('HLA-.*', genes)
     
     if ( filterIG ) mutRate = mutRate[!isIG]
     if ( filterTR ) mutRate = mutRate[!isTR]
+    if ( filterHLA ) mutRate = mutRate[!isHLA]
     
     topMutGenes = names(sort(mutRate, decreasing=T)[1:min(10, length(mutRate))])
     mark = names(meanCNV$snvRates$mutationRate) %in% topMutGenes
@@ -483,7 +485,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
 }
 
 
-mergeDoubleLoss = function(snvRates, cnvRates, individuals) {
+mergeDoubleLoss = function(snvRates, cnvRates, individuals, ignoreCNAonly=F) {
   lossMx = cnvRates$lossMx
   clMx = cnvRates$clMx
   lohMx = cnvRates$lohMx
@@ -497,7 +499,7 @@ mergeDoubleLoss = function(snvRates, cnvRates, individuals) {
     return(list('doubleLossMx'=clMx, 'doubleLossRate'=cnvRates$cl))
   }
 
-  lossMx = lossMx + clMx
+  if ( !ignoreCNAonly ) lossMx = lossMx + clMx
   hitUse = rownames(hitMx) %in% rownames(lossMx)
   lossMx[rownames(hitMx[hitUse,]),] = lossMx[rownames(hitMx[hitUse,]),] + hitMx[hitUse,colnames(lossMx)]
   lossMx[rownames(hitMx[hitUse,]),] = lossMx[rownames(hitMx[hitUse,]),] + hitMx[hitUse,colnames(lossMx)]*lohMx[rownames(hitMx[hitUse,]),]
@@ -534,7 +536,8 @@ plotMultipageMutationMatrix =
   
 }
 
-cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filterTR=T, genome='hg19', dontCountRepeatedSNVs=F) {
+cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filterTR=T, filterHLA=T, genome='hg19', dontCountRepeatedSNVs=F) {
+    
   xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
   delimiter = xs %in% c(0, cumsum(chrLengths(genome=genome)))
   
@@ -543,7 +546,7 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filt
   normals = metaData$samples$NORMAL
   names(individuals) = names(normals) = metaData$samples$NAME
   hasMatchedNormal = !is.na(findCorrespondingNormal(metaData$samples$NAME, individuals, normals))[samples]
-
+    
   weightedxMx = t((1+hasMatchedNormal)*t(meanCNV$snvRates$xMx))
   if ( dontCountRepeatedSNVs ) {
     weightedxMx = t(apply(weightedxMx, 1, function(row) {
@@ -609,17 +612,20 @@ cohortGeneScore = function(metaData, meanCNV, priorCnvWeight=1, filterIG=T, filt
   doubleLoss = allDLRates
   names(gain) = names(amp) = names(loss) = names(cl) = names(loh) = names(mutation) = names(doubleLoss) = genes
 
-  isIG = grepl('IG.[VLJC][0-9].*', genes) | grepl('IGH[ADG][0-9].*', genes)
+  isIG = grepl('IG.[VLJC][0-9].*', genes) | grepl('IGH[ADG][0-9].*', genes) | grepl('LILR.*', genes)
   isTR = grepl('TR[AD][VJ][0-9].?', genes)
+  isHLA = grepl('HLA-.*', genes)
 
   cnvScore = gain*0.5 + loss*0.5 + amp + cl + loh*0.5
   cnvWeight = sqrt(mean(mutation)/mean(cnvScore))*priorCnvWeight
   score = cnvScore*cnvWeight + mutation + (doubleLoss - cl + cl*cnvWeight)*0.5 #DL downweighted, as it is already counted as loss/cl/mutation
   if ( filterIG ) score = score*(1-isIG)
   if ( filterTR ) score = score*(1-isTR)
+  if ( filterHLA ) score = score*(1-isHLA)
 
   return(score)
 }
+
 
 #This function takes the output from meanCNV, selects the most interesting genes
 #and plots the mutation and CNV status of those genes for all samples.
@@ -862,7 +868,7 @@ plotSubgroupMutationMatrix = function(metaData, meanCNVs, project, subgroup, cos
 #'
 #'
 compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, subgroups2, name, includeNormal=F, clonalityCut=0.4, excludeSamples=c(), excludeIndividuals=c(), cosmicDirectory='', analysisName='cohortAnalysis', cpus=1, forceRedoVariants=F, forceRedoMean=F,
-  forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19') {
+  forceRedoMeanPlot=F, forceRedoMatrixPlot=F, genome='hg19', ignoreCNAonly=F, cnvWeight=1) {
 
   metaData =
     makeMetaDataFromBatch(metaDataFile, outputDirectories, analysisName=analysisName,
@@ -882,7 +888,7 @@ compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, s
   }
   else {
     variants = getProjectVariants(metaData, project, cpus=cpus, forceRedo=forceRedoVariants)
-    meanCNV = getMeanCNV(metaData, samples, variants, genome=genome)
+    meanCNV = getMeanCNV(metaData, samples, variants, genome=genome, ignoreCNAonly=ignoreCNAonly)
     
     catLog('Saving meanCNV...')
     save(meanCNV, file=saveFile)
@@ -918,12 +924,12 @@ compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, s
                     plotFile=paste0(plotDirectory, '/meanCNV-', subgroups2[1], '.pdf'), genome=genome)
   
   plotSubgroupMutationMatrix(metaData, meanCNVs, project, name, cosmicDirectory=cosmicDirectory,
-                             nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot)    
+                             nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot)    
   plotMultipageMutationMatrix(metaData, meanCNVs$inGroup, project, cosmicDirectory=cosmicDirectory,
-                              nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+                              nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot,
                               plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups1[1], '.pdf'), genome=genome)
   plotMultipageMutationMatrix(metaData, meanCNVs$outGroup, project, cosmicDirectory=cosmicDirectory,
-                              nGenes=30, pages=10, forceRedo=forceRedoMatrixPlot,
+                              nGenes=30, pages=10, priorCnvWeight=cnvWeight, forceRedo=forceRedoMatrixPlot,
                               plotFile=paste0(plotDirectory, '/mutationMatrix-', subgroups2[1], '.pdf'), genome=genome)
 
   catLog('Done! Invisible returning mean CNV data.\n')

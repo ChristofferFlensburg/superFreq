@@ -856,7 +856,6 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
         #load what variants are already called
         catLog('Loading normal variants from', preExistingVariantsFile, '.\n')
         rdataLock = flock::lock(preExistingVariantsFile)
-        on.exit(flock::unlock(rdataLock))
         load(preExistingVariantsFile)
       
         #fill in any missing variants
@@ -890,7 +889,6 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
       #save the union of the calls for future batches
       catLog('Saving normal variants to', preExistingVariantsFile, '..')
       rdataLock = flock::lock(preExistingVariantsFile)
-      on.exit(flock::unlock(rdataLock))
       save(q, file=preExistingVariantsFile)
       flock::unlock(rdataLock)
       catLog('done.\n')

@@ -18,7 +18,6 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       if ( !rareGermline ) toReturn = which(somaticP > 0 & (!q$germline | is.na(q$germline)))
       toReturn = toReturn[order(somaticP[toReturn], decreasing=T)]
       q = q[toReturn,]
-      SNPs = variants$SNPs[variants$SNPs$x %in% q$x,]
 
       vcfFile = paste0(vcfDir, '/', sample, '.vcf')
       if ( !onlyForVEP ) writeToVCF(q, vcfFile, genome=genome)

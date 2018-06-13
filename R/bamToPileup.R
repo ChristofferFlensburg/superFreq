@@ -37,7 +37,7 @@ bamToPileup = function(bam, fasta, positions, index, BQoffset=33) {
   posCoords = paste0(positions$chr, ':', positions$start)
   allMpileups = paste(positions$chr, positions$start, positions$reference, 0, '*', ' ', ' ', sep='\t')
   names(allMpileups) = posCoords
-  allMpileups[coords] = mpileups
+  allMpileups[as.character(coords)] = mpileups
 
   #parse the mpileup output
   pileups = lapply(allMpileups, function(mpileup) {

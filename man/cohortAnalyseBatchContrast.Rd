@@ -7,9 +7,9 @@
 cohortAnalyseBatchContrast(metaDataFile, outputDirectories, project, subgroups1,
   subgroups2, name, cpus = 1, onlyDNA = T, clonalityCut = 0.4,
   excludeSamples = c(), excludeIndividuals = c(), cosmicDirectory = "",
-  analysisName = "cohortAnalysis", forceRedoVariants = F,
+  analysisName = "cohortAnalysis", cnvWeight = 1, forceRedoVariants = F,
   forceRedoMean = F, forceRedoMatrixPlot = F, forceRedoMeanPlot = F,
-  genome = "hg19")
+  genome = "hg19", ignoreCNAonly = F)
 }
 \arguments{
 \item{metaDataFile}{character: path to the metaData file.}

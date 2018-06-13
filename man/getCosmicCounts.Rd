@@ -6,7 +6,7 @@
 \usage{
 getCosmicCounts(cosmic,
   cosmicDirectory = "/wehisan/general/academic/grp_leukemia_genomics/data/resources/COSMIC",
-  onlyCensus = T)
+  onlyCensus = T, genome = "hg19")
 }
 \arguments{
 \item{cosmic}{character: The cosmic IDs.}

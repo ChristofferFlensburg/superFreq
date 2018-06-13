@@ -5,7 +5,7 @@
 \title{Returns default parameters}
 \usage{
 defaultSuperParameters(systematicVariance = -1, maxCov = -1,
-  cloneDistanceCut = -1)
+  cloneDistanceCut = -1, cosmicSalvageRate = -1)
 }
 \description{
 Returns default parameters

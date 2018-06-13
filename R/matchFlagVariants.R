@@ -3,7 +3,7 @@
 #flags variants with suspicious behaviour in the normals.
 #marks the somatic-looking variants in the samples
 #ie non-db variants that are not present in the normals and not flagged as suspicious.
-matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F, correctReferenceBias=T, rareGermline=T) {
+matchFlagVariants = function(variants, normalVariants, individuals, normals, genome, Rdirectory, flaggingVersion='new', RNA=F, cpus=1, byIndividual=F, forceRedoMatchFlag=F, correctReferenceBias=T, rareGermline=T, cosmicDirectory='', cosmicSalvageRate=1e-3) {
   saveFile = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')
@@ -37,7 +37,7 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
   
 
   #mark somatic variants
-  variants = markSomatics(variants, normalVariants, individuals, normals, cpus=cpus, rareGermline=rareGermline)
+  variants = markSomatics(variants, normalVariants, individuals, normals, cpus=cpus, rareGermline=rareGermline, cosmicDirectory=cosmicDirectory, cosmicSalvageRate=cosmicSalvageRate, genome=genome)
 
   if ( byIndividual ) {
     catLog('Trimming uninformative variants by individual...')
@@ -353,7 +353,7 @@ newFlagFromNormals = function(variants, normalVariants, genome, RNA=F, cpus=1, c
 
 #This helper function assign probabilities that variants are somatics.
 # the probabilities that the variants are true somatic variants are added in a column 'somaticP'
-markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, rareGermline=T) {
+markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, rareGermline=T, cosmicDirectory='', cosmicSalvageRate=1e-3, genome='hg19') {
 
   if ( nrow(variants$variants[[1]]) == 0 ) return(variants)
 
@@ -421,6 +421,17 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
                      (rareDbSNP & unknownExac))
     }
 
+    #salvage variant present at high frequency in COSMIC, according to user settings, if human.
+    if ( genome %in% c('hg19', 'hg38') ) {
+        countsFile = paste0(cosmicDirectory, '/allCosmicCounts_', genome, '.Rdata')
+        load(countsFile)
+        xRates = cosmicCounts$xRates
+        xSalvage = xRates$x[xRates$rates > cosmicSalvageRate]
+        toSalvage = q$x %in% xSalvage & !notInNormal
+        catLog('Salvaging ', sum(toSalvage), ' sites that have high frequency in dbSNP or ExAC, but also high frequency in COSMIC.\n')
+        notInNormal = notInNormal | toSalvage
+    }
+    
     
     if ( name %in% names(CNs) ) {
       catLog('Correcting somatics using', correspondingNormal[name], 'as matched normal.\n')

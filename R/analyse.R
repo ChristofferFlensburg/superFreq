@@ -154,7 +154,7 @@ superVersion = function() return('0.9.25')
 superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
   systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
-  filterOffTarget=T, rareGermline=T, exacPopulation='all') {
+  filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3) {
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -189,7 +189,8 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
                 correctReferenceBias=correctReferenceBias, vepCall=vepCall,
-                filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation)
+                filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation,
+                cosmicSalvageRate=cosmicSalvageRate)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -212,7 +213,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
 
   runtimeSettings = defaultSuperRuntimeSettings(cpus=cpus, outputToTerminalAsWell=outputToTerminalAsWell)
 
-  parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut)
+  parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut, cosmicSalvageRate=cosmicSalvageRate)
 
   downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
   downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
@@ -416,7 +417,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Running on at most', cpus, 'cpus.\n')
 
 
-  if ( !(genome %in% c('hg19', 'hg38', 'mm10')) ) stop('Only genomes that are supported atm are hg19, hg38 and mm10, sorry.\nNew genomes can easily be added though, please contact the authors.\n')
+  if ( !(genome %in% c('hg19', 'hg38', 'mm10')) ) stop('Only genomes that are supported atm are hg19, hg38 and mm10, sorry.\nNew genomes can be added though, please contact the authors.\n')
 
   if ( class(parameters) != 'list' ) stop('parameters need to be of class list. Dont provide this to analyse() for default settings, otherwise a named list with the parameters.')
   catLog('\nParameters for this run are:\n')
@@ -433,6 +434,9 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   if ( 'cloneDistanceCut' %in% names(parameters) ) assign('.cloneDistanceCut', parameters$cloneDistanceCut, envir = .GlobalEnv)
   else assign('.cloneDistanceCut', -qnorm(0.01), envir = .GlobalEnv)
   catLog('   cloneDistanceCut:  ', get('.cloneDistanceCut', envir = .GlobalEnv), '\n', sep='')
+
+  if ( 'cosmicSalvageRate' %in% names(parameters) &  class(parameters$cosmicSalvageRate) != 'numeric' ) stop('parameter cosmicSalvageRate needs to be numeric.')
+  catLog('   cosmicSalvageRate:  ', parameters$cosmicSalvageRate, '\n', sep='')
 
 
   catLog('\n')
@@ -602,7 +606,8 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       if ( 'RNA' %in% names(settings) ) RNA = settings$RNA
       allVariants = matchFlagVariants(variants, normalVariants, individuals, normals, genome,
         Rdirectory, flaggingVersion=flaggingVersion, RNA=RNA, cpus=cpus, byIndividual=byIndividual,
-        rareGermline=rareGermline, forceRedoMatchFlag=forceRedoMatchFlag)
+        rareGermline=rareGermline, forceRedoMatchFlag=forceRedoMatchFlag, cosmicDirectory=cosmicDirectory,
+        cosmicSalvageRate=parameters$cosmicSalvageRate)
     }
   }
   variants = allVariants$variants
@@ -1130,7 +1135,7 @@ defaultSuperRuntimeSettings = function(cpus='', outputToTerminalAsWell='') {
 #' @details feed the output of this function to analyse, or just call superFreq.
 #' @examples
 #' defaultSuperParameters()
-defaultSuperParameters = function(systematicVariance=-1, maxCov=-1, cloneDistanceCut=-1) {
+defaultSuperParameters = function(systematicVariance=-1, maxCov=-1, cloneDistanceCut=-1, cosmicSalvageRate=-1) {
   if ( systematicVariance == -1 ) {
     cat('Defaulting systematicVariance used to 0.02.\n')
     systematicVariance = 0.02
@@ -1143,8 +1148,13 @@ defaultSuperParameters = function(systematicVariance=-1, maxCov=-1, cloneDistanc
     cat('Defaulting cloneDistanceCut to 2.3.\n')
     cloneDistanceCut = -qnorm(0.01)
   }
+  if ( cosmicSalvageRate == -1 ) {
+    cat('Defaulting cosmicSalvageRate to 1e-3.\n')
+    cosmicSalvageRate = 1e-3
+  }
 
-  return(list(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut))
+  return(list(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
+              cosmicSalvageRate=cosmicSalvageRate))
 }
 
 

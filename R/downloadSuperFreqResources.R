@@ -63,10 +63,16 @@ downloadSuperFreqCOSMIC = function(directory='superFreqCOSMIC', genome='hg19') {
       cat('Downloading superFreq COSMIC annotation to', directory, '.\n')
       dir.create(directory)
     }
-    
+
     urls =
-      paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/',
-             c('allCosmicCounts.Rdata', 'cosmicCounts.Rdata', 'CCGD_export.csv'))
+        paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/',
+               c('allCosmicCounts_hg19.Rdata', 'cosmicCounts.Rdata'))
+    if ( genome == 'hg38' )
+        urls =
+            paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/',
+                   c('allCosmicCounts_hg38.Rdata', 'cosmicCounts.Rdata'))
+    if ( genome == 'mm10' )
+        urls = 'http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/CCGD_export.csv'
     for ( url in urls ) {
       destFile = paste0(directory, '/', basename(url))
       if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")

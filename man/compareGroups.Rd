@@ -9,7 +9,7 @@ compareGroups(metaDataFile, outputDirectories, project, subgroups1, subgroups2,
   excludeIndividuals = c(), cosmicDirectory = "",
   analysisName = "cohortAnalysis", cpus = 1, forceRedoVariants = F,
   forceRedoMean = F, forceRedoMeanPlot = F, forceRedoMatrixPlot = F,
-  genome = "hg19")
+  genome = "hg19", ignoreCNAonly = F, cnvWeight = 1)
 }
 \arguments{
 \item{metaDataFile}{character: Path to the metaData.}

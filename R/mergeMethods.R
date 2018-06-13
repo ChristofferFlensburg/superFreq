@@ -165,7 +165,7 @@ updateScatterPlots = function(metaData, cosmicDirectory='', individuals=NA, forc
     
     variants = getIndividualVariants(metaData, individual, cpus=cpus, forceRedo=forceRedoVariants)
     cnvs = getCNV(metaData, samples)
-    stories = getStories(variants=variants, normalVariants=variants, cnvs=cnvs, timeSeries=timeSeries,
+    stories = getStories(variants=variants, cnvs=cnvs, timeSeries=timeSeries,
       normals=normals, genome=genome, Rdirectory=Rdirectory, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedo)
 
 
@@ -587,8 +587,9 @@ fillInMissingVariants = function(metaData, qs1, qs2, cpus=1) {
       newSNPs = allSNPs[allSNPs$x %in% allX[missing],]
       BQoffset = captureRegionsToBQoffset(metaData$samples[name,]$CAPTUREREGIONS)
       genome = captureRegionsToGenome(metaData$samples[name,]$CAPTUREREGIONS)
-      newQ = QCsnps(pileups=importQualityScores(newSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
-        SNPs=newSNPs, cpus=cpus)
+      newQ = bamToVariants(bam=bam, positions=newSNPs, BQoffset=BQoffset, genome=genome, cpus=cpus)[[1]]
+      #newQ = QCsnps(pileups=importQualityScores(newSNPs, bam, BQoffset, genome=genome, cpus=cpus)[[1]],
+      #  SNPs=newSNPs, cpus=cpus)
       catLog('Matching new calls to the missing variants.\n')
       newQ = newQ[order(newQ$x, newQ$variant),]
       #fill in empty entry if the right variant wasn't called over the position
@@ -660,16 +661,17 @@ updateStory = function(metaData, individual, cpus=1, forceRedo=F) {
   
   cnvs = getCNV(metaData, samples)
 
-  stories = getStories(variants, normalVariants, cnvs, timeSeries, normals, Rdirectory, plotDirectory, cpus=cpus, forceRedo=F)
+  stories = getStories(variants, cnvs, timeSeries, normals, Rdirectory, plotDirectory, cpus=cpus, forceRedo=F)
 
   variants = getAllVEPdata(metaData, variants)
 
   
 }
 
-captureRegionsToNormalPath = function(captureRegions) {
+captureRegionsToNormalPath = function(captureRegions, coverage=F) {
   warning('Called a hardcoding function!')
-  if ( captureRegions == 'SureSelect' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/Agilent')
+  if ( captureRegions == 'SureSelect' & !coverage ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/Agilent')
+  if ( captureRegions == 'SureSelect' & coverage ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/AgilentBlood')
   if ( captureRegions == 'TrueSeq' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/Illumina')
   if ( captureRegions == 'RNA' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/RNA')
   if ( captureRegions == 'kinome' ) return('/wehisan/general/academic/grp_leukemia_genomics/normals/kinome')

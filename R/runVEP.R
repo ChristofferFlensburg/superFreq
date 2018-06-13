@@ -189,6 +189,7 @@ typeToSeverity = function(type) {
   if ( grepl('feature_truncation', type) ) return(34)
   if ( grepl('intergenic_variant', type) ) return(35)
   
+  if ( type == '-' ) return(100)
   if ( grepl('unknown', type) ) return(100)
   catLog('Dont know about the mutation type: ', type, '\n')
   return(100)
@@ -392,9 +393,9 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
           if ( any(grepl('COSM', strs)) ) return(strs[grep('COSM',strs)[1]])
           else return('')
         })
-        cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory)
+        cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory, genome=genome)
         isCosmicCensus = cosmicCounts$found
-        cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory, onlyCensus=F)
+        cosmicCounts = getCosmicCounts(cosmic, cosmicDirectory=cosmicDirectory, onlyCensus=F, genome=genome)
         cosmicVariantDensity = cosmicCounts$variantDensity
         cosmicGeneDensity = cosmicCounts$geneDensity
         
@@ -591,7 +592,7 @@ moreVEPnames = function(genome='hg19') {
 #' @param onlyCensus logical: Restrict to cosmic census genes.
 #'
 #' @details For each cosmic ID, return whether it is seen in a census gene, and the mutations per million tumors (MPM) for that variant, as well as the average MPM over the gene (mutations per million tumors per basepair, MPMPB).
-getCosmicCounts = function(cosmic, cosmicDirectory='/wehisan/general/academic/grp_leukemia_genomics/data/resources/COSMIC', onlyCensus=T) {
+getCosmicCounts = function(cosmic, cosmicDirectory='/wehisan/general/academic/grp_leukemia_genomics/data/resources/COSMIC', onlyCensus=T, genome='hg19') {
   if ( cosmicDirectory == '' ) {
     warning('COSMIC directory not specified. To access more cosmic data, download CosmicMutantExportCensus.tsv and CosmicMutantExport.tsv from cosmic, put them in a directory (dont change the names of the files please), and provide the directory to postAnalyseVEP, getMoreVEPinfo or getCosmicCounts.')
     return(list(cosmic=cosmic, found=rep(F, length(cosmic)),
@@ -599,7 +600,7 @@ getCosmicCounts = function(cosmic, cosmicDirectory='/wehisan/general/academic/gr
   }
   
   if ( onlyCensus ) countsFile = paste0(cosmicDirectory, '/cosmicCounts.Rdata')
-  else countsFile = paste0(cosmicDirectory, '/allCosmicCounts.Rdata')
+  else countsFile = paste0(cosmicDirectory, '/allCosmicCounts_', genome, '.Rdata')
   if ( file.exists(countsFile) ) load(countsFile)
   else {
     if ( onlyCensus ) cosmicVariantsFile = paste0(cosmicDirectory, '/CosmicMutantExportCensus.tsv')
@@ -618,9 +619,16 @@ getCosmicCounts = function(cosmic, cosmicDirectory='/wehisan/general/academic/gr
     nTumors = length(unique(cosmicData$ID_tumour))
     geneDensity = geneCounts/geneLengths[,2]/nTumors*1e6
     variantDensity = variantCounts/nTumors*1e6
+    rates = table(cosmicData$Mutation.genome.position)/nTumors
+    rates = rates[names(rates) != '']
+    chr = gsub(':.*$', '', names(rates))
+    pos = as.numeric(gsub('^.*:', '', gsub('-.*$', '', names(rates))))
+    x = chrToX(chr, pos, genome=genome)
+    df = data.frame(x=x, rates=as.numeric(rates))
+    xRates = aggregate(rates ~ x, df, FUN=sum)
 
     cosmicCounts = list(geneCounts=geneCounts, geneLengths=geneLengths, nTumors=nTumors,
-                        geneDensity=geneDensity, variantDensity=variantDensity, variantGene=variantGene)
+                        geneDensity=geneDensity, variantDensity=variantDensity, variantGene=variantGene, xRates=xRates)
     save(cosmicCounts, file=countsFile)
   }
 
