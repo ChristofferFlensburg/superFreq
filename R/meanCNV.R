@@ -110,7 +110,7 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, dontCountRepeatedSNVs=F) {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
@@ -252,9 +252,9 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
 
   if ( printGeneNames ) {
     mutRate = meanCNV$snvRates$mutationRate
-    isIG = grepl('IG.[VLJC][0-9].*', genes) | grepl('IGH[ADG][0-9].*', genes) | grepl('LILR.*', genes)
-    isTR = grepl('TR[AD][VJ][0-9].?', genes)
-    isHLA = grepl('HLA-.*', genes)
+    isIG = grepl('IG.[VLJC][0-9].*', names(mutRate)) | grepl('IGH[ADG][0-9].*', names(mutRate)) | grepl('LILR.*', names(mutRate))
+    isTR = grepl('TR[AD][VJ][0-9].?', names(mutRate))
+    isHLA = grepl('HLA-.*', names(mutRate))
     
     if ( filterIG ) mutRate = mutRate[!isIG]
     if ( filterTR ) mutRate = mutRate[!isTR]
@@ -282,10 +282,12 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
     dlRate = meanCNV$doubleLossRates$doubleLossRate
     isIG = grepl('IG.[VLJC][0-9].*', names(dlRate)) | grepl('IGH[ADG][0-9].*', names(dlRate))
     isTR = grepl('TR[AD][VJ][0-9].?', names(dlRate))
+    isHLA = grepl('HLA-.*', names(dlRate))
     
     if ( filterIG ) dlRate = dlRate[!isIG]
     if ( filterTR ) dlRate = dlRate[!isTR]
-    
+    if ( filterHLA ) dlRate = dlRate[!isHLA]
+
     topDHGenes = names(sort(dlRate, decreasing=T)[1:min(10, length(dlRate))])
     topDHGenes = topDHGenes[topDHGenes != '?']
     topDHGenes = topDHGenes[meanCNV$doubleLossRates$doubleLossRate[topDHGenes] > 0]
