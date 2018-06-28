@@ -267,20 +267,21 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
   dbAF = dbAF[relevantDB]
   dbNames = names(dbAF)
   isDB = qNames %in% dbNames
+  dbAF = dbAF[qNames[isDB]]
   if ( any(is.na(dbAF)) ) {
-    dbAF = dbAF[qNames]
     dbValidated = !is.na(dbAF) & dbAF > 0
   }
   else {
-    dbAF = dbAF[qNames]
     dbValidated = dbAF < 3 | dbAF > 70
     dbAF = ifelse(dbAF > 30, NA, ifelse(dbAF > 3, dbAF-10, dbAF))
   }
   
   variants = lapply(variants, function(q) {
     q$db = isDB
-    q$dbMAF = dbAF
-    q$dbValidated = dbValidated
+    q$dbMAF = NA
+    q$dbValidated = NA
+    q$dbMAF[isDB] = dbAF
+    q$dbValidated[isDB] = dbValidated
     return(q)
   })
   catLog('done.\n')
