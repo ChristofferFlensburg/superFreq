@@ -13,6 +13,7 @@ SuperFreq analyses and filters somatic SNVs and short indels, calls copy numbers
 Start R
 
 ```R
+#install superFreq if needed (may need to install devtools first with install.packages("devtools"))
 library(devtools)
 install_github('ChristofferFlensburg/superFreq')
 
@@ -20,29 +21,33 @@ library(superFreq)
 ?superFreq
 ```
 
-A typical analysis first sets the parameters and then calls the `superFreq()` function:
+A typical analysis first sets the parameters and then calls the `superFreq()` function.
 
 ```R
 library(superFreq)
 
-cpus=12
+#maximum number of threads.
+cpus=6
 
-#this file needs to be created. See ?superFreq
+#this is the meta data input. See ?superFreq for how to set it up.
 metaDataFile = 'metaData.tsv'
 
-#a bed file with the capture regions of the exome. Or just the exons if capture regions are not available.
+#an bed file with the capture regions of the exome.
 captureRegionsFile = '~/resources/captureRegions/myCaptureInThisBatch.bed'
+#if left empty (which is the default), then superFreq uses the ensembl exons for the specified genome assembly.
+captureRegionsFile = ''
 
-#This directory needs to be created and set up. See ?superFreq
+#This directory with (links to) the reference normals needs to be created and set up. See ?superFreq
 normalDirectory = '~/resources/superFreq/referenceNormals/myCaptureInThisBatch'
 
-#The reference fasta and name. hg19, hg38 and mm10 available.
+#The reference fasta and name. Only hg19, hg38 and mm10 available atm.
 reference = '~/resources/reference/hg19/hg19.fa'
 genome = 'hg19'
 
 #the dbSNP and cosmic directory. This will be created and downloaded if not existing.
 dbSNPdirectory = '~/resources/superFreq/dbSNP'
 cosmicDirectory = '~/resources/superFreq/COSMIC'
+#default
 
 #The directory where the log file and saved .Rdata is stored. Will be created.
 Rdirectory = 'R'
@@ -51,6 +56,7 @@ plotDirectory = 'plots'
 
 #superFreq reuses saved data if available. This setting can force it to redo part of the analysis.
 #default forceRedoNothing() means that saved information is used whenever available.
+#forceRedoEverything() ignores any saved data from this batch and overwrites any previous results and plots.
 forceRedo = forceRedoNothing()
 
 #a measure on how much large-scale biases are expected in the coverage.
@@ -64,7 +70,7 @@ maxCov=150
 BQoffset = 33
 
 #The mode. Default 'exome' is for exomes, while 'RNA' has some minor changes when running on RNA.
-#There is also an experimental "genome" mode for genomes that is slowly getting better.
+#There is also a "genome" mode for genomes although it is still being developed and can be very slow.
 mode = 'exome'
 
 #This setting runs each individual separately (as indicated in the metadata).
@@ -74,7 +80,7 @@ splitRun = T
 
 #this performs the actual analysis. output goes to Rdirectory and plotDirectory.
 #runtime is typically ~12 hours the first time at 6 cpus. Can be significantly more if many samples.
-#later runs typically a bit faster as the setup and part of the analysis can be reused.
+#later runs typically a bit faster as the setup and part of the analysis on the reference normals can be reused.
 data =
     superFreq(metaDataFile, captureRegions=captureRegionsFile, normalDirectory=normalDirectory,
               Rdirectory=Rdirectory, plotDirectory=plotDirectory, reference=reference, genome=genome,
@@ -82,7 +88,7 @@ data =
               maxCov=maxCov, mode=mode, splitRun=splitRun)
 ```
 
-The most convenient way to set this up is to create a runSuperFreq.R fie with the above code, and then run it from a [screen](https://en.wikipedia.org/wiki/GNU_Screen) with
+The most convenient way to set this up is to create a runSuperFreq.R file with the above code, and then run it from a [screen](https://en.wikipedia.org/wiki/GNU_Screen) with
 
 ```
 Rscript runSuperFreq.R
