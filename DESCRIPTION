@@ -1,6 +1,6 @@
 Package: superFreq
 Title: Calls and tracks CNAs, SNVs and clones over multiple cancer exomes.
-Version: 0.9.25
+Version: 1.0.0
 Authors@R: person("Christoffer", "Flensburg", email = "flensburg.c@wehi.edu.au", role = c("aut", "cre"))
 Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
     all information across samples and mutation types. The inputs are the bam-files
@@ -15,7 +15,7 @@ Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
     the cancer samples and for quality control.
 biocViews:
 Depends:
-    R (>= 3.2.1), WriteXLS, spam, BiocGenerics, GenomicRanges, IRanges, S4Vectors, biomaRt, Rsamtools, R.oo, Rsubread, limma, parallel, seqinr
+    R (>= 3.2.1), WriteXLS, spam, BiocGenerics, GenomicRanges, IRanges, S4Vectors, biomaRt, Rsamtools, R.oo, Rsubread, limma, parallel, seqinr, flock
 License: TBD.
 LazyData: true
 RoxygenNote: 6.0.1

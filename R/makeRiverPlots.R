@@ -457,8 +457,8 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
   }
   else if ( length(col) == 1 ) {
     col = rep(col, Nmut)
-    segcol = rep(col, Nsample-1)
-    errcol = rep(col, Nsample)
+    segcol = rep(col, (Nsample-1)*Nmut)
+    errcol = rep(col, Nsample*Nmut)
   }
   else if ( length(col) == Nmut ) {
     if ( all(rownames(clon) %in% names(col)))
@@ -470,16 +470,16 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
   if ( lty[1] == 'default' | !(length(lty) %in% c(1,Nmut)) ) {
     iMx = floor(1+(row(clon)-1)/8)
     seglty = randomLtys(iMx[,2:Nsample])
-    errlty = rep(1, Nsample)
+    errlty = rep(1, Nsample*Nmut)
   }
   else if ( length(lty) == 1 ) {
     lty = rep(lty, Nmut)
     seglty = rep(lty, Nsample-1)
-    errlty = rep(1, Nsample)
+    errlty = rep(1, Nsample*Nmut)
   }
   else if ( length(lty) == Nmut ) {
     seglty = rep(lty, Nsample-1)
-    errlty = rep(1, Nsample)
+    errlty = rep(1, Nsample*Nmut)
   }
 
   
@@ -510,7 +510,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
       severity = lbls$severity
       severity[font %in% c(2,4)] = -1   #put bold-fonted mutations at the top of the list
       ord = order(severity)
-      legend('topright', lbls$label[ord], lwd=2, col=errcol[1:nrow(stories)][ord], lty=errlty[1:nrow(stories)][ord],
+      legend('topright', lbls$label[ord], lwd=2, col=errcol[1:Nmut][ord], lty=errlty[1:Nmut][ord],
              cex= legCex, text.col=lbls$colour[ord], text.font=lbls$font[ord], seg.len=4)
     }
     if ( labels ) text(1:Nsample, -0.02, colnames(clon), srt=20, cex=0.9)
