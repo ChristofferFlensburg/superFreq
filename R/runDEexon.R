@@ -156,7 +156,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
     catLog(col, '..', sep='')
     plotfile = paste0(MAdirectory, col, '.png')
     if ( !file.exists(plotfile) | forceRedoFit ) {
-      png(plotfile, height=10, width=20, res=144, unit='in')
+      png(plotfile, height=6, width=12, res=144, unit='in')
       plotMA(counts[,col], normalMean, loess=T, span=0.5, verbose=F, main = paste0(col, ' vs normals (before loess normalisation)'))
       dev.off()
     }
@@ -241,7 +241,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
         if ( !file.exists(plotfile) | forceRedoFit ) {
           use = dn > 0
           ylim = quantile(LFC[use], probs=c(0.01, 0.99))
-          png(plotfile, height=10, width=20, res=144, unit='in')
+          png(plotfile, height=6, width=12, res=144, unit='in')
           plotColourScatter(dn[use], LFC[use], cex=w[use], ylim=ylim,
                             main=col, xlab='binding strength', ylab='log(reads/bp)')
         lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
@@ -251,7 +251,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
         plotfile = paste0(BSdirectory, col, '.overGenome.png')
         if ( !file.exists(plotfile) | forceRedoFit ) {
           ylim = quantile(LFC, probs=c(0.01, 0.99))+c(0.5,0.5)
-          png(plotfile, height=10, width=20, res=144, unit='in')
+          png(plotfile, height=6, width=12, res=144, unit='in')
           plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
                             ylab='~log(1+read depth)')
           points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
@@ -263,7 +263,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
         plotfile = paste0(BSdirectory, col, '.overGenome.BScorrected.png')
         if ( !file.exists(plotfile) | forceRedoFit ) {
           ylim = quantile(LFC + log(correctionFactor), probs=c(0.01, 0.99))+c(0.5,0.5)
-          png(plotfile, height=10, width=20, res=144, unit='in')
+          png(plotfile, height=6, width=12, res=144, unit='in')
           plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
                             ylab='~log(1+read depth)')
           points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
@@ -319,7 +319,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
         plotfile = paste0(BSdirectory, col, '.region.png')
         if ( !file.exists(plotfile) | forceRedoFit ) {
           ylim = quantile(smoothLFC, probs=c(0.01, 0.99))
-          png(plotfile, height=10, width=20, res=144, unit='in')
+          png(plotfile, height=6, width=12, res=144, unit='in')
           plotColourScatter(regionDN, smoothLFC, cex=w, main=col, ylim=ylim,
                             xlab='region binding strength', ylab='region mean log(reads/bp)')
           lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
@@ -329,7 +329,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
         plotfile = paste0(BSdirectory, col, '.region.overGenome.png')
         if ( !file.exists(plotfile) | forceRedoFit ) {
           ylim = quantile(LFC, probs=c(0.01, 0.99))+c(0.5,0.5)
-          png(plotfile, height=10, width=20, res=144, unit='in')
+          png(plotfile, height=6, width=12, res=144, unit='in')
           plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim,
                             xlab='genome', ylab='~log(1+read depth)')
           points(annotationToX(annotation, genome), (regionDN-mean(regionDN))/1.5 + mean(ylim), cex=w/2,
@@ -431,7 +431,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
     catLog(col, '..', sep='')
     plotfile = paste0(MAdirectory, col, '.exon.png')
     if ( !file.exists(plotfile) | forceRedoFit ) {
-      png(plotfile, height=10, width=20, res=144, unit='in')
+      png(plotfile, height=6, width=12, res=144, unit='in')
       plotMA(counts[,col], normalMean, loess=T, span=0.5, verbose=F, main = paste0(col, ' vs normals (after corrections)'))
       dev.off()
     }
@@ -476,7 +476,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   }
 
   catLog('Running voom on exons..')
-  png(paste0(diagnosticPlotsDirectory, '/voomVariance.exon.png'), height=10, width=20, res=144, unit='in')
+  png(paste0(diagnosticPlotsDirectory, '/voomVariance.exon.png'), height=6, width=12, res=144, unit='in')
   voomWeights = voomWithQualityWeights(countsOri, design=design, plot=T)
   voomWeights$weights[yes,design[,'normal']==1 & sex == 'female'] = 0
   dev.off()
@@ -523,7 +523,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   }
 
   catLog('Running voom on genes..')
-  png(paste0(diagnosticPlotsDirectory, '/voomVariance.gene.png'), height=10, width=20, res=144, unit='in')
+  png(paste0(diagnosticPlotsDirectory, '/voomVariance.gene.png'), height=6, width=12, res=144, unit='in')
   voomWeights = voomWithQualityWeights(geneCountsOri, design=design, plot=T)
   voomWeights$weights[geneYes,design[,'normal']==1 & sex == 'female'] = 0
   dev.off()
