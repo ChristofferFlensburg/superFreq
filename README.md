@@ -129,8 +129,17 @@ Plots (some shown here), tables, and R objects for downstream analysis. Analysis
 - summary plots showing SNVs and CNAs over all samples
 - top tables of annotated somatic variants.
 
-#dependencies
+# dependencies
 - R.
 - a bunch of R packages.
 - VEP (latest version recommended, but may work down to version 76.)
 - samtools 1.x
+
+# Acknowledgements
+We wish to thanks all the organisations sharing data and resources openly, which allows preprocessing and redistribution. This allows superFreq to depend on only a single connection (which is the WEHI servers atm) and a minimum amount of data downloaded. So this limits the risk of 'server X could not be found' type of errors, and it limits the download size of the preprocessed data to hundreds of MBs, rather than hundreds of GBs for the unprocessed original data. It also saves time for everyone by removing user parsing of external resources from the analysis.
+- dbSNP
+- COSMIC
+- ExAC
+- ClinVar through NCBI
+- Ensembl
+- UCSC
