@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('0.9.25')
+superVersion = function() return('1.1.0')
 
 
 #' Wrapper to run default superFreq analysis
@@ -98,14 +98,13 @@ superVersion = function() return('0.9.25')
 #' @param maxCov Integer. The coverage at which systematic variance of SNV frequencies are equal
 #'                        to the Poissonian variance. Larger values increase sensitivity in CNV
 #'                        calls, smaller values decrease false positives. Default 150.
-#' @param dbSNPdirectory Character. The location of the directory where the superFreq dbSNP data
-#'                       is located. If the directory doesn't exist, it will be created and the
-#'                       data will be downloaded. Defaults to superFreqDbSNP (in the directory
+#' @param resourceDirectory Character. The location of the directory where superFreq resources
+#'                       are located. Such as dbSNP, COSMIC, annotation.
+#'                       If the directory doesn't exist, it will be created and the
+#'                       data will be downloaded. Defaults to superFreqResources (in the directory
 #'                       where R is run).
-#' @param cosmicDirectory Character. The location of the directory where the superFreq COSMIC data
-#'                       is located. If the directory doesn't exist, it will be created and the
-#'                       data will be downloaded. Defaults to superFreqCOSMIC (in the directory
-#'                       where R is run).
+#' @param dbSNPdirectory Character. Deprecated. Use resourceDirectory instead.
+#' @param cosmicDirectory Character. Deprecated. Use resourceDirectory instead.
 #' @param mode Character. The mode to run in. The default 'Exome' is almost always used. If running on RNA,
 #'                        switch to "RNA", which seems to work decently, but beware of limitations of the data.
 #                         "genome" is also allowed, but is in an early developmental stage.
@@ -131,6 +130,9 @@ superVersion = function() return('0.9.25')
 #'                        somatic variants. Default 'all' uses the total allele frequency across all of (non-TCGA) ExAC.
 #'                        Other available options are 'AFR' (Africa), 'AMR' (America), 'EAS' (East Asia),
 #'                        'FIN' (Finland), 'NFE' (Non-Finland Europe), 'OTH' (Other) and 'SAS' (South Asia).
+#' @param annotationMethod character. Which variant annotator to use. 'VEP' is the legacy method and requires a system
+#'                        installation of VEP. VariantAnnotation is contained in R and is significantly faster.
+#'                        Default 'VariantAnnotation'.
 #'
 #' @details This function runs a full SNV, CNV and clonality analysis of the input exome data. Output it sent to the plotDirectory, where diagnostics as well as analysis results are placed. At 12 cpus, the pipeline typically runs overnight on an individual with not too many samples. Large numbers of samples or somatic mutations can increase runtime further. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf about how to set up the run and interpret the output.
 #'          
@@ -153,8 +155,12 @@ superVersion = function() return('0.9.25')
 #' }
 superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='superFreqDbSNP', cosmicDirectory='superFreqCOSMIC', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
-  filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3) {
+  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='', cosmicDirectory='', resourceDirectory='superFreqResources', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
+  filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3, annotationMethod='VariantAnnotation') {
+
+  if ( dbSNPdirectory != '' ) warning("dbSNPdirectory is deprecated. Use superFreqResources instead.")
+  if ( cosmicDirectory != '' ) warning("cosmicDirectory is deprecated. Use superFreqResources instead.")
+  
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -187,10 +193,10 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
                 reference=reference, genome=genome, BQoffset=BQoffset, cpus=cpus,
                 outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
-                dbSNPdirectory=dbSNPdirectory, cosmicDirectory=cosmicDirectory, mode=mode, splitRun=F,
+                resourceDirectory=resourceDirectory, mode=mode, splitRun=F,
                 correctReferenceBias=correctReferenceBias, vepCall=vepCall,
                 filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation,
-                cosmicSalvageRate=cosmicSalvageRate)
+                cosmicSalvageRate=cosmicSalvageRate, annotationMethod=annotationMethod)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -198,8 +204,12 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
       }
     return()
   }
-  
-  inputFiles =
+
+  ensureDirectoryExists(resourceDirectory)
+  dbSNPdirectory = paste0(resourceDirectory, '/dbSNP')
+  cosmicDirectory = paste0(resourceDirectory, '/COSMIC')
+  annotationDirectory = paste0(resourceDirectory, '/annotation')
+  inputFiles = 
     superInputFiles(metaDataFile=metaDataFile, captureRegions=captureRegions, normalDirectory=normalDirectory,
                     dbSNPdirectory=dbSNPdirectory, reference=reference, normalCoverageDirectory=normalCoverageDirectory)
   #sanityCheckSuperInputFiles(inputFiles)
@@ -217,12 +227,12 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
 
   downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
   downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
-
+  downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
-          correctReferenceBias=correctReferenceBias, vepCall=vepCall, cosmicDirectory=cosmicDirectory, mode=mode,
-          filterOffTarget=filterOffTarget, rareGermline=rareGermline)
+          correctReferenceBias=correctReferenceBias, vepCall=vepCall, resourceDirectory=resourceDirectory, mode=mode,
+          filterOffTarget=filterOffTarget, rareGermline=rareGermline, annotationMethod=annotationMethod)
 
 }
 
@@ -301,9 +311,13 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T,
-  vepCall='vep', cosmicDirectory=cosmicDirectory, mode='exome', filterOffTarget=T, rareGermline=T) {
+  vepCall='vep', resourceDirectory=resourceDirectory, mode='exome', filterOffTarget=T, rareGermline=T, annotationMethod='VariantAnnotation') {
   options(stringsAsFactors = F)
   options(scipen = 10)
+
+  dbSNPdirectory = paste0(resourceDirectory, '/dbSNP')
+  cosmicDirectory = paste0(resourceDirectory, '/COSMIC')
+  annotationDirectory = paste0(resourceDirectory, '/annotation')
   
   if ( !all(c('Rdirectory', 'plotDirectory') %in% names(outputDirectories)) )
     stop('outputDirectories need all entries: Rdirectory, plotDirectory.')
@@ -399,7 +413,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
                             '. Note that parent directory must exist.')
   }
 
-  checkSystem(vepCall)
+  checkSystem(vepCall, testVEP=(annotationMethod=='VEP'))
 
   cat('Runtime tracking and QC information printed to ', logFile, '.\n', sep='')
   catLog('Starting run with input files:',
@@ -624,12 +638,20 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     load(file=saveFile)
   }
   else {
-    outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T, rareGermline=rareGermline)
-    variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP)
-    variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
-    load(file=paste0(Rdirectory, '/allVariantsPreVEP.Rdata'))
-    allVariants$variants = variants
-    save(allVariants, file=saveFile)
+    if ( annotationMethod == 'VEP' ) {
+      outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T, rareGermline=rareGermline)
+      variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP)
+      variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
+      load(file=paste0(Rdirectory, '/allVariantsPreVEP.Rdata'))
+      allVariants$variants = variants
+      save(allVariants, file=saveFile)
+    }
+    else if ( annotationMethod == 'VariantAnnotation' ) {
+      variants$variants = annotateSomaticQs(variants$variants, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
+      load(file=paste0(Rdirectory, '/allVariantsPreVEP.Rdata'))
+      allVariants$variants = variants
+      save(allVariants, file=saveFile)
+    }
     rm(allVariants)
     gc()
   }
@@ -639,7 +661,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   cnvs =
     callCNVs(variants=variants, fitS=fit$fit, variants$SNPs,
                  names=names, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
-                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias)
+                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias, mode=mode)
 
 
   #make CNV plots
@@ -668,7 +690,10 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #output somatic variants
   somatics = outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic)
 
-  river = makeRiverPlots(stories, variants, genome, cpus=cpus, plotDirectory, forceRedo=forceRedoRiver)
+  #plot the rivers
+  river =
+    makeRiverPlots(stories, variants, genome, cpus=cpus, plotDirectory,
+                   forceRedo=forceRedoRiver, annotationMethod=annotationMethod)
 
   #Make the scatter plots of the pairs
   scatter = makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
@@ -1269,7 +1294,7 @@ propagateForceRedo = function(forceRedo) {
     forceRedo$forceRedoOutputSomatic = T
   }
   if ( forceRedo$forceRedoOutputSomatic ) {
-    catLog('Redoing stories, so need to redo river and scatter plots, and new and somatic spread sheets.\n')
+    catLog('Redoing somaitc spread sheets, so need to redo variant annotation.\n')
     forceRedo$forceRedoVEP = T
   }
   return(forceRedo)
@@ -1299,7 +1324,7 @@ tableFlip = function() return("(╯°□°)╯ ︵ ┻━┻")
 
 
 
-checkSystem = function(vepCall) {
+checkSystem = function(vepCall, testVEP=F) {
   #check that samtools is callable, and version 1+ otherwise warning
   catLog('Testing samtools...\n')
   a = system('samtools --version')
@@ -1317,21 +1342,23 @@ checkSystem = function(vepCall) {
       catLog('Found', ret[1], '. Seems ok.\n')
   }
 
-  #check that VEP is installed, otherwise warning.
-  #Not straight forward to get the version.
-  catLog('Testing VEP...\n')
-  a = system(paste0(vepCall, ' --help'))
-  if ( a != 0 ) {
-    catLog('\nWARNING: \'', vepCall, ' --help\' failed. This is likely to cause problems downstream in variant calling.\n\n')
-    warning('\'samtools --version\' failed. This is likely to cause problems downstream in variant calling.')
-  }
-  else {
-    ret = system(paste0(vepCall, ' --help'), intern=T)
-    if ( length(ret) < 2 || !grepl('ENSEMBL VARIANT EFFECT PREDICTOR', ret[2]) ) {
-      catLog(paste0('\nWARNING: \'', vepCall, ' --help\' did not produce expected output. This may cause problems in variant annotation. VEP version 89 is suggested, although there is some backwards compatibility.\n'))
-      warning('samtools --version did not produce expected output \'samtools 1.x.x\'. This may cause problems in variant calling.')
+  if ( testVEP ) {
+    #check that VEP is installed, otherwise warning.
+    #Not straight forward to get the version.
+    catLog('Testing VEP...\n')
+    a = system(paste0(vepCall, ' --help'))
+    if ( a != 0 ) {
+      catLog('\nWARNING: \'', vepCall, ' --help\' failed. This is likely to cause problems downstream in variant calling.\n\n')
+      warning('\'samtools --version\' failed. This is likely to cause problems downstream in variant calling.')
     }
-    else
-      catLog('Found VEP. Seems ok.\n')
+    else {
+      ret = system(paste0(vepCall, ' --help'), intern=T)
+      if ( length(ret) < 2 || !grepl('ENSEMBL VARIANT EFFECT PREDICTOR', ret[2]) ) {
+        catLog(paste0('\nWARNING: \'', vepCall, ' --help\' did not produce expected output. This may cause problems in variant annotation. VEP version 89 is suggested, although there is some backwards compatibility.\n'))
+        warning('samtools --version did not produce expected output \'samtools 1.x.x\'. This may cause problems in variant calling.')
+      }
+      else
+        catLog('Found VEP. Seems ok.\n')
+    }
   }
 }

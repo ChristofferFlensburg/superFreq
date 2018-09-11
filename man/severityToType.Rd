@@ -4,7 +4,7 @@
 \alias{severityToType}
 \title{The variant effect as function of severity}
 \usage{
-severityToType(severity)
+severityToType(severity, annotationMethod = "VEP")
 }
 \arguments{
 \item{severity}{integer: The severity rank.}

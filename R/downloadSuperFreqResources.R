@@ -65,12 +65,12 @@ downloadSuperFreqCOSMIC = function(directory='superFreqCOSMIC', genome='hg19') {
     }
 
     urls =
-        paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/',
-               c('allCosmicCounts_hg19.Rdata', 'cosmicCounts.Rdata'))
+      paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
+             c('COSMIC/allCosmicCounts_hg19.Rdata', 'COSMIC/cosmicCounts.Rdata', 'ClinVar/clinvar19.Rdata'))
     if ( genome == 'hg38' )
         urls =
-            paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/',
-                   c('allCosmicCounts_hg38.Rdata', 'cosmicCounts.Rdata'))
+            paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
+                   c('COSMIC/allCosmicCounts_hg38.Rdata', 'COSMIC/cosmicCounts.Rdata', 'ClinVar/clinvar38.Rdata'))
     if ( genome == 'mm10' )
         urls = 'http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/CCGD_export.csv'
     for ( url in urls ) {
@@ -79,7 +79,6 @@ downloadSuperFreqCOSMIC = function(directory='superFreqCOSMIC', genome='hg19') {
     }
   
 }
-
 
 downloadCaptureRegions = function(directory, genome='hg19', mode='exome', binSize=10000) {
     url = ''
@@ -110,3 +109,30 @@ downloadCaptureRegions = function(directory, genome='hg19', mode='exome', binSiz
 
     return(paste0(directory, '/', basename(urls[1])))
 }
+
+
+downloadSuperFreqAnnotation = function(directory='superFreqAnnotation', genome='hg19') {
+    if ( !dir.exists(directory) ) {
+      cat('Downloading superFreq annotation to', directory, '.\n')
+      dir.create(directory)
+    }
+
+    urls =
+        paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/annotation/',
+               c('dumpHg19.Rdata'))
+    if ( genome == 'hg38' )
+        urls =
+            paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/annotation/',
+                   c('dumpHg38.Rdata'))
+    if ( genome == 'mm10' )
+        urls =
+            paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/annotation/',
+                   c('dumpMm10.Rdata'))
+    for ( url in urls ) {
+      destFile = paste0(directory, '/', basename(url))
+      if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
+    }
+  
+}
+
+

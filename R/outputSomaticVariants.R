@@ -26,20 +26,13 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       end = xToPos(q$x, genome)
       variant = q$variant
       reference = q$reference
-      if ( any(grepl('-', variant)) ) {
-        deletions = grepl('-', variant)
-        nDel = as.numeric(gsub('-', '', variant[deletions]))
-        reference[deletions] = sapply(nDel, function(n) do.call(paste0, as.list(rep('N', n))))
-        variant[deletions] = '-'
-        start[deletions] = start[deletions]+1
-        end[deletions] = end[deletions]+nDel
-      }
-      if ( any(grepl('\\+', variant)) ) {
-        insertions = grepl('\\+', variant)
-        nIns = nchar(variant[insertions])-1
-        variant[insertions] = paste0(substr(reference[insertions], 1, 1), gsub('\\+', '', variant[insertions]))
-      }
 
+      refvarstartendList = convertVariantsToVCF(list(reference, variant, start, end))
+      reference = refvarstartendList[[1]]
+      variant = refvarstartendList[[2]]
+      start = refvarstartendList[[3]]
+      end = refvarstartendList[[4]]
+      
       somatic = data.frame(
         chr=xToChr(q$x, genome),
         start=start,
@@ -69,6 +62,10 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       if ( all(moreVEPnames(genome=genome) %in% names(q)) ) {
         catLog('adding more VEP info..')
         somatic = cbind(somatic, q[,moreVEPnames(genome=genome)])
+      }
+      if ( all(annotationColumns(genome=genome) %in% names(q)) ) {
+        catLog('adding more VariantAnnotation info..')
+        somatic = cbind(somatic, q[,annotationColumns(genome=genome)])
       }
       if ( 'severity' %in% names(q) )  ord = order(q$severity + 10*ifelse(is.na(q$germline), 0, q$germline))
       else ord = order(10*q$germline)
@@ -188,4 +185,27 @@ expandFlags = function(flags) {
   flags = gsub('(Nr)([A-Z]|$)', 'Noisyregion:\\2', flags)
 
   return(flags)
+}
+
+
+convertVariantsToVCF = function(refvarstartendList) {
+  reference = refvarstartendList[[1]]
+  variant = refvarstartendList[[2]]
+  start = refvarstartendList[[3]]
+  end = refvarstartendList[[4]]
+  if ( any(grepl('-', variant)) ) {
+    deletions = grepl('-', variant)
+    nDel = as.numeric(gsub('-', '', variant[deletions]))
+    reference[deletions] = sapply(nDel, function(n) do.call(paste0, as.list(rep('N', n))))
+    variant[deletions] = '-'
+    start[deletions] = start[deletions]+1
+    end[deletions] = end[deletions]+nDel
+  }
+  if ( any(grepl('\\+', variant)) ) {
+    insertions = grepl('\\+', variant)
+    nIns = nchar(variant[insertions])-1
+    variant[insertions] = paste0(substr(reference[insertions], 1, 1), gsub('\\+', '', variant[insertions]))
+  }
+
+  return(list(reference, variant, start, end))
 }

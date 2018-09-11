@@ -1,6 +1,6 @@
 
 #takes the subclone evolution from the stories and plots rivers, showing which events are aprt of which subclone.
-makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirectory, forceRedo=F) {
+makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirectory, forceRedo=F, annotationMethod='VariantAnnotation') {
   if ( length(stories) == 0 ) return
   riverDirectory = paste0(plotDirectory, '/rivers/')
   if ( !file.exists(riverDirectory) ) dir.create(riverDirectory)
@@ -15,17 +15,17 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     cloneCols =
       plotRiver(cloneTree=stories[[ts]]$consistentClusters$cloneTree, cloneStories=stories[[ts]]$consistentClusters$cloneStories,
                 storyList=stories[[ts]]$consistentClusters$storyList, allStories=stories[[ts]]$allConsistent,
-                variants=patVar, genome=genome)
+                variants=patVar, genome=genome, annotationMethod=annotationMethod)
     if ( ncol(stories[[ts]]$all$stories) > 1 ) {
       plotStories(stories[[ts]]$consistentClusters$cloneStories, patVar, col=cloneCols, genome=genome)
       heatmapStories(stories[[ts]]$allConsistent, stories[[ts]]$consistentClusters$storyList,
-                     patVar, col=cloneCols, genome=genome)
+                     patVar, col=cloneCols, genome=genome, annotationMethod=annotationMethod)
       for ( subclone in names(stories[[ts]]$consistentClusters$storyList) ) {
         i = which(names(stories[[ts]]$consistentClusters$storyList) == subclone)
         plotStories(stories[[ts]]$allConsistent[stories[[ts]]$consistentClusters$storyList[[subclone]],],
-                    patVar, alpha=0.2, genome=genome)
+                    patVar, alpha=0.2, genome=genome, annotationMethod=annotationMethod)
         plotStories(stories[[ts]]$consistentClusters$cloneStories[i,], patVar, add=T,
-                    col=cloneCols[i], genome=genome)
+                    col=cloneCols[i], genome=genome, annotationMethod=annotationMethod)
       }
     }
     dev.off()
@@ -37,17 +37,17 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       pdf(removedFile, width=15, height=10)
       cloneCols = plotRiver(stories[[ts]]$cloneTree, stories[[ts]]$clusters$cloneStories,
                             stories[[ts]]$clusters$storyList, stories[[ts]]$all,
-                            variants=patVar, genome=genome)
+                            variants=patVar, genome=genome, annotationMethod=annotationMethod)
       if ( ncol(stories[[ts]]$all$stories) > 1 ) {
         plotStories(stories[[ts]]$clusters$cloneStories, patVar, col=cloneCols, genome=genome)
         heatmapStories(stories[[ts]]$all, stories[[ts]]$clusters$storyList,
-                       patVar, col=cloneCols, genome=genome)
+                       patVar, col=cloneCols, genome=genome, annotationMethod=annotationMethod)
         for ( subclone in names(stories[[ts]]$clusters$storyList) ) {
           i = which(names(stories[[ts]]$clusters$storyList) == subclone)
           plotStories(stories[[ts]]$all[stories[[ts]]$clusters$storyList[[subclone]],],
-                      patVar, alpha=0.2, genome=genome)
+                      patVar, alpha=0.2, genome=genome, annotationMethod=annotationMethod)
           plotStories(stories[[ts]]$clusters$cloneStories[i,], patVar, add=T,
-                      col=cloneCols[i], genome=genome)
+                      col=cloneCols[i], genome=genome, annotationMethod=annotationMethod)
         }
       }
       dev.off()
@@ -64,7 +64,7 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     chr = xToChr(output$x1, genome)
     start = xToPos(output$x1, genome)
     end = xToPos(output$x2, genome)
-    label = storyToLabel(output, patVar, genome, maxLength=100)
+    label = storyToLabel(output, patVar, genome, maxLength=100, annotationMethod=annotationMethod)
     label = label[as.character(1:nrow(output)),]
     names(start) = names(end) = names(chr) = rownames(output)
     clonality = as.data.frame(output$stories)
@@ -72,7 +72,9 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     names(chr) = names(start) = names(end) = rownames(clonality)
     output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
     output = addAnnotationToOutput(output, patVar, genome=genome)
-    WriteXLS('output', excelFile)
+    excelOutput = output[1:max(nrow(output), 65000),]
+    if ( nrow(output) > 65000 ) warning('Truncating .xls river: too many rows.')
+    WriteXLS('excelOutput', excelFile)
     tsvFile = paste0(riverDirectory, ts, '-river.tsv')
     write.table(output, file=tsvFile, sep='\t', quote=F, row.names=F)
 
@@ -88,14 +90,16 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       chr = xToChr(output$x1, genome)
       start = xToPos(output$x1, genome)
       end = xToPos(output$x2, genome)
-      label = storyToLabel(output, patVar, genome, maxLength=100)
+      label = storyToLabel(output, patVar, genome, maxLength=100, annotationMethod=annotationMethod)
       label = label[as.character(1:nrow(output)),]
       names(start) = names(end) = names(chr) = rownames(output)
       clonality = as.data.frame(output$stories)
       error = as.data.frame(output$errors)
       output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
       output = addAnnotationToOutput(output, patVar, genome=genome)
-      WriteXLS('output', excelFile)
+      excelOutput = output[1:max(nrow(output), 65000),]
+      if ( nrow(output) > 65000 ) warning('Truncating .xls dodgy river: too many rows.')
+      WriteXLS('excelOutput', excelFile)
     }
 
     catLog('done.\n')
@@ -103,7 +107,7 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
 }
 
 #helper function converting internal event names to informative labels for the plots.
-storyToLabel = function(stories, variants, genome, maxLength=30, mergeCNAs=F) {
+storyToLabel = function(stories, variants, genome, maxLength=30, mergeCNAs=F, annotationMethod='VariantAnnotation') {
   call = stories$call
   isSNP = grepl('[0-9]', call)
   x1 = stories$x1
@@ -141,11 +145,11 @@ storyToLabel = function(stories, variants, genome, maxLength=30, mergeCNAs=F) {
   q = q[q$x %in% x1[isSNP],]  
   gene = q[call,]$inGene[isSNP]
   if ( 'severity' %in% names(variants$variants[[1]]) & any(isSNP) ) {
-    severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[call[isSNP],]$severity), 100, sapply(q[call[isSNP],]$type, typeToSeverity)))
+    severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[call[isSNP],]$severity), 100, q[call[isSNP],]$severity))
     if ( sum(isSNP) == 1 ) severityMx = matrix(severityMx, nrow=sum(isSNP))
     mostSevere = ceiling(apply(severityMx, 1, min))
     severity[isSNP] = mostSevere
-    type = sapply(mostSevere, severityToType)
+    type = sapply(mostSevere, function(severity) severityToType(severity, annotationMethod))
     type[type=='unknown'] = ''
     label[isSNP] = substr(paste0(gene, ' (', chr[isSNP], ') ', type), 1, maxLength)
   }
@@ -155,11 +159,23 @@ storyToLabel = function(stories, variants, genome, maxLength=30, mergeCNAs=F) {
   if ( 'isCosmicCensus' %in% names(variants$variants[[1]]) & any(isSNP) ) {
     cosmicMx = sapply(variants$variants, function(q) {
       if ( !('isCosmicCensus' %in% names(q)) ) return(rep(F, sum(isSNP)))
-      return(q[call[isSNP],]$isCosmicCensus)
+      return(q[call[isSNP],]$isCosmicCensus & q[call[isSNP],]$severity < 11)
     })
     if ( sum(isSNP) == 1 ) cosmicMx = matrix(unlist(cosmicMx), nrow=sum(isSNP))
     isCensus = apply(cosmicMx, 1, any)
-    colour[isSNP] = ifelse(isCensus, mcri('green'), 'black')
+
+    clinvarMx = sapply(variants$variants, function(q) {
+      if ( !('ClinVar_ClinicalSignificance' %in% names(q)) ) return(rep(F, sum(isSNP)))
+      isPathogenic =
+        grepl('[pP]athogenic$', paste0(q[call[isSNP],]$ClinVar_ClinicalSignificance)) |
+        grepl('[pP]athogenic,', paste0(q[call[isSNP],]$ClinVar_ClinicalSignificance))
+      return(isPathogenic & q[call[isSNP],]$severity < 11)
+    })
+    if ( sum(isSNP) == 1 ) clinvarMx = matrix(unlist(clinvarMx), nrow=sum(isSNP))
+    isPathogenic = apply(clinvarMx, 1, any)
+    isCensus = isCensus | isPathogenic
+
+    colour[isSNP] = ifelse(isCensus & isPathogenic, mcri('orange'), ifelse(isCensus, mcri('green'), 'black'))
     font[isSNP] = ifelse(isCensus, 2, 1)
   }
 
@@ -222,7 +238,7 @@ addAnnotationToOutput = function(output, variants, genome='hg19') {
 #'
 #' @export
 #'
-plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2, smallPlot=F) {
+plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2, smallPlot=F, annotationMethod='VariantAnnotation') {
   variants$variants = variants$variants[colnames(cloneStories$stories)]
   
   if ( length(colourPool) == 0 )
@@ -243,7 +259,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
 
   maxLength = 20
   if ( smallPlot ) maxLength = 17
-  cloneLabels = lapply(storyList, function(rows) storyToLabel(allStories[rows,], variants, genome=genome,maxLength=maxLength,  mergeCNAs=T))
+  cloneLabels = lapply(storyList, function(rows) storyToLabel(allStories[rows,], variants, genome=genome,maxLength=maxLength,  mergeCNAs=T, annotationMethod=annotationMethod))
   names(cloneLabels) = names(storyList)
   stories = abs(cloneStories$stories)
   rownames(stories) = rownames(cloneStories)
@@ -443,7 +459,7 @@ excludeClonesFromTree = function(tree, excludeClones) {
 #'
 #' @export
 #'
-plotStories = function(stories, variants, col='default', lty='default', add=F, alpha=1, xlab='sample', ylab='clonality', lwd='default', errorBars=T, setPar=T, legend=T, labels=T, xlim='default', genome='hg19', xSpread=0.25, sampleOrder=NA,...) {
+plotStories = function(stories, variants, col='default', lty='default', add=F, alpha=1, xlab='sample', ylab='clonality', lwd='default', errorBars=T, setPar=T, legend=T, labels=T, xlim='default', genome='hg19', xSpread=0.25, sampleOrder=NA, annotationMethod='VariantAnnotation', ...) {
   if ( is.na(sampleOrder[1]) ) sampleOrder = colnames(stories$stories)
   clon = stories$stories[,sampleOrder,drop=F]
   ce = stories$errors[,sampleOrder,drop=F]
@@ -504,7 +520,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
 
   if ( !add ) {
     if ( legend ) {
-      lbls = storyToLabel(stories, variants, genome, mergeCNAs=T)
+      lbls = storyToLabel(stories, variants, genome, mergeCNAs=T, annotationMethod=annotationMethod)
       legCex = pmin(1, pmax(0.5, 45/nrow(lbls)))
       font = lbls$font
       severity = lbls$severity
@@ -521,7 +537,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
   }
 }
 
-heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
+heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19', annotationMethod='VariantAnnotation') {
   stories = stories[do.call(c, storyList),]
   if ( !is.na(col)[1] & all(names(storyList) %in% names(col)) ) {
     clone = do.call(c, lapply(1:length(storyList), function(i) rep(i, length(storyList[[i]]))))
@@ -534,7 +550,7 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19') {
   
   clonalityMx = stories$stories
 
-  labels = storyToLabel(stories, variants, genome)
+  labels = storyToLabel(stories, variants, genome, annotationMethod=annotationMethod)
   rownames(clonalityMx) = labels[as.character(1:nrow(stories)),]$label
 
   if ( nrow(clonalityMx) < 1000 ) {
@@ -703,14 +719,14 @@ plotClones = function(cloneStories, allStories, storyList, variants, sampleOrder
   cloneCol = mcri(1:length(cloneNames)-1)
   fadedCloneCol = mcri(1:length(cloneNames)-1, al=bg.al)
   names(cloneCol) = names(fadedCloneCol) = cloneNames
-  plotStories(cloneStories, variants, col=cloneCol, xSpread=0, errorBars=F, lwd=0, ...)  
+  plotStories(cloneStories, variants, col=cloneCol, xSpread=0, errorBars=F, lwd=0, annotationMethod=annotationMethod, ...)  
   for ( clone in cloneNames ) {
     all = allStories[storyList[[clone]],]
     all = all[rowmeans(all$errors) < maxError,]
     cloneStories$stories = 
-    plotStories(all, variants, add=T, col=fadedCloneCol[clone], lty=1, errorBars=F, xSpread=0)
+    plotStories(all, variants, add=T, col=fadedCloneCol[clone], lty=1, errorBars=F, xSpread=0, annotationMethod=annotationMethod)
   }
-  plotStories(cloneStories, variants, col=cloneCol, xSpread=0, errorBars=F, lwd=5, add=T)  
+  plotStories(cloneStories, variants, col=cloneCol, xSpread=0, errorBars=F, lwd=5, add=T, annotationMethod=annotationMethod)
 }
 
 

@@ -8,11 +8,12 @@ superFreq(metaDataFile, captureRegions = "", normalDirectory, Rdirectory,
   plotDirectory, reference, genome = "hg19", BQoffset = 33, cpus = 3,
   outputToTerminalAsWell = T, forceRedo = forceRedoNothing(),
   normalCoverageDirectory = "", systematicVariance = 0.02, maxCov = 150,
-  cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "superFreqDbSNP",
-  cosmicDirectory = "superFreqCOSMIC", mode = "exome", splitRun = F,
-  participants = "all", manualStoryMerge = F, vepCall = "vep",
-  correctReferenceBias = T, filterOffTarget = T, rareGermline = T,
-  exacPopulation = "all", cosmicSalvageRate = 0.001)
+  cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "",
+  cosmicDirectory = "", resourceDirectory = "superFreqResources",
+  mode = "exome", splitRun = F, participants = "all",
+  manualStoryMerge = F, vepCall = "vep", correctReferenceBias = T,
+  filterOffTarget = T, rareGermline = T, exacPopulation = "all",
+  cosmicSalvageRate = 0.001, annotationMethod = "VariantAnnotation")
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -115,14 +116,14 @@ values increase sensitivity. Defaults to 0.03.}
 to the Poissonian variance. Larger values increase sensitivity in CNV
 calls, smaller values decrease false positives. Default 150.}
 
-\item{dbSNPdirectory}{Character. The location of the directory where the superFreq dbSNP data
-is located. If the directory doesn't exist, it will be created and the
-data will be downloaded. Defaults to superFreqDbSNP (in the directory
-where R is run).}
+\item{dbSNPdirectory}{Character. Deprecated. Use resourceDirectory instead.}
 
-\item{cosmicDirectory}{Character. The location of the directory where the superFreq COSMIC data
-is located. If the directory doesn't exist, it will be created and the
-data will be downloaded. Defaults to superFreqCOSMIC (in the directory
+\item{cosmicDirectory}{Character. Deprecated. Use resourceDirectory instead.}
+
+\item{resourceDirectory}{Character. The location of the directory where superFreq resources
+are located. Such as dbSNP, COSMIC, annotation.
+If the directory doesn't exist, it will be created and the
+data will be downloaded. Defaults to superFreqResources (in the directory
 where R is run).}
 
 \item{mode}{Character. The mode to run in. The default 'Exome' is almost always used. If running on RNA,
@@ -157,6 +158,10 @@ heterozygous SNPs for variant calling and, in case of no matched normal, identif
 somatic variants. Default 'all' uses the total allele frequency across all of (non-TCGA) ExAC.
 Other available options are 'AFR' (Africa), 'AMR' (America), 'EAS' (East Asia),
 'FIN' (Finland), 'NFE' (Non-Finland Europe), 'OTH' (Other) and 'SAS' (South Asia).}
+
+\item{annotationMethod}{character. Which variant annotator to use. 'VEP' is the legacy method and requires a system
+installation of VEP. VariantAnnotation is contained in R and is significantly faster.
+Default 'VariantAnnotation'.}
 }
 \description{
 Wrapper to run default superFreq analysis

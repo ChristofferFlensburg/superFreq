@@ -6,7 +6,8 @@ bamToPileup = function(bam, fasta, positions, index, BQoffset=33) {
 
   #read in mpileups, split by chromosome if needed.
   chrs = unique(positions$chr)
-  posFile = paste0(bam, '.pos.', index)
+  #adding a randon number to temp file name in case several processes read from same bam.
+  posFile = paste0(bam, '.pos.', index, '.', sample.int(1e10, 1))
   mpileups = lapply(chrs, function(chr) {
     region = paste0(chr, ':', min(positions$start[positions$chr == chr]), '-',
       max(positions$start[positions$chr == chr]))

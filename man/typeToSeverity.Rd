@@ -4,7 +4,7 @@
 \alias{typeToSeverity}
 \title{Ranks the variant effects}
 \usage{
-typeToSeverity(type)
+typeToSeverity(type, annotationMethod = "VEP")
 }
 \arguments{
 \item{type}{character: The effect.}

@@ -736,6 +736,7 @@ plotColourScatter = function(x, y, xlab='', ylab='', col='defaultBlue', main='co
   if ( main == 'cor' ) main = paste('Correlation is', signif(cor(x,y), 2))
   if ( col == 'defaultBlue' ) plotCol=mcri('darkblue')
   else if ( col == 'defaultRed' ) plotCol=mcri('darkred')
+  else if ( col == 'defaultPurple' ) plotCol=combineColours(mcri('violet'), mcri('black'), w1=1, w2=0)
   else if ( col == 'defaultGreen' ) plotCol=combineColours(mcri('green'), 'black', w1=1, w2=0.5)
   else plotCol = col
   if ( !add ) plot(x, y, cex=cex*0.6, pch=16, xlab=xlab, ylab=ylab,
@@ -755,6 +756,11 @@ plotColourScatter = function(x, y, xlab='', ylab='', col='defaultBlue', main='co
     points(x, y, cex=cex*0.4, pch=16, col=mcri('green', al=0.4))
     points(x, y, cex=cex*0.3, pch=16, col=combineColours(mcri('green'), mcri('cyan'), w1=1, w2=0, alpha=0.1))
     points(x, y, cex=cex*0.2, pch=16, col=combineColours(mcri('green'), 'white', w1=1, w2=1, alpha=0.02))
+  }
+  if ( showDensity & col == 'defaultPurple' ) {
+    points(x, y, cex=cex*0.4, pch=16, col=combineColours(mcri('violet'), mcri('magenta'), w1=.7, w2=.3, alpha=0.4))
+    points(x, y, cex=cex*0.3, pch=16, col=combineColours(mcri('violet'), mcri('magenta'), w1=.3, w2=0.7, alpha=0.1))
+    points(x, y, cex=cex*0.2, pch=16, col=combineColours(mcri('white'), mcri('magenta'), w1=.5, w2=.5, alpha=0.02))
   }
 }
 

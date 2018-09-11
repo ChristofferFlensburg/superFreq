@@ -147,7 +147,9 @@ genomeToAssembly = function(genome) {
 #' @param type character: The effect.
 #'
 #' @details Returns a low score for severe effects, higher for less severe, 100 for unknown. 11 and below alters the protein.
-typeToSeverity = function(type) {
+typeToSeverity = function(type, annotationMethod='VEP') {
+  if ( annotationMethod == 'VariantAnnotation' ) return(VAconsequenceToSeverityRank(type))
+  
   #first change some (older? newer?) notation into the ensemble SO terms
   type = gsub('non_coding_exon_variant', 'non_coding_transcript_exon_variant', type)
   type = gsub('nc_transcript_variant', 'non_coding_transcript_exon_variant', type)
@@ -200,7 +202,9 @@ typeToSeverity = function(type) {
 #' @param severity integer: The severity rank.
 #'
 #' @details Translated back from severity rank to the variant effect.
-severityToType = function(severity) {
+severityToType = function(severity, annotationMethod='VEP') {
+  if ( annotationMethod == 'VariantAnnotation' ) return(VAseverityToConsequence(severity))
+  
   if ( severity == 1 ) return('transcript_ablation')
   if ( severity == 2 ) return('splice_acceptor_variant')
   if ( severity == 3 ) return('splice_donor_variant')

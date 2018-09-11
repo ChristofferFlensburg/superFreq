@@ -7,8 +7,9 @@
 analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters = defaultSuperParameters(), byIndividual = T,
   manualStoryMerge = F, correctReferenceBias = T, vepCall = "vep",
-  cosmicDirectory = cosmicDirectory, mode = "exome", filterOffTarget = T,
-  rareGermline = T)
+  resourceDirectory = resourceDirectory, mode = "exome",
+  filterOffTarget = T, rareGermline = T,
+  annotationMethod = "VariantAnnotation")
 }
 \arguments{
 \item{inputFiles}{A named list of input files, containing the entries metaDataFile, vcfFiles, normalDirectory, captureRegionsFile and dbSNPdirectory}

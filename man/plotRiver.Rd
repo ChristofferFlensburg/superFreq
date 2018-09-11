@@ -8,7 +8,7 @@ plotRiver(cloneTree, cloneStories, storyList, allStories, variants,
   genome = "hg19", normalise = T, xlim = "default", ylim = "default",
   labels = T, setPar = T, sampleOrder = "default", excludeClones = c(),
   markDodgy = T, colourPool = c(), ignoreStoriesBelowSigma = 2,
-  smallPlot = F)
+  smallPlot = F, annotationMethod = "VariantAnnotation")
 }
 \arguments{
 \item{variants}{dataFrame from superFreq. such as data$allVariants$variants$variants$mySample}

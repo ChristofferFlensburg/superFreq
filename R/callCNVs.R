@@ -7,7 +7,7 @@
 #It then calls the CN of each clustered region, as well as clonality, uncertainty estimate and p-value
 #for normal CN.
 #returns a list of data frames with each region of the genome on a row.
-callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T) {
+callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T, mode='exome') {
   clustersSaveFile = paste0(Rdirectory, '/clusters.Rdata')
   if ( file.exists(clustersSaveFile) & !forceRedoCNV ) {
     catLog('Loading saved CNV results.\n')
@@ -33,7 +33,8 @@ callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirector
                                   fit = subsetFit(fitS, cols=paste0(name, '-normal')),
                                   plotDirectory, name, individuals, SNPs,
                                   genome=genome, cpus=cpus,
-                                  correctReferenceBias=correctReferenceBias))
+                                  correctReferenceBias=correctReferenceBias,
+                                  mode=mode))
     }
     else
       return(callCancerNormalCNVs(cancerVariants=variants$variants[[name]],
@@ -41,7 +42,8 @@ callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirector
                                   fit = subsetFit(fitS, cols=paste0(name, '-normal')),
                                   plotDirectory, name, individuals, SNPs,
                                   genome=genome, cpus=cpus,
-                                  correctReferenceBias=correctReferenceBias))
+                                  correctReferenceBias=correctReferenceBias,
+                                  mode=mode))
   })
 
   names(clusters) = names
@@ -51,7 +53,7 @@ callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirector
 
 
 #the high level function that controls the steps of the CNV calling for given sample and normal variant objects.
-callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T) {
+callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T, mode='exome') {
 
   #select good germline het variants from normals:
   if ( class(normalVariants) == 'logical')
@@ -82,7 +84,8 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirecto
   boostFile = paste0(boostDirectory, '/', name, '.pdf')
   catLog('Plotting boost to ', boostFile, '.\n')
   pdf(boostFile, width=14, height=7)
-  cancerCR = boostCRwidth(cancerCR, plot=T)
+  if ( mode == 'RNA' ) cancerCR = getCorrectedCR(rawcr, fit)
+  else cancerCR = boostCRwidth(cancerCR, plot=T)
   dev.off()
 
   #run clustering algorithm
@@ -1030,6 +1033,76 @@ boostCRwidth = function(CR, plot=F) {
   CR$width = CR$width + widthBoost
   return(CR)
 }
+
+#helper function that corrects variance in RNA-Seq mode.
+#identifies housekeeping genes with high (but not too high) expression
+#and nto too high variance in reference normals. Increases variance of other genes.
+#then runs the same variance boost alrogithm based on neighbours, but using 90% quantile instead of median to tune.
+getCorrectedCR = function(CR, fit, plot=F) {
+  houseExpression = quantile(fit$Amean, probs=c(0.65, 0.98)) #housekeeping = 65%-98% expression quantile
+  maxPenalty = 1
+  distance = pmax(noneg(fit$Amean-houseExpression[2]), noneg(houseExpression[1]-fit$Amean))
+  expressionPenalty = pmin(maxPenalty,2*distance/(houseExpression[2]-houseExpression[1]))
+  correctedWidth = CR$width + expressionPenalty
+  
+  houseVariance = quantile(correctedWidth[expressionPenalty==0], probs=c(0.5, 0.95)) #penalty for top 50% most variable housekeeping genes.
+  maxPenalty = 1
+  distance = noneg((correctedWidth-houseVariance[1]))
+  variancePenalty = pmin(maxPenalty,maxPenalty*distance/(houseVariance[2]-houseVariance[1]))
+  correctedWidth = correctedWidth + variancePenalty
+
+  housekeeping = expressionPenalty + variancePenalty == 0
+  boost = boostCRwidthRNA(CR[housekeeping,], plot=plot, quant=0.9)
+  ret = CR
+  ret$width = correctedWidth + boost
+
+  return(ret)
+}
+boostCRwidthRNA = function(CR, plot=F, quant=0.5) {
+  CR = CR[order(CR$x1),]
+  x = (CR$x1+CR$x2)/2
+  
+  x = (-1000:1000)/100
+  y1 = rt(100000, CR$df[1])
+  y2 = rt(100000, CR$df[1])
+  the = quantile(abs(y1-y2), probs=quant)
+
+  last = nrow(CR)
+  changeBoost = function(boost) quantile(abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1]+boost)^2+(CR$width[-last]+boost)^2)), probs=quant)
+  testRange = (0:1000)/1000
+  changes = sapply(testRange, changeBoost)
+  widthBoost = testRange[max(c(1, which(changes > the)))]
+
+  if ( widthBoost > 0 ) catLog('Boosted biological variance of LFC by ', widthBoost, '.\n', sep='')
+  else catLog('No boost needed for biological variance.\n')
+
+  if ( plot ) {
+    maxDev = max(abs(y1-y2), abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1])^2+(CR$width[-last])^2)),
+      abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1]+widthBoost)^2+(CR$width[-last]+widthBoost)^2)))
+    breaks = (0:500)/500*maxDev
+    xmax = quantile(abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1])^2+(CR$width[-last])^2)), probs=0.99)
+    h0 = hist(abs(y1-y2), plot=T, breaks=breaks, col='grey', xlab='difference/sqrt(width1^2 + width2^2)',
+      ylab='#regions', main='LFC difference of neighbouring regions', freq=F, xlim=c(0, xmax))
+    h1 = hist(abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1])^2+(CR$width[-last])^2)), plot=F, breaks=breaks)
+    h2 = hist(abs((CR$M[-1]-CR$M[-last])/sqrt((CR$width[-1]+widthBoost)^2+(CR$width[-last]+widthBoost)^2)), plot=F, breaks=breaks)
+    lines(h1$mids, h1$density, col=mcri('blue'), lwd=5)
+    lines(h2$mids, h2$density, col=mcri('red'), lwd=3)
+    legend('topright', c('expected', 'no boost', 'boosted variance'), lwd=c(10, 5, 3),
+           col=mcri(c('grey', 'blue', 'red')))
+
+    ymax = max(changes, the)
+    plot(testRange, changes, type='l', lwd=3, col=mcri('blue'), xlab='width boost', ylab='median difference',
+         main='boost optimisation curve', ylim=c(0, ymax), xlim=c(0, max(min(1, 1.5*widthBoost), 0.2)))
+    segments(widthBoost, 0, widthBoost, 2*xmax, lwd=3, col=mcri('red'))
+    segments(-1, the, 1, the, lwd=3, col=mcri('grey'))
+    legend('topright', c('median difference', 'expected median', 'selected boost'), lwd=c(3,3,3),
+           col=mcri(c('blue', 'grey', 'red')), bg='white')
+  }
+  
+  #CR$width = CR$width + widthBoost
+  return(widthBoost)
+}
+
 
 
 #plotting function for diagnostic plot of calls. Good for spotting failed average CNV, or dubious calls in general.
