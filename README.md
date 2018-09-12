@@ -57,10 +57,10 @@ normalDirectory = '~/resources/superFreq/referenceNormals/myCaptureInThisBatch'
 reference = '~/resources/reference/hg19/hg19.fa'
 genome = 'hg19'
 
-#the dbSNP and cosmic directory. This will be created and downloaded if not existing.
-dbSNPdirectory = '~/resources/superFreq/dbSNP'
-cosmicDirectory = '~/resources/superFreq/COSMIC'
-#default
+#the resource directory with preprocessed data from dbSNP, ExAC, COSMIC, gene annotation and ClinVar.
+#Will be created and resources downlaoded from the WEHI server. If you point to an existing resource directory
+#then it'll be reused, and resources won't have to be redownloaded and duplicated.
+resourceDirectory = "superFreqResources"
 
 #The directory where the log file and saved .Rdata is stored. Will be created.
 Rdirectory = 'R'
@@ -92,13 +92,14 @@ mode = 'exome'
 splitRun = T
 
 #this performs the actual analysis. output goes to Rdirectory and plotDirectory.
-#runtime is typically ~12 hours the first time at 6 cpus. Can be significantly more if many samples.
+#runtime is typically less than 6 hours at 4 cpus for a cancer-normal exome, but can vary significantly depending on input.
+#For a typical cancer-normal exome, 5-10GB of memory is used per cpus, but again, can vary significantly depending on input.
 #later runs typically a bit faster as the setup and part of the analysis on the reference normals can be reused.
 data =
     superFreq(metaDataFile, captureRegions=captureRegionsFile, normalDirectory=normalDirectory,
               Rdirectory=Rdirectory, plotDirectory=plotDirectory, reference=reference, genome=genome,
               BQoffset=BQoffset, cpus=cpus, forceRedo=forceRedo, systematicVariance=systematicVariance,
-              maxCov=maxCov, mode=mode, splitRun=splitRun)
+              maxCov=maxCov, mode=mode, splitRun=splitRun, resourceDirectory=resourceDirectory)
 ```
 
 The most convenient way to set this up is to create a runSuperFreq.R file with the above code, and then run it from a [screen](https://en.wikipedia.org/wiki/GNU_Screen) with
