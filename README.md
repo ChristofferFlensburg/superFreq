@@ -15,10 +15,21 @@ SuperFreq analyses and filters somatic SNVs and short indels, calls copy numbers
 Start R
 
 ```R
-#install superFreq if needed (may need to install devtools first with install.packages("devtools"))
+#first install superFreq if running first time
+#load devtools that allows installation from github (may need to install devtools first with install.packages("devtools"))
 library(devtools)
+
+#there has been conflicts between install_github and bioconductor in different version
+#so safer to manually install bioconductor dependencies first.
+source("https://bioconductor.org/biocLite.R")
+biocLite("GenomeInfoDb")
+biocLite("GenomicFeatures")
+biocLite("VariantAnnotation")
+
+#then install superFreq
 install_github('ChristofferFlensburg/superFreq')
 
+#load and test superFreq
 library(superFreq)
 ?superFreq
 ```
