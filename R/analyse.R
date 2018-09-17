@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.1.0')
+superVersion = function() return('1.1.2')
 
 
 #' Wrapper to run default superFreq analysis
@@ -109,8 +109,7 @@ superVersion = function() return('1.1.0')
 #'                        switch to "RNA", which seems to work decently, but beware of limitations of the data.
 #                         "genome" is also allowed, but is in an early developmental stage.
 #' @param splitRun logical. If the superFreq run should be split by individual. Runs each individual separately,
-#'                        which decrease memory footprint. Default is FALSE, but TRUE is recommended when running on
-#'                        multiple individuals in the same batch.
+#'                        which decrease memory footprint. Default TRUE.
 #' @param participants character. When run in split mode, this allows you to run on a subset of individuals.
 #'                        Default is "all" which runs on all individuals.
 #' @param manualStoryMerge logical. A flag which gives you some manual control over the merging of mutations into clones.
@@ -155,7 +154,7 @@ superVersion = function() return('1.1.0')
 #' }
 superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='', cosmicDirectory='', resourceDirectory='superFreqResources', mode='exome', splitRun=F, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
+  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='', cosmicDirectory='', resourceDirectory='superFreqResources', mode='exome', splitRun=T, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
   filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3, annotationMethod='VariantAnnotation') {
 
   if ( dbSNPdirectory != '' ) warning("dbSNPdirectory is deprecated. Use superFreqResources instead.")

@@ -84,7 +84,7 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirecto
   boostFile = paste0(boostDirectory, '/', name, '.pdf')
   catLog('Plotting boost to ', boostFile, '.\n')
   pdf(boostFile, width=14, height=7)
-  if ( mode == 'RNA' ) cancerCR = getCorrectedCR(cancerCR, fit)
+  if ( mode == 'RNA' ) cancerCR = getCorrectedCR(cancerCR, fit, plot=T)
   else cancerCR = boostCRwidth(cancerCR, plot=T)
   dev.off()
 

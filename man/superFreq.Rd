@@ -10,7 +10,7 @@ superFreq(metaDataFile, captureRegions = "", normalDirectory, Rdirectory,
   normalCoverageDirectory = "", systematicVariance = 0.02, maxCov = 150,
   cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "",
   cosmicDirectory = "", resourceDirectory = "superFreqResources",
-  mode = "exome", splitRun = F, participants = "all",
+  mode = "exome", splitRun = T, participants = "all",
   manualStoryMerge = F, vepCall = "vep", correctReferenceBias = T,
   filterOffTarget = T, rareGermline = T, exacPopulation = "all",
   cosmicSalvageRate = 0.001, annotationMethod = "VariantAnnotation")
@@ -130,8 +130,7 @@ where R is run).}
 switch to "RNA", which seems to work decently, but beware of limitations of the data.}
 
 \item{splitRun}{logical. If the superFreq run should be split by individual. Runs each individual separately,
-which decrease memory footprint. Default is FALSE, but TRUE is recommended when running on
-multiple individuals in the same batch.}
+which decrease memory footprint. Default TRUE.}
 
 \item{participants}{character. When run in split mode, this allows you to run on a subset of individuals.
 Default is "all" which runs on all individuals.}
