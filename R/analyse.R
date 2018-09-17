@@ -427,6 +427,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Plotting to', plotDirectory, '\n')
   catLog('Saving R files to', Rdirectory, '\n')
   catLog('Genome is', genome, '\n')
+  catLog('Running in ', mode, ' mode.\n')
   catLog('exacPopulation is', exacPopulation, '\n')
   catLog('Running on at most', cpus, 'cpus.\n')
 
@@ -486,6 +487,9 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   names(externalNormalBams) = gsub('.bam$', '', basename(externalNormalBams))
   catLog('Normal bamfiles are:\n')
   catLog(externalNormalBams, sep='\n')
+  if ( length(externalNormalBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalDirectory,
+                                             ' and ', paste0(normalDirectory, '/bam'),
+                                             '. Please check that the path is correct and that at least 2 bam files are there.')
 
   externalNormalbamIndexFiles = paste0(externalNormalBams, '.bai')
   externalNormalbamIndexFiles2 = gsub('.bam$', '.bai', externalNormalBams)
@@ -502,6 +506,9 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   names(externalNormalCoverageBams) = gsub('.bam$', '', basename(externalNormalCoverageBams))
   catLog('Normal coverage bamfiles are:\n')
   catLog(externalNormalCoverageBams, sep='\n')
+  if ( length(externalNormalCoverageBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalCoverageDirectory,
+                                             ' and ', paste0(normalCoverageDirectory, '/bam'),
+                                             '. Please check that the path is correct and that at least 2 .bam files are there.')
 
     externalNormalCoveragebamIndexFiles = paste0(externalNormalCoverageBams, '.bai')
   externalNormalCoveragebamIndexFiles2 = gsub('.bam$', '.bai', externalNormalCoverageBams)
