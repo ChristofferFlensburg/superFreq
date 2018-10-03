@@ -4,7 +4,7 @@
 \alias{mergeBatches}
 \title{Merges data from several batches for cohort analysis}
 \usage{
-mergeBatches(paths, targetMetaDataFile, targetRdirectory)
+mergeBatches(paths, targetMetaDataFile, targetRdirectory, cpus = 1)
 }
 \arguments{
 \item{paths}{data.frame: One row for each batch to be merged.}

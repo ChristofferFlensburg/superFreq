@@ -226,7 +226,7 @@ bringAnnotation = function(metaData, genome) {
 #' cohortAnalyseBatch(targetMetaDataFile, outputDirectories, cpus=6, genome='hg19')
 #'
 #' }
-mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {  
+mergeBatches = function(paths, targetMetaDataFile, targetRdirectory, cpus=1) {  
   if ( !('metaDataFile' %in% names(paths)) ) stop('paths need to have an metaDataFile column.')
   if ( !('Rdirectory' %in% names(paths)) ) stop('paths need to have an Rdirectory column.')
 
@@ -256,7 +256,16 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
   write.table(metaData, file=targetMetaDataFile, sep='\t', quote=F, row.names=F)
 
   #merge data
-  datas = lapply(as.character(paths$Rdirectory), function(Rdirectory) loadData(Rdirectory))
+  catLog('Loading data for merge')
+  datas = mclapply(as.character(paths$Rdirectory), function(Rdirectory) {
+    catLog('.')
+    load(paste0(Rdirectory, '/allVariants.Rdata'))
+    load(paste0(Rdirectory, '/clusters.Rdata'))
+    allVariants = allVariants['variants']
+    data = list(allVariants=allVariants, clusters=clusters)
+    return(data)
+  }, mc.cores=cpus)
+  catLog('done.\n')
   #merge piece by piece
   variants = do.call(c, lapply(datas, function(d) d$allVariants$variants$variants))
   SNPs = do.call(rbind, lapply(datas, function(d) d$allVariants$variants$SNPs))
@@ -267,6 +276,72 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory) {
 
   clusters = do.call(c, lapply(datas, function(d) d$clusters))
   save(clusters, file=clustersSaveFile)
+}
 
-  fit = list('sex'= do.call(c, lapply(datas, function(d) d$fit$exonFit$sex)))
+#' looks for reccuring events across all individuals in a batch run
+#'
+#' @param metaDataFile character: path to the tab separated meta data file.
+#' @param Rdirectory character: path to the Rdirectory of the batch run.
+#' @param plotDirectory character: path to the plotDirectory of the batch run.
+#' @param cpus integer: maximum number of threads used. default 1.
+#' @param genome character: The genome build. 'hg19', hg38' or 'mm10'. Default 'hg19'
+#' @param resourceDirectory character: path to the superFreq resources. Default 'superFreqResources'.
+#' @param ...: Remaing argument are passed to superFreq::cohortAnalyseBatch()
+#'
+#' @details This function merges the data from multiple batches, setting them up for a joint cohort analysis. Note that this is only for the purpose of a downstream cohort analysis. The output R directory cannot be run as a batch Rdirectory.
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' superFreq(metaDataFile=metaDataFile,
+#'           Rdirectory=Rdirectory,
+#'           plotDirectory=plotDirectory,
+#'           cpus=cpus,
+#'           genome=genome)
+#'
+#' #The resource directory defaults to the same in superFreq() and superCohort()
+#' #so do not need to be specified.
+#' superCohort(metaDataFile=metaDataFile,
+#'           Rdirectory=Rdirectory,
+#'           plotDirectory=plotDirectory,
+#'           cpus=cpus,
+#'           genome=genome)
+#'
+#' }
+superCohort = function(metaDataFile, Rdirectory='R', plotDirectory='plots', cpus=1, genome='hg19', resourceDirectory='superFreqResources', ...) {
+  metaDataDir = paste0(dirname(metaDataFile), '/splitMetaData')
+  metaDataFiles = list.files(metaDataDir, pattern='*.tsv', full.names=T)
+  cohortDir = normalizePath(paste0(plotDirectory, '/cohort'))
+  superFreq:::ensureDirectoryExists(cohortDir)
+  batchDir = normalizePath(paste0(cohortDir, '/data'))
+  superFreq:::ensureDirectoryExists(batchDir)
+  Rdirectories = list.dirs(Rdirectory, recursive=F)
+    
+  paths = data.frame('metaDataFile' = metaDataFiles, 'Rdirectory'= Rdirectories)
+
+  targetMetaDataFile = paste0(batchDir, '/metaData.tsv')
+  targetRdirectory = paste0(batchDir, '/R')
+  
+  mergedPaths = mergeBatches(paths, targetMetaDataFile, targetRdirectory)
+  
+  metaData = importSampleMetaData(targetMetaDataFile)
+
+  if ( !('PROJECT' %in% names(metaData)) )
+    metaData$PROJECT = 'myProject'
+  if ( !('GROUP' %in% names(metaData)) )
+    metaData$GROUP = 'myGroup'
+  
+  cohortMetaDataFile = paste0(batchDir, '/cohortMetaData.tsv')
+  write.table(metaData, file=cohortMetaDataFile, row.names=F, col.names=T, sep='\t', quote=F)
+  
+  outputDirectories = list('Rdirectory'=targetRdirectory)
+  cohortAnalyseBatch(cohortMetaDataFile,
+                     outputDirectories,
+                     cpus=cpus,
+                     genome=genome,
+                     onlyDNA=F,
+                     cosmicDirectory=paste0(resourceDirectory, '/COSMIC'),
+                     ...)
+
 }
