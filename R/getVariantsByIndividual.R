@@ -855,10 +855,10 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
     preExistingVariantsFile = paste0(normalRdirectory, '/q', name, '.Rdata')
     if ( file.exists(preExistingVariantsFile) ) {
         #load what variants are already called
-        catLog('Loading normal variants from', preExistingVariantsFile, '.\n')
         catLog(date(), ': requesting access from ', preExistingVariantsFile, '.\n')
         rdataLock = flock::lock(preExistingVariantsFile)
         catLog(date(), ': accessed and locked ', preExistingVariantsFile, '.\n')
+        catLog('Loading normal variants from', preExistingVariantsFile, '.\n')
         load(preExistingVariantsFile)
       
         #fill in any missing variants

@@ -110,19 +110,32 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F) {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, outputData=T, plotMutations=T, reset=T) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
   indSamples = lapply(uInd, function(ind) which(individuals == ind))
 
-  spaceForSNVs = 0.5
-  spaceForLoh = 1
-
+  cL = chrLengths(genome=genome)
+  if ( !plotSex ) cL = cL[!(names(cL) %in% c('X', 'Y'))]
+  CR = meanCNV$cnvs[[1]]$CR
+  if ( !plotSex ) CR = CR[!(xToChr(CR$x1, genome=genome) %in% c('X', 'Y')),]
+  
   maxCNV = max(meanCNV$cnvRates$gain, meanCNV$cnvRates$loss, meanCNV$cnvRates$loh)
+  maxLOH = max(meanCNV$cnvRates$loh)
+  if ( !plotSex ) {
+    use = !(xToChr(CR$x1, genome=genome) %in% c('X', 'Y'))
+    maxCNV = max(meanCNV$cnvRates$gain[use], meanCNV$cnvRates$loss[use], meanCNV$cnvRates$loh[use])
+    maxLOH = max(meanCNV$cnvRates$loh[use])
+  }
   if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
     maxCNV = max(maxCNV, meanCNV2$cnvRates$gain, meanCNV2$cnvRates$loss, meanCNV2$cnvRates$loh)
+    maxLOH = max(maxLOH, meanCNV2$cnvRates$loh)
   }
+  
+  spaceForSNVs = 0.5
+  if ( !plotMutations ) spaceForSNVs = maxCNV*0.00
+  spaceForLoh = pmin(maxLOH, maxCNV)/maxCNV
   
   indTicks = (1:length(uInd))/length(uInd)
   indTicks = indTicks[indTicks <= maxCNV+0.05]
@@ -130,15 +143,24 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
   while ( sum(heavy) > 10 ) heavy[heavy] = rep(c(F,T), length.out = sum(heavy))
   cnvScale = 1/max(indTicks)
   yTicks = indTicks*cnvScale
-  yTicks = c(-spaceForLoh - spaceForSNVs - yTicks, -spaceForSNVs - yTicks*spaceForLoh*0.9, spaceForSNVs + yTicks)
-  indTicks = rep(indTicks, 3)
+
+  indTicksLOH = (1:length(uInd))/length(uInd)
+  indTicksLOH = indTicksLOH[indTicksLOH <= maxLOH+0.05]
+  heavyLOH = rep(T, length(indTicksLOH))
+  while ( sum(heavyLOH) > 10*spaceForLoh ) heavyLOH[heavyLOH] = rep(c(F,T), length.out = sum(heavyLOH))
+  cnvScaleLOH = 1/max(indTicksLOH)
+  yTicksLOH = indTicksLOH*cnvScaleLOH
+  
+  yTicks = c(-spaceForLoh - spaceForSNVs - yTicks, -spaceForSNVs - yTicksLOH*spaceForLoh*0.85, spaceForSNVs + yTicks)
+  indTicks = c(indTicks, indTicksLOH, indTicks)
+  heavy = c(heavy, heavyLOH, heavy)
   ymax = max(yTicks)
   ymin = min(yTicks)
 
-  xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
+  xs = sort(c((CR$x1+CR$x2)/2, 0, cumsum(cL)))
   names(xs) = xs
-  xsOri = c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2)
-  delimiter = xs %in% c(0, cumsum(chrLengths(genome=genome)))
+  xsOri = c((CR$x1+CR$x2)/2)
+  delimiter = xs %in% c(0, cumsum(cL))
   meanCNVori = meanCNV
 
   #split up delimiter points into two points, first matching previous value, second matching following.
@@ -151,13 +173,15 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
     vec = c(vec, newValues)[order(c(seq_along(vec), newIs))]
     meanCNV$cnvRates[[cnv]] = vec
   }
-  xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, rep(c(0, cumsum(chrLengths(genome=genome))),2)))
-
+  xs = sort(c((CR$x1+CR$x2)/2, rep(c(0, cumsum(cL)),2)))
+  Nx = length(xs)
   
   #set up plot
   if ( !add ) {
-    par(oma=c(0,0,0,0))
-    par(mar=c(0,0,0,0))
+    if ( reset ) {
+      par(oma=c(0,0,0,0))
+      par(mar=c(0,0,0,0))
+    }
     plot(xs, xs, type='n', xlim=c(-0.02*max(xs), max(xs)*1.2), ylim=c(ymin, ymax)*0.97,
          xaxt='n', yaxt='n', frame=F, xlab='', ylab='')
 
@@ -169,32 +193,32 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
 
     
     #mark chromosome boundaries
-    addChromosomeLines(c(ymin, ymax*1.02), col=mcri('green', 0.3), lwd=1.5, genome=genome)
+    superFreq:::addChromosomeLines(c(ymin, ymax*1.02), col=mcri('green', 0.3), lwd=1.5, genome=genome, onlyNumbers=!plotSex)
   }
 
   #polygons for gain/amplification/loss/complete loss
   if ( !add ) {
-    polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$gain, rep(0, length(xs)))*cnvScale,
+    polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$gain[1:Nx], rep(0, length(xs)))*cnvScale,
             col=mcri('cyan'), border=mcri('cyan'))
-    polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$amp, rep(0, length(xs)))*cnvScale,
+    polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$amp[1:Nx], rep(0, length(xs)))*cnvScale,
             col=mcri('blue'), border=mcri('blue'))
-    polygon(c(xs, rev(xs)), -spaceForSNVs-c(meanCNV$cnvRates$loh, rep(0, length(xs)))*cnvScale*spaceForLoh*0.9,
+    polygon(c(xs, rev(xs)), -spaceForSNVs-c(meanCNV$cnvRates$loh[1:Nx], rep(0, length(xs)))*cnvScaleLOH*spaceForLoh*0.85,
             col=mcri('green'), border=mcri('green'))
-    polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$loss, rep(0, length(xs)))*cnvScale,
+    polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$loss[1:Nx], rep(0, length(xs)))*cnvScale,
             col=mcri('orange'), border=mcri('orange'))
-    polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$cl, rep(0, length(xs)))*cnvScale,
+    polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$cl[1:Nx], rep(0, length(xs)))*cnvScale,
             col=mcri('red'), border=mcri('red'))
   } else {
-    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain*cnvScale, col='white', lwd=2.5)
-    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain*cnvScale, col=mcri('blue'), lwd=1)
-    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp*cnvScale, col='white', lwd=2.5)
-    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp*cnvScale, col=mcri('darkblue'), lwd=1)
-    lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh*cnvScale*spaceForLoh, col='white', lwd=2.5)
-    lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh*cnvScale*spaceForLoh, col=mcri('green'), lwd=1)
-    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss*cnvScale, col='white', lwd=2.5)
-    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss*cnvScale, col=mcri('red'), lwd=1)
-    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl*cnvScale, col='white', lwd=2.5)
-    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl*cnvScale, col=mcri('darkred'), lwd=1)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain[1:Nx]*cnvScale, col='white', lwd=2.5)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain[1:Nx]*cnvScale, col=mcri('blue'), lwd=1)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp[1:Nx]*cnvScale, col='white', lwd=2.5)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp[1:Nx]*cnvScale, col=mcri('darkblue'), lwd=1)
+    lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh[1:Nx]*cnvScale*spaceForLoh, col='white', lwd=2.5)
+    lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh[1:Nx]*cnvScale*spaceForLoh, col=mcri('green'), lwd=1)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss[1:Nx]*cnvScale, col='white', lwd=2.5)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss[1:Nx]*cnvScale, col=mcri('red'), lwd=1)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl[1:Nx]*cnvScale, col='white', lwd=2.5)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl[1:Nx]*cnvScale, col=mcri('darkred'), lwd=1)
   }
 
   #legends
@@ -205,143 +229,148 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
 
   spaceForGenes = 0.15*spaceForSNVs
 
-  catLog('plotting mutations..')
-  maxMut = max(c(0, meanCNV$snvRates$mutationRate))
-  maxDL = max(meanCNV$doubleLossRates$doubleLossRate)
-  
-  maxSNV = max(maxMut, maxDL)
-  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
-    maxSNV = max(maxSNV, meanCNV2$snvRates$mutationRate, meanCNV2$doubleLossRates$doubleLossRate)
-  }
-  
-  indTicks = (1:length(uInd))/length(uInd)
-  indTicks = indTicks[indTicks <= maxSNV]
-  heavy = rep(T, length(indTicks))
-  while ( sum(heavy) > 5 ) heavy[heavy] = rep(c(F,T), length.out = sum(heavy))
-  snvScale = 1/max(c(0,indTicks))*(spaceForSNVs - spaceForGenes - 0.2*spaceForSNVs)
-  yTicks = spaceForGenes + indTicks*snvScale
-  yTicks = c(-yTicks, yTicks)
-  indTicks = c(-indTicks, indTicks)
-
-  if ( !add ) {
-    segments(rep(0, length(yTicks)), yTicks, rep(max(xs), length(yTicks)), yTicks, lwd=1, col=mcri('cyan', 0.05+heavy*0.15))
+  if ( plotMutations ) {
+    catLog('plotting mutations..')
+    maxMut = max(c(0, meanCNV$snvRates$mutationRate))
+    maxDL = max(meanCNV$doubleLossRates$doubleLossRate)
+    
+    maxSNV = max(maxMut, maxDL)
+    if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+      maxSNV = max(maxSNV, meanCNV2$snvRates$mutationRate, meanCNV2$doubleLossRates$doubleLossRate)
+    }
+    
+    indTicks = (1:length(uInd))/length(uInd)
+    indTicks = indTicks[indTicks <= maxSNV]
+    heavy = rep(T, length(indTicks))
+    while ( sum(heavy) > 5 ) heavy[heavy] = rep(c(F,T), length.out = sum(heavy))
+    snvScale = 1/max(c(0,indTicks))*(spaceForSNVs - spaceForGenes - 0.2*spaceForSNVs)
+    yTicks = spaceForGenes + indTicks*snvScale
+    yTicks = c(-yTicks, yTicks)
+    indTicks = c(-indTicks, indTicks)
+    
+    if ( !add ) {
+      segments(rep(0, length(yTicks)), yTicks, rep(max(xs), length(yTicks)), yTicks, lwd=1, col=mcri('cyan', 0.05+heavy*0.15))
     if ( length(indTicks[heavy]) > 0 )
       text(-max(xs)*0.02, yTicks[heavy], round(abs(indTicks[heavy]), 2), col=mcri('cyan'))
-  }
-    
-  meanX = (meanCNV$cnvs[[1]]$CR$x1 + meanCNV$cnvs[[1]]$CR$x2)/2
-  names(meanX) = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
-  SNVgenesX = meanCNV$snvRates$hitGenesX
-  DLgenesX = meanX[names(meanCNV$doubleLossRates$doubleLossRate)]
-  
-  if ( !printGeneNames ) {
-    if ( length(SNVgenesX) > 0 )
-      segments(SNVgenesX, spaceForGenes+meanCNV$snvRates$mutationRate*snvScale,
-               SNVgenesX, spaceForGenes, col=mcri('cyan'), lwd=4)
-    if ( length(DLgenesX) > 0 )
-      segments(DLgenesX, -spaceForGenes - meanCNV$doubleLossRates$doubleLossRate*snvScale,
-               DLgenesX, -spaceForGenes, col=mcri('orange'), lwd=4)
-  } else {
-    if ( length(SNVgenesX) > 0 )
-      segments(SNVgenesX, spaceForGenes+meanCNV$snvRates$mutationRate*snvScale,
-               SNVgenesX, spaceForGenes, col=mcri('blue'), lwd=1)
-    if ( length(DLgenesX) > 0 )
-      segments(DLgenesX, -spaceForGenes - meanCNV$doubleLossRates$doubleLossRate*snvScale,
-               DLgenesX, -spaceForGenes, col=mcri('red'), lwd=1)
-  }
-
-  if ( printGeneNames ) {
-    mutRate = meanCNV$snvRates$mutationRate
-    isIG = grepl('IG.[VLJC][0-9].*', names(mutRate)) | grepl('IGH[ADG][0-9].*', names(mutRate)) | grepl('LILR.*', names(mutRate))
-    isTR = grepl('TR[AD][VJ][0-9].?', names(mutRate))
-    isHLA = grepl('HLA-.*', names(mutRate))
-    
-    if ( filterIG ) mutRate = mutRate[!isIG]
-    if ( filterTR ) mutRate = mutRate[!isTR]
-    if ( filterHLA ) mutRate = mutRate[!isHLA]
-    
-    topMutGenes = names(sort(mutRate, decreasing=T)[1:min(10, length(mutRate))])
-    mark = names(meanCNV$snvRates$mutationRate) %in% topMutGenes
-    if ( length(mark) > 0 && any(is.na(SNVgenesX[mark])) ) {
-      warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
-      mark[is.na(SNVgenesX)] = F
     }
-    if ( cosmicDirectory != '' )
-      COSMICgenes = names(getCosmicCensusDensity(cosmicDirectory=cosmicDirectory))
-    else
-      COSMICgenes = c()
-    printGenes = names(meanCNV$snvRates$mutationRate)[mark]
-    if ( length(printGenes) > 0 ) {
-      text(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.4,
-           printGenes, col=ifelse(printGenes %in% COSMICgenes, mcri('green'), mcri('darkblue')),
-           font=ifelse(printGenes %in% COSMICgenes, 2, 1), cex=0.6)
-      segments(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.6,
-               SNVgenesX[mark], spaceForGenes, col=mcri('darkblue'))
-    }
-
-    dlRate = meanCNV$doubleLossRates$doubleLossRate
-    isIG = grepl('IG.[VLJC][0-9].*', names(dlRate)) | grepl('IGH[ADG][0-9].*', names(dlRate))
-    isTR = grepl('TR[AD][VJ][0-9].?', names(dlRate))
-    isHLA = grepl('HLA-.*', names(dlRate))
     
-    if ( filterIG ) dlRate = dlRate[!isIG]
-    if ( filterTR ) dlRate = dlRate[!isTR]
-    if ( filterHLA ) dlRate = dlRate[!isHLA]
-
-    topDHGenes = names(sort(dlRate, decreasing=T)[1:min(10, length(dlRate))])
-    topDHGenes = topDHGenes[topDHGenes != '?']
-    topDHGenes = topDHGenes[meanCNV$doubleLossRates$doubleLossRate[topDHGenes] > 0]
-    mark = names(meanCNV$doubleLossRates$doubleLossRate) %in% topDHGenes
-    if ( any(is.na(DLgenesX[mark])) ) {
-      warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
-      mark[is.na(DLgenesX)] = F
+    meanX = (CR$x1 + CR$x2)/2
+    Nx = length(meanX)
+    names(meanX) = rownames(meanCNV$cnvRates$gainMx)[1:Nx][!delimiter]
+    SNVgenesX = meanCNV$snvRates$hitGenesX[1:Nx]
+    DLgenesX = meanX[names(meanCNV$doubleLossRates$doubleLossRate)][1:Nx]
+    
+    if ( !printGeneNames ) {
+      if ( length(SNVgenesX) > 0 )
+        segments(SNVgenesX, spaceForGenes+meanCNV$snvRates$mutationRate[1:Nx]*snvScale,
+                 SNVgenesX, spaceForGenes, col=mcri('cyan'), lwd=4)
+      if ( length(DLgenesX) > 0 )
+        segments(DLgenesX, -spaceForGenes - meanCNV$doubleLossRates$doubleLossRate[1:Nx]*snvScale,
+                 DLgenesX, -spaceForGenes, col=mcri('orange'), lwd=4)
+    } else {
+      if ( length(SNVgenesX) > 0 )
+        segments(SNVgenesX, spaceForGenes+meanCNV$snvRates$mutationRate[1:Nx]*snvScale,
+                 SNVgenesX, spaceForGenes, col=mcri('blue'), lwd=1)
+      if ( length(DLgenesX) > 0 )
+        segments(DLgenesX, -spaceForGenes - meanCNV$doubleLossRates$doubleLossRate[1:Nx]*snvScale,
+                 DLgenesX, -spaceForGenes, col=mcri('red'), lwd=1)
     }
-    printGenes = names(meanCNV$doubleLossRates$doubleLossRate)[mark]
-    if ( length(printGenes) > 0 ) {
-      text(spreadPositions(DLgenesX[mark], max(xs)*0.035), -spaceForGenes*0.4,
-           printGenes, col=ifelse(printGenes %in% COSMICgenes, mcri('green'), mcri('red')),
-           font=ifelse(printGenes %in% COSMICgenes, 2, 1), cex=0.6)
-      segments(spreadPositions(DLgenesX[mark], max(xs)*0.035), -spaceForGenes*0.6,
-               DLgenesX[mark], -spaceForGenes, col=mcri('red'))
+    
+    if ( printGeneNames ) {
+      mutRate = meanCNV$snvRates$mutationRate[1:Nx]
+      isIG = grepl('IG.[VLJC][0-9].*', names(mutRate)) | grepl('IGH[ADG][0-9].*', names(mutRate)) | grepl('LILR.*', names(mutRate))
+      isTR = grepl('TR[AD][VJ][0-9].?', names(mutRate))
+      isHLA = grepl('HLA-.*', names(mutRate))
+      
+      if ( filterIG ) mutRate = mutRate[!isIG]
+      if ( filterTR ) mutRate = mutRate[!isTR]
+      if ( filterHLA ) mutRate = mutRate[!isHLA]
+      
+      topMutGenes = names(sort(mutRate, decreasing=T)[1:min(10, length(mutRate))])
+      mark = names(meanCNV$snvRates$mutationRate)[1:Nx] %in% topMutGenes
+      if ( length(mark) > 0 && any(is.na(SNVgenesX[mark])) ) {
+        warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
+        mark[is.na(SNVgenesX)] = F
+      }
+      if ( cosmicDirectory != '' )
+        COSMICgenes = names(getCosmicCensusDensity(cosmicDirectory=cosmicDirectory))
+      else
+        COSMICgenes = c()
+      printGenes = names(meanCNV$snvRates$mutationRate)[mark]
+      if ( length(printGenes) > 0 ) {
+        text(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.4,
+             printGenes, col=ifelse(printGenes %in% COSMICgenes, mcri('green'), mcri('darkblue')),
+             font=ifelse(printGenes %in% COSMICgenes, 2, 1), cex=0.6)
+        segments(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.6,
+                 SNVgenesX[mark], spaceForGenes, col=mcri('darkblue'))
+      }
+      
+      dlRate = meanCNV$doubleLossRates$doubleLossRate[1:Nx]
+      isIG = grepl('IG.[VLJC][0-9].*', names(dlRate)) | grepl('IGH[ADG][0-9].*', names(dlRate))
+      isTR = grepl('TR[AD][VJ][0-9].?', names(dlRate))
+      isHLA = grepl('HLA-.*', names(dlRate))
+      
+      if ( filterIG ) dlRate = dlRate[!isIG]
+      if ( filterTR ) dlRate = dlRate[!isTR]
+      if ( filterHLA ) dlRate = dlRate[!isHLA]
+      
+      topDHGenes = names(sort(dlRate, decreasing=T)[1:min(10, length(dlRate))])
+      topDHGenes = topDHGenes[topDHGenes != '?']
+      topDHGenes = topDHGenes[meanCNV$doubleLossRates$doubleLossRate[1:Nx][topDHGenes] > 0]
+      mark = names(meanCNV$doubleLossRates$doubleLossRate)[1:Nx] %in% topDHGenes
+      if ( any(is.na(DLgenesX[mark])) ) {
+        warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
+        mark[is.na(DLgenesX)] = F
+      }
+      printGenes = names(meanCNV$doubleLossRates$doubleLossRate)[1:Nx][mark]
+      if ( length(printGenes) > 0 ) {
+        text(spreadPositions(DLgenesX[mark], max(xs)*0.035), -spaceForGenes*0.4,
+             printGenes, col=ifelse(printGenes %in% COSMICgenes, mcri('green'), mcri('red')),
+             font=ifelse(printGenes %in% COSMICgenes, 2, 1), cex=0.6)
+        segments(spreadPositions(DLgenesX[mark], max(xs)*0.035), -spaceForGenes*0.6,
+                 DLgenesX[mark], -spaceForGenes, col=mcri('red'))
+      }
     }
+    
+    if ( !add ) {
+      legend('right', c('changing SNV', 'biallelic loss'), col=mcri(c('darkblue', 'red')), lwd=3)
+    }
+    catLog('done.\n')
   }
 
-  if ( !add ) {
-    legend('right', c('changing SNV', 'biallelic loss'), col=mcri(c('darkblue', 'red')), lwd=3)
-  }
-  catLog('done.\n')
-
-  catLog('Setting up output...')
-  meanCNV = meanCNVori
-  xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
-  genes = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
-  allMutationRates = rep(0, length(genes))
-  names(allMutationRates) = genes
-  use = names(meanCNV$snvRates$mutationRate) %in% names(allMutationRates)
-  allMutationRates[names(meanCNV$snvRates$mutationRate)[use]] = meanCNV$snvRates$mutationRate[use]
-  allDLRates = rep(0, length(genes))
-  names(allDLRates) = genes
-  use = names(meanCNV$doubleLossRates$doubleLossRate) %in% names(allDLRates)
-  allDLRates[names(meanCNV$doubleLossRates$doubleLossRate)[use]] = meanCNV$doubleLossRates$doubleLossRate[use]
-
-  overview = data.frame(chr=xToChr(xs[!delimiter], genome), pos0=round(xToPos(xs[!delimiter], genome)), gene=genes,
-    gainRate=meanCNV$cnvRates$gain[!delimiter], ampRate=meanCNV$cnvRates$amp[!delimiter],
-    lossRate=meanCNV$cnvRates$loss[!delimiter], clRate=meanCNV$cnvRates$cl[!delimiter],
-    lohRate=meanCNV$cnvRates$loh[!delimiter], mutationRate=allMutationRates, doubleLossRate=allDLRates)
-  
-  gains = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$gainMx[!delimiter,])
-  losss = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$lossMx[!delimiter,])
-  amps = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$ampMx[!delimiter,])
-  cls = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$clMx[!delimiter,])
-  lohs = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$lohMx[!delimiter,])
+  if ( outputData ) {
+    catLog('Setting up output...')
+    meanCNV = meanCNVori
+    xs = sort(c((meanCNV$cnvs[[1]]$CR$x1+meanCNV$cnvs[[1]]$CR$x2)/2, 0, cumsum(chrLengths(genome=genome))))
+    genes = rownames(meanCNV$cnvRates$gainMx)[!delimiter]
+    allMutationRates = rep(0, length(genes))
+    names(allMutationRates) = genes
+    use = names(meanCNV$snvRates$mutationRate) %in% names(allMutationRates)
+    allMutationRates[names(meanCNV$snvRates$mutationRate)[use]] = meanCNV$snvRates$mutationRate[use]
+    allDLRates = rep(0, length(genes))
+    names(allDLRates) = genes
+    use = names(meanCNV$doubleLossRates$doubleLossRate) %in% names(allDLRates)
+    allDLRates[names(meanCNV$doubleLossRates$doubleLossRate)[use]] = meanCNV$doubleLossRates$doubleLossRate[use]
+    
+    overview = data.frame(chr=xToChr(xs[!delimiter], genome), pos0=round(xToPos(xs[!delimiter], genome)), gene=genes,
+      gainRate=meanCNV$cnvRates$gain[!delimiter], ampRate=meanCNV$cnvRates$amp[!delimiter],
+      lossRate=meanCNV$cnvRates$loss[!delimiter], clRate=meanCNV$cnvRates$cl[!delimiter],
+      lohRate=meanCNV$cnvRates$loh[!delimiter], mutationRate=allMutationRates, doubleLossRate=allDLRates)
+    
+    gains = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$gainMx[!delimiter,])
+    losss = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$lossMx[!delimiter,])
+    amps = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$ampMx[!delimiter,])
+    cls = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$clMx[!delimiter,])
+    lohs = data.frame(chr=xToChr(xs[!delimiter], genome), pos=xToPos(xs[!delimiter], genome), gene=genes, meanCNV$cnvRates$lohMx[!delimiter,])
   mutations = data.frame(gene=rownames(meanCNV$snvRates$hitMx), meanCNV$snvRates$hitMx)
-  DLuse = meanCNV$doubleLossRates$doubleLossRate > 0 & !duplicated(names(meanCNV$doubleLossRates$doubleLossRate))
-  DLs = data.frame(gene=names(meanCNV$doubleLossRates$doubleLossRate[DLuse]),
-    meanCNV$doubleLossRates$doubleLossMx[DLuse,])
-  
-  output = list(overview=overview, gain=gains, loss=losss, amp=amps, lohs=lohs, completeLoss=cls, mutations=mutations, doubleLoss=DLs)
-  catLog('done.\n')
-  invisible(output)
+    DLuse = meanCNV$doubleLossRates$doubleLossRate > 0 & !duplicated(names(meanCNV$doubleLossRates$doubleLossRate))
+    DLs = data.frame(gene=names(meanCNV$doubleLossRates$doubleLossRate[DLuse]),
+      meanCNV$doubleLossRates$doubleLossMx[DLuse,])
+    
+    output = list(overview=overview, gain=gains, loss=losss, amp=amps, lohs=lohs, completeLoss=cls, mutations=mutations, doubleLoss=DLs)
+    catLog('done.\n')
+    invisible(output)
+  }
 }
 
 
@@ -355,6 +384,7 @@ outputMeanCNV = function(metaData, project, output, subgroup='', inGroup=T, outN
   if ( !inGroup ) csvFile = paste0(plotDirectory, '/meanCNVnotInGroup.csv')
   if ( outName != '' ) csvFile = paste0(outName, '.csv')
   write.csv(output$overview, csvFile)
+  output = lapply(output, function(dat) dat = dat[1:min(65000, nrow(dat)), 1:min(255, ncol(dat))])
   catLog('printing to xls...')
   xlsFile = paste0(plotDirectory, '/meanCNV.xls')
   if ( !inGroup ) xlsFile = paste0(plotDirectory, '/meanCNVnotInGroup.xls')

@@ -8,7 +8,8 @@ plotRiver(cloneTree, cloneStories, storyList, allStories, variants,
   genome = "hg19", normalise = T, xlim = "default", ylim = "default",
   labels = T, setPar = T, sampleOrder = "default", excludeClones = c(),
   markDodgy = T, colourPool = c(), ignoreStoriesBelowSigma = 2,
-  smallPlot = F, annotationMethod = "VariantAnnotation")
+  smallPlot = F, annotationMethod = "VariantAnnotation",
+  plotSampleNames = T, ...)
 }
 \arguments{
 \item{variants}{dataFrame from superFreq. such as data$allVariants$variants$variants$mySample}
@@ -22,6 +23,8 @@ plotRiver(cloneTree, cloneStories, storyList, allStories, variants,
 \item{setPar}{logical. If the margins are set. Default TRUE.}
 
 \item{sampleOrder}{character. The order of the samples. Default NA retains the order in the input.}
+
+\item{...}{remaining arguments are passed to base plot(...) if add=F, otherwise ignored.}
 
 \item{stories}{dataFrame from superFreq. such as data$stories$stories$mySample$all.}
 
@@ -44,8 +47,6 @@ plotRiver(cloneTree, cloneStories, storyList, allStories, variants,
 \item{legend}{logical. If a legend is plotted. Default TRUE.}
 
 \item{xSpread}{numerical. The stread of the points over a sample. Default 0.25.}
-
-\item{...}{remaining arguments are passed to base plot(...) if add=F, otherwise ignored.}
 }
 \description{
 plots a river plot

@@ -238,7 +238,7 @@ addAnnotationToOutput = function(output, variants, genome='hg19') {
 #'
 #' @export
 #'
-plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2, smallPlot=F, annotationMethod='VariantAnnotation') {
+plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, genome='hg19', normalise=T, xlim='default', ylim='default', labels=T, setPar=T, sampleOrder='default', excludeClones=c(), markDodgy=T, colourPool = c(), ignoreStoriesBelowSigma=2, smallPlot=F, annotationMethod='VariantAnnotation', plotSampleNames=T, ...) {
   variants$variants = variants$variants[colnames(cloneStories$stories)]
   
   if ( length(colourPool) == 0 )
@@ -287,7 +287,7 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
   if ( smallPlot ) xlim[2] = xlim[2]*1.05
   if ( ylim[1] == 'default' ) ylim = c(-0.02,1)
   plot(1, type='n', xlim=xlim, ylim=ylim, xaxt='n', frame.plot=F,
-       ylab='clonality', xlab = '')
+       ylab='clonality', xlab = '', ...)
   cloneCols = addSubclone(cloneTree, stories, ylims = matrix(rep(c(0,1), ncol(stories)), nrow=2), dodgyness, colourPool=colourPool, margin=0.02)$usedCols
   for (i in 1:nrow(cloneStories)) {
     clone = rownames(cloneStories)[i]
@@ -315,10 +315,12 @@ plotRiver = function(cloneTree, cloneStories, storyList, allStories, variants, g
 
   segments(1:ncol(stories), 0.02, 1:ncol(stories), ylim[2], lwd=5, col=rgb(0.7, 0.7, 0.7, 0.3))
   segments(1:ncol(stories), 0.02, 1:ncol(stories), ylim[2], lwd=2, col=rgb(0.3, 0.3, 0.3, 0.3))
-  text(1:ncol(stories), -0.02, gsub('germline', '', colnames(stories)), srt=20, cex=0.9)
+  if ( plotSampleNames ) text(1:ncol(stories), -0.02, gsub('germline', '', colnames(stories)), srt=20, cex=0.9)
 
-  par(oma=rep(0, 4))
-  par(mar=rep(4, 4))
+  if ( setPar ) {
+    par(oma=rep(0, 4))
+    par(mar=rep(4, 4))
+  }
 
   return(cloneCols)
 }

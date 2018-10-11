@@ -7,7 +7,7 @@
 plotCR(cR, showClonality = T, errorBars = T, chr = "all",
   genome = "hg19", alpha = 1, add = F, moveHet = T, pt.cex = 1,
   setMargins = T, fullFrequency = F, colourDeviation = T, forceCol = NA,
-  plotCall = T, plotArrows = F, smallPlot = F, ...)
+  plotCall = T, plotArrows = F, smallPlot = F, lwd = 1, ...)
 }
 \arguments{
 \item{cR}{data.frame. The "clusters" or "CR" from the data.}

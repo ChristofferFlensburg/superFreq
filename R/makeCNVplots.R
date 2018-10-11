@@ -107,7 +107,7 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 #'
 #' @export
 #'
-plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, ...) {
+plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, lwd=1, ...) {
   showClonality = showClonality & 'subclonality' %in% names(cR)
   if ( nrow(cR) == 0 ) return()
   if ( chr != 'all' ) {
@@ -180,8 +180,8 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   width = sqrt(cR$width^2+getSystematicVariance()^2)
   lfcCex = pt.cex*pmin(3, sqrt(0.1/width))
   points(x, pmax(0, y), cex=lfcCex, col=col, pch=16)
-  if ( errorBars ) segments(x, pmax(0,y-width/2), x, pmax(0, y+width/2), lwd=lfcCex, col=col)
-  segments(cR$x1, pmax(0,y), cR$x2, pmax(0, y), lwd=lfcCex, col=col)
+  if ( errorBars ) segments(x, pmax(0,y-width/2), x, pmax(0, y+width/2), lwd=lfcCex*lwd, col=col)
+  segments(cR$x1, pmax(0,y), cR$x2, pmax(0, y), lwd=lfcCex*lwd, col=col)
   tooHigh = y > 1.2
   tooLow = y < 0
   if ( any(tooHigh) & plotArrows ) {
@@ -229,8 +229,8 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
       ferr = rep(ferr, 2)
     }
     points(xf, yf, cex=fCex, pch=16, col=col)
-    if ( errorBars ) segments(xf, pmin(-0.1, yf+ferr), xf, pmax(-1.1, yf-ferr), col=col, lwd=fCex)
-    segments(cRf$x1, yf, cRf$x2, yf, lwd=fCex, col=col)
+    if ( errorBars ) segments(xf, pmin(-0.1, yf+ferr), xf, pmax(-1.1, yf-ferr), col=col, lwd=fCex*lwd)
+    segments(cRf$x1, yf, cRf$x2, yf, lwd=fCex*lwd, col=col)
     #plot f=0.5, opaqueness from how likely a het is.
     if ( moveHet ) {
       col = rgb(0,0,0, pHet*alpha)
@@ -242,8 +242,8 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
         ferr = ferr[1:length(yf)]
       }
       points(xf, yf, cex=fCex, pch=16, col=col)
-      if ( errorBars ) segments(xf, pmin(-0.1, yf+ferr), xf, pmax(-1.1, yf-ferr), col=col, lwd=fCex)
-      segments(cRf$x1, yf, cRf$x2, yf, lwd=fCex, col=col)
+      if ( errorBars ) segments(xf, pmin(-0.1, yf+ferr), xf, pmax(-1.1, yf-ferr), col=col, lwd=fCex*lwd)
+      segments(cRf$x1, yf, cRf$x2, yf, lwd=fCex*lwd, col=col)
     }
   }
 
@@ -274,8 +274,8 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
     error = cR$clonalityError
     clonCex = pt.cex*pmax(0.2, pmin(2, sqrt(0.05/error)))
     points(x, y, pch=16, cex=clonCex, col=col)
-    segments(x, y-error, x, pmin(-1.3, y+error), lwd=clonCex, col=col)
-    segments(cR$x1, y, cR$x2, y, lwd=clonCex, col=col)
+    segments(x, y-error, x, pmin(-1.3, y+error), lwd=clonCex*lwd, col=col)
+    segments(cR$x1, y, cR$x2, y, lwd=clonCex*lwd, col=col)
   }
 }
 
