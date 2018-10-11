@@ -104,6 +104,7 @@ Default TRUE.}
                  forceRedoStories: Clonal tracking of somatic mutations.\cr
                  forceRedoRiver: Plots of the clonal evolution.\cr
                  forceRedoVEP: VEP call (Variant Effect Predictor) and COSMIC linking.
+                 forceRedoSignature: The mutation signature analysis.
 
                  The default value is forceRedoNothing(), setting all entries to FALSE.
                  To redo everything, set to forceRedoEverything().}

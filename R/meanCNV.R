@@ -110,7 +110,7 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, outputData=T, plotMutations=T, reset=T) {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, outputData=T, plotMutations=T, reset=T, addLegend=T) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
@@ -134,7 +134,7 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
   }
   
   spaceForSNVs = 0.5
-  if ( !plotMutations ) spaceForSNVs = maxCNV*0.00
+  if ( !plotMutations ) spaceForSNVs = maxCNV*0.02
   spaceForLoh = pmin(maxLOH, maxCNV)/maxCNV
   
   indTicks = (1:length(uInd))/length(uInd)
@@ -182,7 +182,7 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
       par(oma=c(0,0,0,0))
       par(mar=c(0,0,0,0))
     }
-    plot(xs, xs, type='n', xlim=c(-0.02*max(xs), max(xs)*1.2), ylim=c(ymin, ymax)*0.97,
+    plot(xs, xs, type='n', xlim=c(-0.02*max(xs), max(xs)*(1 +0.2*addLegend)), ylim=c(ymin, ymax)*0.97,
          xaxt='n', yaxt='n', frame=F, xlab='', ylab='')
 
     #horizontal lines for number of patients
@@ -199,32 +199,32 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
   #polygons for gain/amplification/loss/complete loss
   if ( !add ) {
     polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$gain[1:Nx], rep(0, length(xs)))*cnvScale,
-            col=mcri('cyan'), border=mcri('cyan'))
+            col=mcri('orange'), border=mcri('orange'))
     polygon(c(xs, rev(xs)), spaceForSNVs+c(meanCNV$cnvRates$amp[1:Nx], rep(0, length(xs)))*cnvScale,
-            col=mcri('blue'), border=mcri('blue'))
+            col=mcri('red'), border=mcri('red'))
     polygon(c(xs, rev(xs)), -spaceForSNVs-c(meanCNV$cnvRates$loh[1:Nx], rep(0, length(xs)))*cnvScaleLOH*spaceForLoh*0.85,
             col=mcri('green'), border=mcri('green'))
     polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$loss[1:Nx], rep(0, length(xs)))*cnvScale,
-            col=mcri('orange'), border=mcri('orange'))
+            col=mcri('cyan'), border=mcri('cyan'))
     polygon(c(xs, rev(xs)), -spaceForSNVs-spaceForLoh-c(meanCNV$cnvRates$cl[1:Nx], rep(0, length(xs)))*cnvScale,
-            col=mcri('red'), border=mcri('red'))
+            col=mcri('blue'), border=mcri('blue'))
   } else {
     lines(xs, spaceForSNVs + meanCNV$cnvRates$gain[1:Nx]*cnvScale, col='white', lwd=2.5)
-    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain[1:Nx]*cnvScale, col=mcri('blue'), lwd=1)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$gain[1:Nx]*cnvScale, col=mcri('red'), lwd=1)
     lines(xs, spaceForSNVs + meanCNV$cnvRates$amp[1:Nx]*cnvScale, col='white', lwd=2.5)
-    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp[1:Nx]*cnvScale, col=mcri('darkblue'), lwd=1)
+    lines(xs, spaceForSNVs + meanCNV$cnvRates$amp[1:Nx]*cnvScale, col=mcri('darkred'), lwd=1)
     lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh[1:Nx]*cnvScale*spaceForLoh, col='white', lwd=2.5)
     lines(xs, -spaceForSNVs - meanCNV$cnvRates$loh[1:Nx]*cnvScale*spaceForLoh, col=mcri('green'), lwd=1)
     lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss[1:Nx]*cnvScale, col='white', lwd=2.5)
-    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss[1:Nx]*cnvScale, col=mcri('red'), lwd=1)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$loss[1:Nx]*cnvScale, col=mcri('blue'), lwd=1)
     lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl[1:Nx]*cnvScale, col='white', lwd=2.5)
-    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl[1:Nx]*cnvScale, col=mcri('darkred'), lwd=1)
+    lines(xs, -spaceForSNVs - spaceForLoh - meanCNV$cnvRates$cl[1:Nx]*cnvScale, col=mcri('darkblue'), lwd=1)
   }
 
   #legends
-  if ( !add ) {
+  if ( !add & addLegend ) {
     legend('bottomright', c('gain', 'amplification', 'CNN LOH', 'loss', 'complete loss'), lwd=rep(10, 5),
-           col=mcri(c('cyan', 'blue', 'green', 'orange', 'red')), bg='white')
+           col=mcri(c('orange', 'red', 'green', 'cyan', 'blue')), bg='white')
   }
 
   spaceForGenes = 0.15*spaceForSNVs

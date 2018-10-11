@@ -84,6 +84,7 @@ superVersion = function() return('1.2.0')
 #'                  forceRedoStories: Clonal tracking of somatic mutations.\cr
 #'                  forceRedoRiver: Plots of the clonal evolution.\cr
 #'                  forceRedoVEP: VEP call (Variant Effect Predictor) and COSMIC linking.
+#'                  forceRedoSignature: The mutation signature analysis.
 #'
 #'                  The default value is forceRedoNothing(), setting all entries to FALSE.
 #'                  To redo everything, set to forceRedoEverything().
@@ -479,6 +480,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   forceRedoStories = forceRedo$forceRedoStories
   forceRedoRiver = forceRedo$forceRedoRiver
   forceRedoVEP = forceRedo$forceRedoVEP
+  forceRedoSignature = forceRedo$forceRedoSignature
 
   externalNormalBams =
     normalizePath(c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
@@ -928,7 +930,8 @@ forceRedoNothing = function() list(
   'forceRedoSummary'=F,
   'forceRedoStories'=F,
   'forceRedoRiver'=F,
-  'forceRedoVEP'=F)
+  'forceRedoVEP'=F,
+  'forceRedoSignature'=F)
 
 #' returns input that uses saved data if present.
 #'
@@ -980,7 +983,8 @@ forceRedoEverything = function() list(
   'forceRedoSummary'=T,
   'forceRedoStories'=T,
   'forceRedoRiver'=T,
-  'forceRedoRiver'=T)
+  'forceRedoRiver'=T,
+  'forceRedoSignature'=T)
 
 #' Wrapper for getting settings, containing defaults for missing values.
 #'
@@ -1302,6 +1306,7 @@ propagateForceRedo = function(forceRedo) {
     forceRedo$forceRedoScatters = T
     forceRedo$forceRedoNewVariants = T
     forceRedo$forceRedoOutputSomatic = T
+    forceRedo$forceRedoSignature = T
   }
   if ( forceRedo$forceRedoOutputSomatic ) {
     catLog('Redoing somaitc spread sheets, so need to redo variant annotation.\n')
