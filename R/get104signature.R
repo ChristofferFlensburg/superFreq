@@ -142,12 +142,12 @@ plot104profilesByClone = function(storyList, qs, Rdirectory, plotDirectory, geno
     mutations = mutations[mutations %in% rownames(q)]
     if ( length(mutations) == 0 ) return()
     mx104 = superFreq:::get104profile(q=q[mutations,], Rdirectory=Rdirectory, genome=genome, somaticPcut=-1)
+    colnames(mx104) = clone
     superFreq:::plot_104_profile(mx104, main=paste0('clone ', clone, ' (', sum(mx104), ' mutations)'))
     return(mx104)
   })
   dev.off()
   mx = do.call(cbind, mxList)
-  colnames(mx) = names(storyList)
   invisible(mx)
 }
 

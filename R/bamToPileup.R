@@ -65,13 +65,14 @@ bamToPileup = function(bam, fasta, positions, index, BQoffset=33) {
           delSize = as.numeric(gsub('[a-zA-Z].*$', '', substring(string, del+1, del+10)))
           deletion = substring(string, del+floor(log10(delSize))+2, del+floor(log10(delSize))+1+delSize)
           toRemove = c(toRemove, del-1, (del+1):(del+floor(log10(delSize))+1+delSize))
-          base[del] = paste0('-', delSize)
+          base[del] = paste0('-', delSize, deletion)
         }
       }
       base = base[-toRemove]
     }
     
     strand = ifelse(grepl('[a-z,]', base), '-', '+')
+    base[grepl('^-', base)] = gsub('[a-zA-Z]+$', '', base[grepl('^-', base)])
     isRef = base %in% c('.', ',')
     base[isRef] = reference
     base = toupper(base)
