@@ -96,8 +96,8 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
   
   catLog('Splitting up ',  nrow(q), ' variants for parallelisation...', sep='')
   cores = min(cpus, nrow(q))
-  breaks = round((0:cores)/cores*(nrow(q)-1) + 1)
-  qList = lapply(1:cores, function(i) q[breaks[i]:breaks[i+1],])
+  breaks = round((0:cores)/cores*(nrow(q)) + 1)
+  qList = lapply(1:cores, function(i) q[breaks[i]:(breaks[i+1]-1),])
   catLog('done.\n')
   
   catLog('Running annotation')

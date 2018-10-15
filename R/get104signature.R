@@ -47,8 +47,12 @@ get96signature = function(q, Rdirectory, genome, somaticPcut=0.5) {
   
   vcfFile = paste0(Rdirectory, '/temp_', runif(1, 0, 1e10), '.vcf')
   qSom = q[q$somaticP > somaticPcut & q$variant %in% c('A', 'T', 'C', 'G'),]
-    
-  if ( nrow(qSom) == 0 ) return(rep(0, 96))
+
+  noMuts = F
+  if ( nrow(qSom) == 0 ) {
+    noMuts = T
+    qSom = q[1,]
+  }
     
   superFreq:::writeToVCF(qSom, vcfFile, genome=genome)
   vcf = read_vcfs_as_granges(vcfFile, 'temp', genome = ref_genome)
@@ -57,6 +61,7 @@ get96signature = function(q, Rdirectory, genome, somaticPcut=0.5) {
     vcf = lapply(vcf, function(x) rename_chrom(x))
   
   mx = mut_matrix(vcf_list = vcf, ref_genome = ref_genome)
+  if ( noMuts ) mx = mx*0
 
   unlink(vcfFile)
   
@@ -75,7 +80,7 @@ genomeToMPgenome = function(genome) {
 
 #plot the 104 profile
 plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colnames(mut_matrix), ' (', sum(mut_matrix), ' mutations)'), ...) {
-  norm_mut_matrix = apply(mut_matrix, 2, function(x) x/sum(x))
+  norm_mut_matrix = apply(mut_matrix, 2, function(x) x/pmax(1,sum(x)))
   context = c(MutationalPatterns:::TRIPLETS_96, 'ins1', 'ins2', 'ins4', 'ins7', 'del1', 'del2', 'del4', 'del7')
   substitution = c(rep(MutationalPatterns:::SUBSTITUTIONS, each = 16), rep('indel',8))
   substring(context[1:96], 2, 2) = "."
@@ -84,7 +89,7 @@ plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colname
   df2 = cbind(df, as.data.frame(norm_mut_matrix))
   df3 = reshape2::melt(df2, id.vars = c("substitution", "context"))
   value = NULL
-  if ( ymax==0 ) ymax = max(df3$value)
+  if ( ymax==0 ) ymax = max(df3$value, 0.01)
   cols = superFreq:::mcri(c('red', 'green', 'magenta', 'blue', 'cyan', 'orange', 'violet'))
   a=barplot(df3$value, space = c(0.4,ifelse(df3$substitution[1:103] == df3$substitution[2:104], 0.4, 2)),
           col=cols[as.numeric(as.factor(df3$substitution))], ylim=c(-ymax*0.2,ymax), main=main, ...)
@@ -135,8 +140,9 @@ plot104profilesByClone = function(storyList, qs, Rdirectory, plotDirectory, geno
   mxList = lapply(names(storyList), function(clone) {
     mutations = storyList[[clone]]
     mutations = mutations[mutations %in% rownames(q)]
-    mx104 = get104profile(q=q[mutations,], Rdirectory=Rdirectory, genome=genome)
-    plot_104_profile(mx104, main=paste0('clone ', clone, ' (', sum(mx104), ' mutations)'))
+    if ( length(mutations) == 0 ) return()
+    mx104 = superFreq:::get104profile(q=q[mutations,], Rdirectory=Rdirectory, genome=genome, somaticPcut=-1)
+    superFreq:::plot_104_profile(mx104, main=paste0('clone ', clone, ' (', sum(mx104), ' mutations)'))
     return(mx104)
   })
   dev.off()
@@ -168,7 +174,7 @@ plotProfiles = function(Rdirectory, plotDirectory, stories, variants, genome, fo
   catLog('Mutaional signatures of somatic mutations...')
   saveFile = paste0(Rdirectory, '/profiles.Rdata')
   if ( !file.exists(saveFile) | forceRedo ) {
-    storyList = stories$stories[[1]]$consistentClusters$storyList
+    storyList = stories[[1]]$consistentClusters$storyList
     qs = variants$variants
     catLog('by sample..')
     sampleMx = plot104profilesBySample(qs=qs, Rdirectory=Rdirectory, plotDirectory=plotDirectory, genome=genome, somaticPcut=0.5)
