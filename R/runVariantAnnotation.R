@@ -94,65 +94,72 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
   }
   catLog('done.\n')
   
-  catLog('Splitting up ',  nrow(q), ' variants for parallelisation...', sep='')
-  cores = min(cpus, nrow(q))
-  breaks = round((0:cores)/cores*(nrow(q)) + 1)
-  qList = lapply(1:cores, function(i) q[breaks[i]:(breaks[i+1]-1),])
+  #there is overehead for each batch which favours large batches
+  #but also risk for memory crashes if batches are too big.
+  #so make one batch per cpus, as long as each batch isnt more than 30k variants.
+  #this should be safe in terms of memory with 10Gb per cpu. I think. I hope.
+  batches = pmax(1, round(nrow(q)/10e3))
+  breaks = round((0:batches)/batches*(nrow(q)) + 1)
+  qList = lapply(1:batches, function(i) q[breaks[i]:(breaks[i+1]-1),])
+  catLog('Splitting up ',  nrow(q), ' variants for parallelisation into ', batches, ' batches.\n', sep='')
+
+  #set up link to fasta for this thread, and check if "chr" is present in chr names.
+  catLog('Setting up data bases..')
+  fafile = FaFile(reference)
+  hasChr = grepl('^chr', as.character(seqnames(scanFaIndex(fafile))[1]))
+  if ( !hasChr ) dump = removeChrFromDump(dump)
+  
+  #create data base for this thread
+  txdb = GenomicFeatures::makeTxDb(transcripts=dump$transcripts, splicings=dump$splicings, genes=dump$genes, chrominfo=dump$chrominfo)
   catLog('done.\n')
   
-  catLog('Running annotation')
-  qList = mclapply(qList, function(q) {
+  catLog('Running annotation by batch')
+  qList = lapply(qList, function(q) {
     catLog('.')
-
-    #set up link to fasta for this thread, and check if "chr" is present in chr names.
-    fafile = FaFile(reference)
-    hasChr = grepl('^chr', as.character(seqnames(scanFaIndex(fafile))[1]))
-    if ( !hasChr ) dump = removeChrFromDump(dump)
-    
-    #create data base for this thread
-    txdb = GenomicFeatures::makeTxDb(transcripts=dump$transcripts, splicings=dump$splicings, genes=dump$genes, chrominfo=dump$chrominfo)
-    catLog('.')
-    
+        
     #get the variants into the vcf format. Not sure it handles indels correctly...
-    vcf = qToVCF(q, genome=genome, seqlengths=seqlengths(txdb), addChrToSeqnames=hasChr, fafile=fafile)
+    vcf = superFreq:::qToVCF(q, genome=genome, seqlengths=seqlengths(txdb), addChrToSeqnames=hasChr, fafile=fafile)
     rd = SummarizedExperiment::rowRanges(vcf)
-    catLog('.')
     
     #these throw a warning about out of bound granges, not sure why, seems to return ok values.
-    #probably related to all the weird chrs in the seqranges given in the different objects.
-    suppressWarnings(suppressMessages({allvar = locateVariants(rd, txdb, AllVariants())}))
-    catLog('.')
-    suppressWarnings({coding = predictCoding(vcf, txdb, seqSource=fafile)})
-    catLog('.')
-
-    #sift and polyphen
-    nms = names(coding)
-    idx = mcols(coding)$CONSEQUENCE == "nonsynonymous"
-    nonsyn = coding[idx]
-    names(nonsyn) = nms[idx]
-    rsids = unique(names(nonsyn)[grep("rs", names(nonsyn), fixed=TRUE)])
+    suppressWarnings(suppressMessages({allvar = VariantAnnotation::locateVariants(rd, txdb, VariantAnnotation::AllVariants())}))
+    suppressWarnings({coding = VariantAnnotation::predictCoding(vcf, txdb, seqSource=fafile)})
     
     #rank and select most severe hit for each variant
-    coding$SEVERITY = VAconsequenceToSeverityRank(as.character(coding$CONSEQUENCE))
-    allvar$SEVERITY = VAconsequenceToSeverityRank(as.character(allvar$LOCATION))
-     
-    #select most severe and marge to q
-    q = addMostSevereHit(q, allvar, coding, genome)
-      
+    coding$SEVERITY = superFreq:::VAconsequenceToSeverityRank(as.character(coding$CONSEQUENCE))
+    allvar$SEVERITY = superFreq:::VAconsequenceToSeverityRank(as.character(allvar$LOCATION))
+    
+    #select most severe and merge to q
+    q = superFreq:::addMostSevereHit(q, allvar, coding, genome)
+    return(q)
+  })
+  catLog('done.\n')
+
+  CCGDsummary = ''
+  if ( genome %in% c('mm10') ) {
+    catLog('Preprocessing CCGD data...')
+    CCGDsummary = preprocessCCGD(resourceDirectory=resourceDirectory)
+    catLog('done.\n')
+  }
+  
+  catLog('Matching to known cancer variants by batch')
+  qList = mclapply(qList, function(q) {
+    catLog('.')
     #add frequent cancer genes from COSMIC or CCGD depending on human or mouse
     if ( genome %in% c('hg19', 'hg38') )
       q = addCOSMICannotation(q, genome=genome, resourceDirectory=resourceDirectory)
     if ( genome %in% c('mm10') )
-      q = addCCGDannotation(q, genome=genome, resourceDirectory=resourceDirectory)
+      q = superFreq:::addCCGDannotation(q, CCGDsummary)
 
     #add clinvar annotation
     if ( genome %in% c('hg19', 'hg38') )
       q = addClinvarAnnotation(q, genome=genome, resourceDirectory=resourceDirectory)
-    
+
     return(q)
-  }, mc.cores=cores)
+  }, mc.cores=cpus)
   q = do.call(rbind, qList)
-  
+  catLog('done.\n')
+
   return(q)
 }
 
@@ -369,12 +376,9 @@ addCOSMICannotation = function(q, genome, resourceDirectory) {
   return(q)
 }
 
-#adds CCGD annotation to q from the q$inGene column.
-addCCGDannotation = function(q, genome, resourceDirectory) {
+preprocessCCGD = function(resourceDirectory) {
   CCGDdata = read.table(paste0(resourceDirectory, '/COSMIC/CCGD_export.csv'), sep=',', header=T, stringsAsFactors=F)
-  
   censusGenes = unique(CCGDdata$Mouse.Symbol)
-  isCCGD = q$inGene %in% censusGenes
   
   CCGDsummary = sapply(censusGenes, function(gene) {
     subData = CCGDdata[CCGDdata$Mouse.Symbol == gene,]
@@ -393,7 +397,7 @@ addCCGDannotation = function(q, genome, resourceDirectory) {
     names(ranks) = gsub(' Cancer', '',names(ranks))
     ranks = gsub(';$','',do.call(paste0, as.list(paste0(names(ranks), ":", ranks, ';'))))
     
-    return(c('isCCGD'=isCCGD, 'studies'=studies, 'cancerTypes'=cancerTypes, 'cosmic'=isInCosmic,
+    return(c('studies'=studies, 'cancerTypes'=cancerTypes, 'cosmic'=isInCosmic,
              'cgc'=isInCGC, 'ranks'=ranks, 'humanGene'=humanGene))
   })
   CCGDsummary = as.data.frame(t(CCGDsummary), stringsAsFactors=F)
@@ -401,7 +405,16 @@ addCCGDannotation = function(q, genome, resourceDirectory) {
   CCGDsummary$studies = as.numeric(CCGDsummary$studies)
   CCGDsummary$cosmic = as.logical(CCGDsummary$cosmic)
   CCGDsummary$cgc = as.logical(CCGDsummary$cgc)
+
+  return(CCGDsummary)
+}
+
+#adds CCGD annotation to q from the q$inGene column.
+addCCGDannotation = function(q, CCGDsummary) {
   
+  censusGenes = unique(CCGDdata$Mouse.Symbol)
+  isCCGD = q$inGene %in% censusGenes
+    
   CCGDstudies = rep(0, nrow(q))
   CCGDcancerTypes = rep('', nrow(q))
   CCGDcosmic = rep('', nrow(q))

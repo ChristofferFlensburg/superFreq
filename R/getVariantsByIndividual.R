@@ -852,14 +852,15 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
       next
     }
 
-    preExistingVariantsFile = paste0(normalRdirectory, '/q', name, '.Rdata')
-    if ( file.exists(preExistingVariantsFile) ) {
+    preExistingVariantsFiles = list.files(normalRdirectory, pattern=paste0('q', name, '_[0-9]*.Rdata'), full.names=T)
+    if ( length(preExistingVariantsFiles) > 0 ) {
         #load what variants are already called
-        catLog(date(), ': requesting access from ', preExistingVariantsFile, '.\n')
-        rdataLock = flock::lock(preExistingVariantsFile)
-        catLog(date(), ': accessed and locked ', preExistingVariantsFile, '.\n')
-        catLog('Loading normal variants from', preExistingVariantsFile, '.\n')
-        load(preExistingVariantsFile)
+      qList = mclapply(preExistingVariantsFiles, function(preBam) {
+        catLog('Loading normal variants from', preBam, '.\n')
+        load(preBam)
+        return(qNew)
+      }, mc.cores=cpus)
+      q = do.call(rbind, qList)
       
         #fill in any missing variants
         missingVariants = variantsToCheck[!(variantsToCheck %in% rownames(q))]
@@ -875,30 +876,24 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
             q = q[order(q$x, q$variant),]
             q = q[apply(!is.na(q), 1, any),]
   
-            #save the union of the calls for future batches
-            catLog('Saving new normal variants back to', preExistingVariantsFile, '..')
-            save(q, file=preExistingVariantsFile)
+            #save the new calls for future batches
+            newSaveFile = paste0(normalRdirectory, '/q', name, '_', round(runif(1,1,1e10)), '.Rdata')
+            catLog('Saving new normal variants back to', newSaveFile, '..')
+            save(qNew, file=newSaveFile)
             catLog('done.\n')
         }
-        flock::unlock(rdataLock)
-        catLog(date(), ': unlocked ', preExistingVariantsFile, '.\n')
     }
     else {
       #extract variant information over the predetermined positions
       catLog('Normal variants from ', name,'.\n', sep='')
 
-      catLog('Saving normal variants to', preExistingVariantsFile, '..')
-      catLog(date(), ': requesting access from ', preExistingVariantsFile, '.\n')
-      rdataLock = flock::lock(preExistingVariantsFile)
-      catLog(date(), ': accessed and locked ', preExistingVariantsFile, '.\n')
-
       q = newBamToVariants(bam, SNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
       q = q[apply(!is.na(q), 1, any),]
-
-      #save the union of the calls for future batches
-      save(q, file=preExistingVariantsFile)
-      flock::unlock(rdataLock)
-      catLog(date(), ': unlocked ', preExistingVariantsFile, '.\n')
+      qNew = q
+      
+      newSaveFile = paste0(normalRdirectory, '/q', name, '_', round(runif(1,1,1e10)), '.Rdata')
+      catLog('Saving normal variants back to', newSaveFile, '..')
+      save(qNew, file=newSaveFile)
       catLog('done.\n')
     }
     

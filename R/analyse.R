@@ -200,7 +200,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
-      catLog('done.\n')
+      catLog('done with split run! :)\n')
       }
     return()
   }
