@@ -120,13 +120,16 @@ More information is in the manual.
 ![example multisample heatmap](inst/doc/multisample.png)
 
 # What is the input?
-You need the aligned bam files of the exomes, and a preliminary (liberal) variant calling through for example varScan, mutect, multiSNV or any other similar software. superFreq is not sensitive to false positives in these VCFs.
+You need the aligned bam files of the exomes, and a preliminary (liberal) variant calling through for example varScan, mutect, multiSNV or any other similar software. superFreq is not sensitive to false positives in these VCFs. The details of this doesn't affect output much as long as all the somatic and germline variants are present. In house we typically use samtools and varscan:
+
+```
+samtools mpileup -d 1000 -q 15 -Q 15 -A -f reference/theAlignedToReference.fa  bam/mySample.bam | varscan mpileup2cns - --variants --strand-filter 0 --p-value 0.01 --min-var-freq 0.02 > vcf/mySample.vcf
+```
 
 SuperFreq also requires a set of (at least 2, 5+ is better) reference normal samples from the same sequencing technology and exome capture.
 Preferably sequenced in the same lab. These samples do not have to be related to the analysed cancer exomes.
 
 You also need some meta data:
-- a .bed file with the capture regions
 - the fasta file you aligned to
 - a tab separated file with information about the samples
 
@@ -144,7 +147,6 @@ Plots (some shown here), tables, and R objects for downstream analysis. Analysis
 # dependencies
 - R.
 - a bunch of R packages.
-- VEP (latest version recommended, but may work down to version 76.)
 - samtools 1.x
 
 # Acknowledgements
