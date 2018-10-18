@@ -10,7 +10,6 @@
 #' @importFrom biomaRt useMart getBM
 #' @importFrom Rsamtools scanBamHeader ScanBamParam scanBamFlag scanBam
 #' @importFrom R.oo charToInt
-#' @importFrom flock lock unlock
 getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQoffset, dbDir, Rdirectory, plotDirectory, cpus, exacPopulation='all', forceRedo=F, filterOffTarget=T) {
   catLog('Using variants by individual.\n')
   saveFile = paste0(Rdirectory, '/variantsBI.Rdata')
