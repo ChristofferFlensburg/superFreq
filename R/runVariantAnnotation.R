@@ -412,7 +412,7 @@ preprocessCCGD = function(resourceDirectory) {
 #adds CCGD annotation to q from the q$inGene column.
 addCCGDannotation = function(q, CCGDsummary) {
   
-  censusGenes = unique(CCGDdata$Mouse.Symbol)
+  censusGenes = rownames(CCGDsummary)
   isCCGD = q$inGene %in% censusGenes
     
   CCGDstudies = rep(0, nrow(q))
