@@ -26,7 +26,9 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
   somQ = annotateQ(somQ, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
 
   #put annotation back in to the samples
+  catLog('Matching annotation back to variant calls in each sample')
   annotatedQs = lapply(qs, function(q) {
+    catLog('.')
     #this assumes no duplicated rows. Shouldnt be the case, but who knows.
     if ( any(duplicated(paste0(q$x, q$variant))) ) stop('duplicated q rows in annotateSomaticQs.')
     
@@ -43,6 +45,7 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
 
     return(q)
   })
+  catLog('done.\n')
 
   return(annotatedQs)
 }

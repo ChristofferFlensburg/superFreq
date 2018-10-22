@@ -72,7 +72,7 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
     names(chr) = names(start) = names(end) = rownames(clonality)
     output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
     output = addAnnotationToOutput(output, patVar, genome=genome)
-    excelOutput = output[1:max(nrow(output), 65000),]
+    excelOutput = output[1:min(nrow(output), 65000),]
     if ( nrow(output) > 65000 ) warning('Truncating .xls river: too many rows.')
     WriteXLS('excelOutput', excelFile)
     tsvFile = paste0(riverDirectory, ts, '-river.tsv')
@@ -97,7 +97,7 @@ makeRiverPlots = function(stories, variants, genome='hg19', cpus=1, plotDirector
       error = as.data.frame(output$errors)
       output = cbind(chr = chr, start=start, end=end, name=label$label, clone=output$clone, clonality=clonality, error=error)
       output = addAnnotationToOutput(output, patVar, genome=genome)
-      excelOutput = output[1:max(nrow(output), 65000),]
+      excelOutput = output[1:min(nrow(output), 65000),]
       if ( nrow(output) > 65000 ) warning('Truncating .xls dodgy river: too many rows.')
       WriteXLS('excelOutput', excelFile)
     }
