@@ -3,12 +3,12 @@ preprint: https://www.biorxiv.org/content/early/2018/07/30/380097
 # superFreq
 SuperFreq is an R package that analyses cancer exomes.
 
-![example river](inst/doc/river.png)
+![example river](readmeImages/river.png)
 
 # What does it do?
 SuperFreq analyses and filters somatic SNVs and short indels, calls copy numbers and tracks clones over multiple samples from the same individual. It identifies the copy number alterations and point mutations in each clone, and highlights potentially causing mutations through variant annotation and COSMIC.
 
-![example scatter](inst/doc/all.png)
+![example scatter](readmeImages/all.png)
 
 
 # How do I run it?
@@ -117,7 +117,7 @@ printHTML(metaDataFile=metaDataFile, outputFile=paste0(plotDirectory, '/superFre
 
 More information is in the manual. 
 
-![example multisample heatmap](inst/doc/multisample.png)
+![example multisample heatmap](readmeImages/multisample.png)
 
 # What is the input?
 You need the aligned bam files of the exomes, and a preliminary (liberal) variant calling through for example varScan, mutect, multiSNV or any other similar software. superFreq is not sensitive to false positives in these VCFs. The details of this doesn't affect output much as long as all the somatic and germline variants are present. In house we typically use samtools and varscan:
@@ -133,7 +133,7 @@ You also need some meta data:
 - the fasta file you aligned to
 - a tab separated file with information about the samples
 
-![example copy number profile](inst/doc/TCGA.A3.3320.PrimaryTumor.WXS.fc2.png)
+![example copy number profile](readmeImages/TCGA.A3.3320.PrimaryTumor.WXS.fc2.png)
 
 # What is the output?
 Plots (some shown here), tables, and R objects for downstream analysis. Analysis results as well as diagnostic quality control. Some examples:
