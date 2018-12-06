@@ -4,11 +4,11 @@
 \alias{analyse}
 \title{Analyse exomes}
 \usage{
-analyse(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
-  parameters = defaultSuperParameters(), byIndividual = T,
-  manualStoryMerge = F, correctReferenceBias = T, vepCall = "vep",
-  resourceDirectory = resourceDirectory, mode = "exome",
-  filterOffTarget = T, rareGermline = T,
+analyse(inputFiles, outputDirectories, settings, forceRedo,
+  runtimeSettings, parameters = defaultSuperParameters(),
+  byIndividual = T, manualStoryMerge = F, correctReferenceBias = T,
+  vepCall = "vep", resourceDirectory = resourceDirectory,
+  mode = "exome", filterOffTarget = T, rareGermline = T,
   annotationMethod = "VariantAnnotation")
 }
 \arguments{

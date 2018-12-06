@@ -5,8 +5,8 @@
 \title{looks for reccuring events across all individuals in a batch run}
 \usage{
 superCohort(metaDataFile, Rdirectory = "R", plotDirectory = "plots",
-  cpus = 1, genome = "hg19", resourceDirectory = "superFreqResources",
-  ...)
+  cpus = 1, genome = "hg19",
+  resourceDirectory = "superFreqResources", ...)
 }
 \arguments{
 \item{metaDataFile}{character: path to the tab separated meta data file.}

@@ -110,7 +110,7 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, outputData=T, plotMutations=T, reset=T, addLegend=T) {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, outputData=T, plotMutations=T, reset=T, addLegend=T, chr.col=mcri('green', 0.3), label.cex=1, chr.cex=1, chr.stagger=0, chr.staggerFrom=1, ...) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
@@ -182,18 +182,19 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
       par(oma=c(0,0,0,0))
       par(mar=c(0,0,0,0))
     }
-    plot(xs, xs, type='n', xlim=c(-0.02*max(xs), max(xs)*(1 +0.2*addLegend)), ylim=c(ymin, ymax)*0.97,
-         xaxt='n', yaxt='n', frame=F, xlab='', ylab='')
+    plot(xs, xs, type='n', xlim=c(-0.02*max(xs), max(xs)*(1 +0.2*addLegend)), ylim=c(ymin, ymax+(ymax-ymin)*0.03)*0.97,
+         xaxt='n', yaxt='n', frame=F, xlab='', ylab='', ...)
 
     #horizontal lines for number of patients
     catLog('plotting CNVs..')
     segments(0, yTicks, max(xs), yTicks, lwd=1, col=rgb(0,0,0,0.05+heavy*0.15))
-    text(-max(xs)*0.02, yTicks[heavy], round(indTicks[heavy], 2), col=rgb(0,0,0,1))
-    text(-max(xs)*0.05, -spaceForLoh/2, 'frequency', srt=90)
+    text(-max(xs)*0.02, yTicks[heavy], round(indTicks[heavy], 2), col=rgb(0,0,0,1), cex=label.cex)
+    text(-max(xs)*0.05, -spaceForLoh/2, 'frequency', srt=90, cex=label.cex)
 
     
     #mark chromosome boundaries
-    superFreq:::addChromosomeLines(c(ymin, ymax*1.02), col=mcri('green', 0.3), lwd=1.5, genome=genome, onlyNumbers=!plotSex)
+    superFreq:::addChromosomeLines(c(ymin, ymax*1.05), col=chr.col, lwd=1.5, genome=genome,
+                                   onlyNumbers=!plotSex, cex=chr.cex, stagger=chr.stagger, staggerFrom=chr.staggerFrom)
   }
 
   #polygons for gain/amplification/loss/complete loss

@@ -107,7 +107,7 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 #'
 #' @export
 #'
-plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, lwd=1, ...) {
+plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, lwd=1, sep.lwd=5, sideSpace=NULL, ...) {
   showClonality = showClonality & 'subclonality' %in% names(cR)
   if ( nrow(cR) == 0 ) return()
   if ( chr != 'all' ) {
@@ -118,8 +118,10 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   }
   else xlim=c(min(cR$x1), max(cR$x2))
   xlimMar = xlim
-  sideSpace = 0.05
-  if ( smallPlot ) sideSpace = 0.11
+  if ( is.null(sideSpace) ) {
+    sideSpace = 0.05
+    if ( smallPlot ) sideSpace = 0.11
+  }
   xlimMar[1] = xlim[1] - (xlim[2]-xlim[1])*sideSpace
   xlimMar[2] = xlim[2] + (xlim[2]-xlim[1])*sideSpace
 
@@ -167,7 +169,7 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
     text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, -1.8, srt=90, 'clonality', cex=0.8)
     if ( smallPlot ) addChromosomeLines(ylim=c(-2.3, 1.18), col=mcri('green', 0.6), lwd=1, genome=genome)
     else addChromosomeLines(ylim=c(-2.3, 1.15), col=mcri('green', 0.6), lwd=1, genome=genome)
-    segments(2*xlim[1]-xlim[2], c(0, -1.2), 2*xlim[2]-xlim[1], c(0, -1.2), lwd=5)
+    segments(2*xlim[1]-xlim[2], c(0, -1.2), 2*xlim[2]-xlim[1], c(0, -1.2), lwd=sep.lwd)
     axis(side=2, at=0.1 + (0:4)/4, labels=c(-1, -0.5, 0, 0.5, 1), pos=xlim[1], padj=0.75)
     axis(side=2, at=-1.1 + (0:5)/5, labels=lowerTicks, pos=xlim[1], padj=0.75)
     axis(side=2, at=-2.3 + (0:5)/5, labels=c(0, 0.2, 0.4, 0.6, 0.8, 1), pos=xlim[1], padj=0.75)
@@ -280,12 +282,17 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
 }
 
 #helper function that adds vertical chromsome lines to a plot on the genomic x coordinate.
-addChromosomeLines = function(ylim = c(0, 1), col = 'red', cex=1, genome='hg19', onlyNumbers=F, ...) {
+addChromosomeLines = function(ylim = c(0, 1), col = 'red', cex=1, genome='hg19', onlyNumbers=F, stagger=0, staggerFrom=1, ...) {
   chrL = chrLengths(genome=genome)
   if ( onlyNumbers ) chrL = chrL[grepl('[0-9]', names(chrL))]
   lim = c(0, cumsum(chrL))
   segments(lim, ylim[1], lim, ylim[2], col=col, cex=cex, ...)
-  text((lim[-1] + lim[-length(lim)])/2, ylim[2], names(chrL), col=col, cex=cex)
+  ys = rep(ylim[2], length(chrL))
+  if ( stagger != 0 ) {
+    is = staggerFrom:length(chrL)
+    ys[is] = ys[is] + rep(c(stagger,0),length(is))[1:length(is)]
+  }
+  text((lim[-1] + lim[-length(lim)])/2, ys, names(chrL), col=col, cex=cex)
 }
 
 #Helper function that returns a colour (or line type) depending on the provided index. Cyclic.

@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.2.3')
+superVersion = function() return('1.2.4')
 
 
 #' Wrapper to run default superFreq analysis
@@ -363,6 +363,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   vcfFiles = inputFiles$vcfFiles
   if ( 'reference' %in% names(inputFiles) ) reference = inputFiles$reference
   else reference = ''
+  if ( !file.exists(reference) ) stop('Reference file doesnt exist at path ', reference, '. Please point to the .fa file used to align the .bams.')
   normalDirectory = inputFiles$normalDirectory
   normalRdirectory = paste0(normalDirectory, '/R')
   if ( !file.exists(normalRdirectory) ) {
@@ -549,14 +550,14 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     stop('Want only YES or NO in normal column, aborting.\n')
   }
   bamFiles = sampleMetaData$BAM
-  names = make.names(sampleMetaData$NAME, unique=T)
+  sampleNames = make.names(sampleMetaData$NAME, unique=T)
   individuals = sampleMetaData$INDIVIDUAL
   timePoints = sampleMetaData$TIMEPOINT
-  names(timePoints) = names(individuals) = names
+  names(timePoints) = names(individuals) = sampleNames
   normals = as.logical(gsub('YES', 'T', gsub('NO', 'F', sampleMetaData$NORMAL)))
-  names(normals) = names
-  samplePairs = metaToSamplePairs(names, individuals, normals)
-  timeSeries = metaToTimeSeries(names, individuals, normals)
+  names(normals) = sampleNames
+  samplePairs = metaToSamplePairs(sampleNames, individuals, normals)
+  timeSeries = metaToTimeSeries(sampleNames, individuals, normals)
 
   if ( any(!file.exists(bamFiles)) ) {
     catLog('Missing (or misnamed) bam files:' , bamFiles[!file.exists(bamFiles)], '.\n')
@@ -589,7 +590,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('\n##################################################################################################\n\n')
 
   #compare coverage of samples to the pool of normals, using limma-voom.
-  fit = runDE(bamFiles, names, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
+  fit = runDE(bamFiles, sampleNames, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
     normalCoverageRdirectory, settings=settings, cpus=cpus, forceRedoFit=forceRedoFit, forceRedoCount=forceRedoCount,
     forceRedoNormalCount=forceRedoNormalCount, mode=mode)
 
@@ -611,7 +612,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
         variants = getVariantsByIndividual(sampleMetaData, captureRegions, fasta=reference, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, exacPopulation=exacPopulation, forceRedo=forceRedoVariants, filterOffTarget=filterOffTarget)
       else
-        variants = getVariants(vcfFiles, bamFiles, names, captureRegions, genome, BQoffset, dbSNPdirectory,
+        variants = getVariants(vcfFiles, bamFiles, sampleNames, captureRegions, genome, BQoffset, dbSNPdirectory,
           Rdirectory, plotDirectory, cpus=cpus, forceRedoSNPs=forceRedoSNPs,
           forceRedoVariants=forceRedoVariants)
       
@@ -668,7 +669,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   #call CNVs compared to the normals.
   cnvs =
     callCNVs(variants=variants, fitS=fit$fit, variants$SNPs,
-                 names=names, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
+                 names=sampleNames, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
                  genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias, mode=mode)
 
 
@@ -1344,8 +1345,8 @@ checkSystem = function(vepCall, testVEP=F) {
   catLog('Testing samtools...\n')
   a = system('samtools --version')
   if ( a != 0 ) {
-    catLog('\nWARNING: \'samtools --version\' failed. This is likely to cause problems downstream in variant calling.\n\n')
-    warning('\'samtools --version\' failed. This is likely to cause problems downstream in variant calling.')
+    catLog('\nWARNING: \'samtools --version\' failed. This is likely to cause problems downstream in variant calling. You need a system installation (outside of R) of samtools 1+ available.\n\n')
+    warning('\'samtools --version\' failed. This is likely to cause problems downstream in variant calling. You need a system installation (outside of R) of samtools 1+ available.')
   }
   else {
     ret = system('samtools --version', intern=T)

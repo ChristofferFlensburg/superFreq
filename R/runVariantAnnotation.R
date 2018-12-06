@@ -163,6 +163,12 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
   q = do.call(rbind, qList)
   catLog('done.\n')
 
+  if ( any(is.na(q$severity)) ) {
+    catLog('\nSomething produced NAs in variant annotation. Can happen due to running out of memory during parallelisation. Try rerunning with more allocated memory or fewer cpus.\n
+Exiting.\n')
+    stop('Something produced NAs in variant annotation. Can happen due to running out of memory during parallelisation. Try rerunning with more allocated memory or fewer cpus.')
+  }
+
   return(q)
 }
 

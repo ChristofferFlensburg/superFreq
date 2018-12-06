@@ -35,7 +35,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         catLog('Plotting to', outfile, '\n')
         png(outfile, width = 10, height=10, res=300, units='in')
       }
-      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F,
+      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F, genome=genome,
                      main=paste0('clean variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1)
@@ -49,7 +49,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         outfile = paste0(dir2, '/allNamed.png')
         png(outfile, width = 10, height=10, res=300, units='in')
       }
-      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F,
+      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F, genome=genome,
                      main=paste0('clean variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1,
@@ -64,7 +64,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         outfile = paste0(dir2, '/allFlagged.png')
         png(outfile, width = 10, height=10, res=300, units='in')
       }
-      vafScatter(q1, q2, verbose=F, ps=ps,
+      vafScatter(q1, q2, verbose=F, ps=ps, genome=genome,
                      main=paste0('all variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1)
@@ -85,7 +85,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
           png(outfile, width = 10, height=10, res=144, units='in')
         }
         catLog(chr, '..', sep='')
-        vafScatter(q1[use,], q2[use,], ps=ps[use],
+        vafScatter(q1[use,], q2[use,], ps=ps[use], genome=genome,
                        main=paste0('all variants: ', pair[1], ' vs ', pair[2], ', chr', chr),
                        xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                        ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1, print=T,
@@ -594,7 +594,7 @@ vafScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main
     isClinvar = isPathogenic = rep(F, nrow(q1))
     if ( 'ClinVar_ClinicalSignificance' %in% names(q1) & 'ClinVar_ClinicalSignificance' %in% names(q2) ) {
       isClinvar = (q1$ClinVar_ClinicalSignificance != '' | q2$ClinVar_ClinicalSignificance  != '')
-      #for some reason the pattern [,$] doesnt match end of string or comma. ¯\_(ツ)_/¯
+      #for some reason the pattern [,$] doesnt match end of string or comma.
       isPathogenic =
         grepl('[pP]athogenic,', paste0(q1$ClinVar_ClinicalSignificance)) |
         grepl('[pP]athogenic$', paste0(q1$ClinVar_ClinicalSignificance)) |
