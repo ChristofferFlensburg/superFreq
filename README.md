@@ -74,6 +74,8 @@ forceRedo = forceRedoNothing()
 
 #a measure on how much large-scale biases are expected in the coverage.
 #this controls the sensitivity vs accuracy of the coverage part of copy number calls.
+#0.02 is default and works for exomes. Genomes might be able to go lower.
+#For RNA-Seq data, 0.1 is better starting point.
 systematicVariance=0.02
 #a measure on how much biases (such as PCR duplication) is expected in the VAFs.
 #this controls the sensitivity vs accuracy of the heterozygous SNP part of copy number calls.
