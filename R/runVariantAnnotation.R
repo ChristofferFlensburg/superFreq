@@ -43,6 +43,8 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
     #fill in annotated variants
     q[somatics, annotationColumns(genome)] = subSomQ[,annotationColumns(genome)]
 
+    if ( any(is.na(q$severity)) ) stop('NA severity after filling in annotation back into null annotated variants.')
+    
     return(q)
   })
   catLog('done.\n')

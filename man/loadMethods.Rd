@@ -7,11 +7,5 @@
 loadMethods(stringsAsFactors = FALSE, byIndividual = T)
 }
 \description{
-This function loads the analysis functions used in analyse().
+Not needed in the package, ignore this function.
 }
-\examples{
-loadMethods()
-}
-\keyword{analyse}
-\keyword{load}
-\keyword{methods}

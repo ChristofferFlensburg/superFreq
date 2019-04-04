@@ -1036,7 +1036,7 @@ newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33,
     varList = mclapply(1:Nbatch, function(batchI) {
       catLog(batchI, '.', sep='')
       use = ((batchI-1)*reducedBatchSize+1):min(Npos, batchI*reducedBatchSize)
-      pileups = bamToPileup(file, fasta, positions[use,], batchI, BQoffset=BQoffset)
+      pileups = bamToPileup(file, fasta, positions[use,], batchI, Rdirectory=Rdirectory, BQoffset=BQoffset)
       catLog('.', sep='')
       
       references = as.character(positions$reference[use])
