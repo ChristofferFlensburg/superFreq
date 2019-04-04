@@ -107,9 +107,10 @@ makeCNVplots = function(cnvs, plotDirectory, genome='hg19', plotPDF=F, forceRedo
 #'
 #' @export
 #'
-plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, lwd=1, sep.lwd=5, sideSpace=NULL, ...) {
+plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', alpha=1, add=F, moveHet=T, pt.cex=1, setMargins=T, fullFrequency=F, colourDeviation=T, forceCol=NA, plotCall=T, plotArrows=F, smallPlot=F, lwd=1, sep.lwd=5, sideSpace=NULL, noSex=F, ...) {
   showClonality = showClonality & 'subclonality' %in% names(cR)
   if ( nrow(cR) == 0 ) return()
+  if ( noSex ) cR = cR[!(xToChr(cR$x1, genome=genome) %in% c('X', 'Y')),]
   if ( chr != 'all' ) {
     chrL = chrLengths(genome=genome)
     xlim = c(cumsum(chrL)[chr]-chrL[chr], cumsum(chrL)[chr])
@@ -125,8 +126,10 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
   xlimMar[1] = xlim[1] - (xlim[2]-xlim[1])*sideSpace
   xlimMar[2] = xlim[2] + (xlim[2]-xlim[1])*sideSpace
 
-  ylim = c(-2.3, 1.1)
-  if ( !showClonality ) ylim = c(-1.1, 1.1)
+  ymax = 1.1
+  if ( smallPlot ) ymax = 1.2
+  ylim = c(-2.3, ymax)
+  if ( !showClonality ) ylim = c(-1.1, ymax)
   if ( !add ) {
     if ( setMargins ) {
       par(oma=rep(0, 4))
@@ -167,8 +170,8 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
       text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, 0.6, srt=90, 'coverage LFC vs normals', cex=0.8)
     text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, -0.6, srt=90, lowerLabel, cex=0.8)
     text(xlimMar[1] - (xlimMar[2]-xlimMar[1])*0.02, -1.8, srt=90, 'clonality', cex=0.8)
-    if ( smallPlot ) addChromosomeLines(ylim=c(-2.3, 1.18), col=mcri('green', 0.6), lwd=1, genome=genome)
-    else addChromosomeLines(ylim=c(-2.3, 1.15), col=mcri('green', 0.6), lwd=1, genome=genome)
+    if ( smallPlot ) addChromosomeLines(ylim=c(-2.3, 1.18), col=mcri('green', 0.6), lwd=1, genome=genome, onlyNumbers=noSex)
+    else addChromosomeLines(ylim=c(-2.3, 1.15), col=mcri('green', 0.6), lwd=1, genome=genome, onlyNumbers=noSex)
     segments(2*xlim[1]-xlim[2], c(0, -1.2), 2*xlim[2]-xlim[1], c(0, -1.2), lwd=sep.lwd)
     axis(side=2, at=0.1 + (0:4)/4, labels=c(-1, -0.5, 0, 0.5, 1), pos=xlim[1], padj=0.75)
     axis(side=2, at=-1.1 + (0:5)/5, labels=lowerTicks, pos=xlim[1], padj=0.75)
