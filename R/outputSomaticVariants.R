@@ -136,32 +136,33 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
 #' }
 writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F, addSomaticP=F) {
   if ( snvOnly ) q = q[q$variant %in% c('A', 'T', 'C', 'G'),]
+
+  refvarstartendList = convertVariantsToVCF(list(q$reference, q$variant, xToPos(q$x, genome), xToPos(q$x, genome)))
+  reference = refvarstartendList[[1]]
+  variant = refvarstartendList[[2]]
+  start = refvarstartendList[[3]]
+  end = refvarstartendList[[4]]
   
   preambula = c('##fileformat=VCFv4.0',
     '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tCOVERAGE\tVARIANTREADS\tVAF')
   if ( addSomaticP )
   preambula = c('##fileformat=VCFv4.0',
-    '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tCOVERAGE\tVARIANTREADS\tVAF\tSOMATICP')
+    '##reference=', genome,
+    '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">',
+    '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
+    '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO')
   chrom = xToChr(q$x, genome)
   pos = xToPos(q$x, genome)
   ID = rownames(q)
-  ref = q$reference
-  alt = q$variant
-  if ( any(grepl('\\+', alt)) ) {
-    insertions = grepl('\\+', alt)
-    nIns = nchar(alt[insertions])-1
-    alt[insertions] = paste0(substr(ref[insertions], 1, 1), gsub('\\+', '', alt[insertions]))
-  }
+  ref = reference
+  alt = variant
   qual = pmin(60, -log10(1-q$somaticP)*10)
   filter = gsub('^$', 'PASS', expandFlags(q$flag))
-  info = rep('', nrow(q))
-  cov = q$cov
-  var = q$var
-  f = ifelse(q$cov > 0, q$var/q$cov, 0)
+  info = paste0('DP=', q$cov, ';AF=', ifelse(q$cov > 0, q$var/q$cov, 0))
 
-  out = cbind(chrom, pos, ID, ref, alt, qual, filter, info, cov, var, f)
+  out = cbind(chrom, pos, ID, ref, alt, qual, filter, info)
   if ( addSomaticP )
-      out = cbind(chrom, pos, ID, ref, alt, qual, filter, info, cov, var, f, q$somaticP)
+      out = cbind(chrom, pos, ID, ref, alt, qual, filter, info, q$somaticP)
   body = apply(out, 1, function(strs) do.call(paste, c(as.list(strs), sep='\t')))
   body = do.call(paste, c(as.list(preambula), as.list(body), sep='\n'))
 
