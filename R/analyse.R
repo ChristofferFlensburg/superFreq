@@ -770,12 +770,6 @@ loadData = function(Rdirectory, setVariantLoss=F, correctReferenceBias=T) {
 }
 
 #' Not needed in the package, ignore this function.
-#'
-#' This function loads the analysis functions used in analyse().
-#' @keywords load methods analyse
-#'
-#' @examples
-#' loadMethods()
 loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
   options(stringsAsFactors = stringsAsFactors)
   options(scipen = 10)
@@ -870,6 +864,10 @@ loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
   source('makeRiverPlots.R')
   source('downloadSuperFreqResources.R')
   source('bamToPileup.R')
+  source('generateHTML.R')
+  source('runVariantAnnotation.R')
+  source('outputData.R')
+  source('get104signature.R')
 
   if ( !exists('.maxCov', envir = .GlobalEnv) ) {
     catLog('Setting maxCov to default 150.\n')
