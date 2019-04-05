@@ -454,7 +454,7 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
       referenceNormal[referenceNormal] = pNormalHet < 0.05
       #check that there is a significant difference in the somatic vs matched normal if anything is seen in the normal
       psameF = unlist(mclapply(which(referenceNormal), function(i)
-        fisher.test(matrix(c(q$ref[i], q$var[i], qn$ref[i], qn$var[i]), nrow=2))$p.value,
+        fisher.test(matrix(c(q$ref[i], q$var[i], qn$ref[i], qn$var[i]), nrow=2), alternative='less')$p.value,
         mc.cores=cpus))
       fdrSameF = p.adjust(psameF, method='fdr')
       referenceNormal[referenceNormal] = (psameF < 0.05 & (q$var/q$cov > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*noneg(1 - 20*psameF)

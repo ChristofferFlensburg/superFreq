@@ -719,10 +719,11 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
   #compare base quality scores between variant and reference
   pbq = 1 
   if ( sum(ref) > 0 & sum(var) > 0 ) {
-    pbq = if ( sum(ref > 0) ) wilcox.test(pileup$qual[var], pileup$qual[ref], exact=F)$p.value else 1
+    pbq = if ( sum(ref > 0) ) wilcox.test(pileup$qual[var], pileup$qual[ref], alternative='less', exact=F)$p.value else 1
+    if ( is.na(pbq) ) pbq = 1
     if ( pbq < 0.01 & mean(pileup$qual[var]) < 30 & mean(pileup$qual[ref]) - mean(pileup$qual[var]) > 10  ) flag = paste0(flag, 'Bq')
-    else if ( mean(pileup$qual[var]) < 20 ) flag = paste0(flag, 'Bq')
-    else if ( sum(pileup$qual[var] > 30) < 0.1*sum(var) ) flag = paste0(flag, 'Bq')
+    else if ( mean(pileup$qual[var]) < 15 ) flag = paste0(flag, 'Bq')
+    #else if ( sum(pileup$qual[var] > 30) < 0.1*sum(var) ) flag = paste0(flag, 'Bq')
     #the wilcox test fails if all the scores are the same, returning NA. handle.
     if ( is.na(pbq) ) pbq=1
   }
@@ -730,11 +731,11 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
   #compare mapping quality scores between variant and reference
   pmq = 1 
   if ( sum(ref) > 0 & sum(var) > 0 ) {
-    pmq = if ( sum(ref > 0) ) wilcox.test(pileup$mapq[var], pileup$mapq[ref], exact=F)$p.value else 1
+    pmq = if ( sum(ref > 0) ) wilcox.test(pileup$mapq[var], pileup$mapq[ref], alternative='less', exact=F)$p.value else 1
     if ( is.na(pmq) ) pmq = 1
     if ( pmq < 0.01 & mean(pileup$mapq[var]) < 30 & mean(pileup$mapq[ref]) - mean(pileup$mapq[var]) > 10 ) flag = paste0(flag, 'Mq')
-    else if ( mean(pileup$mapq[var]) < 20 ) flag = paste0(flag, 'Mq')
-    else if ( sum(pileup$mapq[var] > 30) < 0.1*sum(var) ) flag = paste0(flag, 'Mq')
+    else if ( mean(pileup$mapq[var]) < 15 ) flag = paste0(flag, 'Mq')
+    #else if ( sum(pileup$mapq[var] > 30) < 0.1*sum(var) ) flag = paste0(flag, 'Mq')
     #the wilcox test fails if all the scores are the same, returning NA. Handle.
     if ( is.na(pmq) ) pmq=1
   }
