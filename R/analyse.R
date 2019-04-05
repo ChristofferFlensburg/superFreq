@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.2.4')
+superVersion = function() return('1.2.5')
 
 
 #' Wrapper to run default superFreq analysis
@@ -1322,7 +1322,7 @@ propagateForceRedo = function(forceRedo) {
 #' @export
 #'
 #' @examples
-#' cat("I have no idea.", shrug(), '\n')
+#' cat("Sample quality is too low to tell if your favourite gene is mutated or not.", shrug(), '\n')
 shrug = function() return("¯\\_(ツ)_/¯")
 
 

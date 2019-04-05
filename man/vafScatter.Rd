@@ -13,7 +13,7 @@ vafScatter(q1, q2, ps = NA, covScale = 100, maxCex = 1.5,
   redCut = 0.75, forceCol = NA, add = F, GoI = c(), printCex = 1,
   doPlot = T, minSomaticP = 0, ignoreFlagsInOne = c("Svr", "Mv",
   "Nab"), ignoreFlagsInBoth = c("Srr"), flagOpacity = 0.4,
-  severityWidth = 0.5, cosmicWidth = 3, maxVariants = 500000, ...)
+  severityWidth = 0.5, cosmicWidth = 3, maxVariants = 5e+05, ...)
 }
 \arguments{
 \item{q1}{data.frame. The variants of the x sample, taken from the loaded data$allVariants$variants$variants$mySample}
