@@ -85,7 +85,7 @@ maxCov=150
 BQoffset = 33
 
 #The mode. Default 'exome' is for exomes, while 'RNA' has some minor changes when running on RNA.
-#There is also a "genome" mode for genomes although it is still being developed and can be very slow.
+#There is also a "genome" mode for genomes: ~24h for cancer-normal at 10 cpus, 200GB memory.
 mode = 'exome'
 
 #This setting runs each individual separately (as indicated in the metadata).
