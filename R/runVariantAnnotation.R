@@ -16,7 +16,7 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
   #extract and sort unique variants across samples
   somQlist = lapply(qs, function(q) q[q$somaticP > 0,])
   somQ = do.call(rbind, somQlist)
-  if ( any(is.na(somQ$x) | is.na(somQ$somaticP)) ) stop('NA x or somaticP in annotateSomaticQs.')
+  if ( any(is.na(somQ$x) | is.na(somQ$somaticP) | is.na(somQ$variant)) ) stop('NA x or somaticP or variant in annotateSomaticQs.')
   somQ = somQ[!duplicated(paste0(somQ$x, somQ$variant)),]
   rownames(somQ) = paste0(somQ$x, somQ$variant)
   #this is the same ordering as in q, so subsetting rows  of somQ will match back to q without sorting.
@@ -250,6 +250,7 @@ convertVariantsToVCF = function(refvarstartendList) {
   if ( any(grepl('-', variant)) ) {
     deletions = grepl('-', variant)
     nDel = as.numeric(gsub('-', '', variant[deletions]))
+    if ( any(is.na(nDel)) ) warning('NA nDel in convertVariantsToVCF. Causing variants are: ', paste(variant[deletions][is.na(nDel)], collapse=','))
     reference[deletions] = sapply(nDel, function(n) do.call(paste0, as.list(rep('N', n+1))))
     variant[deletions] = 'N'
     start[deletions] = start[deletions]+1

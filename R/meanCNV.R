@@ -934,7 +934,7 @@ compareGroups = function(metaDataFile, outputDirectories, project, subgroups1, s
   meanCNV2 = meanCNV
   for ( subgroup in subgroups2 )
     meanCNV2 = splitMeanCNV(metaData, meanCNV2, project=project, subgroup=subgroup, includeNormal=includeNormal)$inGroup
-  meanCNVboth = splitMeanCNV(metaData, meanCNV, project=project, subgroup=union(subgroups1, subgroups2), includeNormal=includeNormal)$inGroup
+  #meanCNVboth = splitMeanCNV(metaData, meanCNV, project=project, subgroup=union(subgroups1, subgroups2), includeNormal=includeNormal)$inGroup
   meanCNVs = list('inGroup'=meanCNV1, 'outGroup'=meanCNV2)
 
   plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', name)

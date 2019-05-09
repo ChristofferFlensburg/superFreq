@@ -6,8 +6,8 @@ getCNV = function(metaData, samples) {
     load(file=paste0(Rdir, '/clusters.Rdata'))
     catLog('done.\n')
     names = names(clusters)
-    names = gsub('[_-]', '.', names)
-    names(clusters) = gsub('[_-]', '.', names(clusters))
+    #names = gsub('[_-]', '.', names)
+    #names(clusters) = gsub('[_-]', '.', names(clusters))
     names = names[names %in% samples]
     cnvs[names] = clusters[names]
   }
@@ -33,10 +33,10 @@ getFit = function(metaData, samples) {
     catLog('done.\n')
     if ( fitName == 'fit' ) fitP = fit$fit
     fitNames = gsub('-normal', '', colnames(fitP))
-    standardNames = gsub('[_-]', '.', fitNames)
-    fitNames = fitNames[standardNames %in% samples]
-    standardNames = standardNames[standardNames %in% samples]
-    fits[standardNames] = lapply(fitNames, function(name) subsetFit(fitP, cols=paste0(name, '-normal')))
+    #standardNames = gsub('[_-]', '.', fitNames)
+    fitNames = fitNames[fitNames %in% samples]
+    #standardNames = standardNames[standardNames %in% samples]
+    fits[fitNames] = lapply(fitNames, function(name) subsetFit(fitP, cols=paste0(name, '-normal')))
   }
   fits = fits[samples]
   return(fits)
@@ -54,10 +54,8 @@ getVariant = function(metaData, samples, fillInMissing=F, cpus=1) {
         allVariants$variants$variants = cleanVariantRownames(allVariants$variants$variants)
         allVariants$variants$SNPs = allVariants$variants$SNPs[!duplicated(allVariants$variants$SNPs$x),]
         names = names(allVariants$variants$variants)
-        names = gsub('[_-]', '.', names)
         names = names[names %in% samples]
         if ( length(names) == 0 ) stop('Couldnt find any relevant samples in ', paste0(Rdir, '/allVariants.Rdata'))
-        names(allVariants$variants$variants) = gsub('[_-]', '.', names(allVariants$variants$variants))
         allVariants$variants$variants = allVariants$variants$variants[names]
         #don't bother with variants that arent supported by at least two reads
         presentVariants = unique(do.call(c, lapply(allVariants$variants$variants, function(q) rownames(q[q$var > 1,]))))

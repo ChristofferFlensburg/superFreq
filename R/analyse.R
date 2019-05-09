@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.2.5')
+superVersion = function() return('1.2.6')
 
 
 #' Wrapper to run default superFreq analysis
@@ -486,7 +486,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   externalNormalBams =
     normalizePath(c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
       list.files(path=paste0(normalDirectory, '/bam'), pattern = '*.bam$', full.names=T)))
-  names(externalNormalBams) = gsub('.bam$', '', basename(externalNormalBams))
+  names(externalNormalBams) = make.names(gsub('.bam$', '', basename(externalNormalBams)), unique=T)
   catLog('Normal bamfiles are:\n')
   catLog(externalNormalBams, sep='\n')
   if ( length(externalNormalBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalDirectory,
@@ -505,7 +505,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   externalNormalCoverageBams =
         normalizePath(c(list.files(path=paste0(normalCoverageDirectory), pattern = '*.bam$', full.names=T),
       list.files(path=paste0(normalCoverageDirectory, '/bam'), pattern = '*.bam$', full.names=T)))
-  names(externalNormalCoverageBams) = gsub('.bam$', '', basename(externalNormalCoverageBams))
+  names(externalNormalCoverageBams) = make.names(gsub('.bam$', '', basename(externalNormalCoverageBams)), unique=T)
   catLog('Normal coverage bamfiles are:\n')
   catLog(externalNormalCoverageBams, sep='\n')
   if ( length(externalNormalCoverageBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalCoverageDirectory,

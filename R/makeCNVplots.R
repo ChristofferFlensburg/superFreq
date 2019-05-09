@@ -322,3 +322,57 @@ resetMargins = function() {
   par(oma=c(0,0,0,0))
   par(mar=c(4,4,3,1))
 }
+
+
+#makes the multi-sample CNA summary heatmap across the genome.
+#WIP at this point.
+makeCNAheatmap = function(clusters, genome, onlyNumbers=F, add=F, yShift=0, legend=T) {
+  superFreq:::resetMargins()
+  chrL = chrLengths(genome)
+  if ( !add ) plot(1, type='n', xlim=c(-0.1, 1)*sum(chrL), ylim=c(0.5, 1+length(clusters)), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
+  samples = names(clusters)
+  for ( sample in samples ) {
+    i = which(sample == samples)
+    cluster = clusters[[sample]]$clusters
+    if ( onlyNumbers ) cluster = cluster[!(xToChr(cluster$x1, genome=genome) %in% c('X', 'Y')),]
+    isCNN = cluster$call %in% c('AA', 'AA?', 'AA??')
+    isAB = cluster$call == 'AB'
+    red=superFreq:::noneg(pmin(cluster$M,1))*(!isCNN)*(!isAB)
+    darkred = cluster$M > 1 | nchar(gsub('?', '', cluster$call)) > 4
+    blue=superFreq:::noneg(pmin(-cluster$M,1))*(!isCNN)*(!isAB)
+    green = isCNN*(0.5-cluster$f)*2*(!isAB)
+    green = ifelse(is.na(green), 0, green)
+    col = ifelse(darkred, mcri('darkred'), ifelse(red > 0, mcri('red', red), ifelse(blue > 0, mcri('blue', blue), mcri('green', green))))
+    width = ifelse(red+green+blue > 0.3, 1, 0)
+    x1 = cluster$x1
+    x2 = cluster$x2
+
+    y = yShift + i
+    rect(x1, y-width/2, x2, y+width/2, col=col, border=F)
+    text(-0.004*sum(chrL), y, sample, adj=1, cex=0.7)
+  }
+  if ( !add ) superFreq:::addChromosomeLines(ylim=c(0.5, length(clusters)+1), col=mcri('grey'), genome=genome, onlyNumbers=onlyNumbers)
+  if ( !add & legend ) legend('bottomright', c('amp', 'gain', 'loss', 'LOH'), pch=15, pt.cex=1.7, col=mcri(c('darkred', 'red', 'blue', 'green')), bg='white', cex=0.8)
+}
+
+#merges and makes CNA heatmaps across all the individuals of a batch.
+#requires the batch to be run with split=T (Which you should anyway).
+makeCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F) {
+  individuals = list.dirs(paste0(Rdirectory, '/'), full.names=F)
+  individuals = individuals[individuals != '']
+  clusterList = lapply(individuals, function(ind) {
+    load(paste0(Rdirectory, '/', ind, '/clusters.Rdata'))
+    return(clusters)
+  })
+
+  chrL = chrLengths(genome)
+  ymax = 1+sum(sapply(clusterList, length)) + 0.5*(length(individuals)-1)
+  plot(1, type='n', xlim=c(-0.1, 1)*sum(chrL), ylim=c(0.5, ymax), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
+  for ( i in 1:length(clusterList) ) {
+    yShift=c(0,cumsum(sapply(clusterList, length)))[i] + 0.5*(i-1)
+    makeCNAheatmap(clusterList[[i]], genome=genome, onlyNumbers=onlyNumbers, add=T, yShift=yShift)
+    if ( i > 1 ) segments(-0.1*sum(chrL), yShift + 0.25, sum(chrL), yShift + 0.25, lwd=1, col='grey')
+  }
+  superFreq:::addChromosomeLines(ylim=c(0.5, ymax*1.01), col=mcri('grey'), genome=genome, onlyNumbers=onlyNumbers)
+  legend('bottomright', c('amp', 'gain', 'loss', 'LOH'), pch=15, pt.cex=1.7, col=mcri(c('darkred', 'red', 'blue', 'green')), bg='white', cex=0.8)
+}
