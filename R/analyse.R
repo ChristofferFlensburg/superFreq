@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.2.6')
+superVersion = function() return('1.2.7')
 
 
 #' Wrapper to run default superFreq analysis
@@ -767,116 +767,6 @@ loadData = function(Rdirectory, setVariantLoss=F, correctReferenceBias=T) {
     setVariantLoss(ret$allVariants$normalVariants$variants, correctReferenceBias=correctReferenceBias)
 
   return(ret)
-}
-
-#' Not needed in the package, ignore this function.
-loadMethods = function(stringsAsFactors = FALSE, byIndividual=T) {
-  options(stringsAsFactors = stringsAsFactors)
-  options(scipen = 10)
-  assign('catLog', function(...) cat(...), envir = .GlobalEnv)
-
-  libraryLoaded = library(limma, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load limma.\n')
-    stop('Failed to load limma.')
-  }
-  libraryLoaded = library(edgeR, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load edgeR.\n')
-    stop('Failed to load edgeR.')
-  }
-  libraryLoaded = library(Rsubread, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load Rsubread.\n')
-    stop('Failed to load Rsubread.')
-  }
-  libraryLoaded = library(parallel, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load parallel.\n')
-    stop('Failed to load parallel.')
-  }
-  libraryLoaded = library(Rsamtools, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load Rsamtools.\n')
-    stop('Failed to load Rsamtools.')
-  }
-  libraryLoaded = library(GenomicRanges, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load GenomicRanges.\n')
-    stop('Failed to load GenomicRanges.')
-  }
-  libraryLoaded = library(R.oo, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load R.oo.\n')
-    stop('Failed to load R.oo.')
-  }
-  libraryLoaded = library(rtracklayer, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load rtracklayer.\n')
-    stop('Failed to load rtracklayer.')
-  }
-  libraryLoaded = library(WriteXLS, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load WriteXLS.\n')
-    stop('Failed to load WriteXLS.')
-  }
-  libraryLoaded = library(fields, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load fields.\n')
-    stop('Failed to load fields.')
-  }
-  libraryLoaded = library(seqinr, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load seqinr.\n')
-    stop('Failed to load seqinr.')
-  }
-  libraryLoaded = library(biomaRt, logical.return=T)
-  if ( !libraryLoaded ) {
-    catLog('Error: Failed to load biomaRt.\n')
-    stop('Failed to load biomaRt.')
-  }
-  catLog('All libraries loaded successfully.\n')
-  
-  source('debug.R')
-  source('addBindingStrength.R')
-  source('runVEP.R')
-  source('importCaptureRegions.R')
-  source('importSampleMetaData.R')
-  source('runDEexon.R')
-  source('XRank.R')
-  source('makeFitPlots.R')
-  if ( byIndividual ) {
-    catLog('Running in by-individual mode.\n')
-    source('getVariantsByIndividual.R')
-  }
-  else
-    source('getVariants.R')
-  source('matchFlagVariants.R')
-  source('makeScatterPlots.R')
-  source('outputNewVariants.R')
-  source('outputSomaticVariants.R')
-  source('makeSNPprogressionPlots.R')
-  source('callCNVs.R')
-  source('CNVnormalisation.R')
-  source('makeCNVplots.R')
-  source('makeSummaryPlot.R')
-  source('getStories.R')
-  source('makeRiverPlots.R')
-  source('downloadSuperFreqResources.R')
-  source('bamToPileup.R')
-  source('generateHTML.R')
-  source('runVariantAnnotation.R')
-  source('outputData.R')
-  source('get104signature.R')
-
-  if ( !exists('.maxCov', envir = .GlobalEnv) ) {
-    catLog('Setting maxCov to default 150.\n')
-    assign('.maxCov', 150, envir = .GlobalEnv)
-  }
-  if ( !exists('.systematicVariance', envir = .GlobalEnv) ) {
-    catLog('Setting systematicVariance to default 0.02.\n')
-    assign('.systematicVariance', 0.03, envir = .GlobalEnv)
-  }
 }
 
 #' returns input that uses saved data if present.

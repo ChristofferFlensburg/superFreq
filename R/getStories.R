@@ -16,8 +16,6 @@
 #'
 #' @export
 #'
-#' @importFrom spam norm
-#'
 #' @details This function calls VEP on the output from outputSomaticVariants. For this, VEP needs to be callable by system('vep').
 getStories = function(variants, cnvs, timeSeries, normals, genome, cloneDistanceCut=-qnorm(0.01),
   Rdirectory, plotDirectory, cpus=1, forceRedo=F, manualStoryMerge=F, correctReferenceBias=T, rareGermline=T, maxStories = 3000) {

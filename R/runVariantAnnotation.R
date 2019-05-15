@@ -216,7 +216,8 @@ qToGRanges = function(q, genome='hg19', addChrToSeqnames=F, seqlengths) {
     return(gr)
 }
 
-qToVCF = function(q, genome, addChrToSeqnames, seqlengths, fafile) {  
+qToVCF = function(q, genome, addChrToSeqnames, seqlengths, fafile) {
+  if ( any(is.na(q$variant)) ) warning('NA entries in q$variant in qToVCF.')
   REF = DNAStringSet(q$reference)
   ALT = CharacterList(as.list(q$variant))
   QUAL = rep(40, nrow(q)) #placeholder, only want annotation anyway.
@@ -243,14 +244,15 @@ qToVCF = function(q, genome, addChrToSeqnames, seqlengths, fafile) {
 
 #this is in the outputsomaticVariants.R, so can be removed when merged into the package
 convertVariantsToVCF = function(refvarstartendList) {
-  reference = refvarstartendList[[1]]
-  variant = refvarstartendList[[2]]
+  reference = as.character(refvarstartendList[[1]])
+  variant = as.character(refvarstartendList[[2]])
+  if ( class(variant) != 'CompressedCharacterList' ) warning('variant is not of class CompressedCharacterList in convertToVCF. Instead class ', class(variant))
   start = refvarstartendList[[3]]
   end = refvarstartendList[[4]]
   if ( any(grepl('-', variant)) ) {
     deletions = grepl('-', variant)
     nDel = as.numeric(gsub('-', '', variant[deletions]))
-    if ( any(is.na(nDel)) ) warning('NA nDel in convertVariantsToVCF. Causing variants are: ', paste(variant[deletions][is.na(nDel)], collapse=','))
+    if ( any(is.na(nDel)) ) warning('NA nDel in convertVariantsToVCF. Input variants are: ', paste(variant, collapse=','), '\n Deletion variants are: ', paste(variant[deletions], collapse=','), '\n deletion variants that give rise to NA nDel are: ', paste(variant[deletions][is.na(nDel)], collapse=','))
     reference[deletions] = sapply(nDel, function(n) do.call(paste0, as.list(rep('N', n+1))))
     variant[deletions] = 'N'
     start[deletions] = start[deletions]+1
@@ -262,6 +264,8 @@ convertVariantsToVCF = function(refvarstartendList) {
     variant[insertions] = paste0(substr(reference[insertions], 1, 1), gsub('\\+', '', variant[insertions]))
   }
 
+  reference = DNAStringSet(reference)
+  variant = CharacterList(as.list(variant))
   return(list(reference, variant, start, end))
 }
 

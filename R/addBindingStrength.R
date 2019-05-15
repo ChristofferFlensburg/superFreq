@@ -7,7 +7,6 @@
 #'
 #' @details Adds the bidning strength as a column to the bedfile, saving it as a copy, replacing .bed with .dn.bed
 #'
-#' @importFrom seqinr read.fasta
 #'
 addBindingStrength = function(bedFile, fastaFile, genome='hg19', forceRedo=F) {
   outFile = gsub('.bed$', '.dn.bed', bedFile)
@@ -79,6 +78,7 @@ importReferenceGenome = function(file) {
   #  names(ret) = read.table(indexFile)[,1]
   #}
   #else
+  warning('Custom capture regions are deprecated, and this run might crash soon. (If it goes through, great, ignore this.) Leave the captureRegions parameter as default and appropriate pre-annotated capture regions will be downloaded. Alternatively, if you really want to use custom captureRegions, (install and) load the seqinr package and try again. No guarantees though. Good luck!')
   ret = read.fasta(file, seqtype='DNA')
   return(ret)
 }
