@@ -187,26 +187,3 @@ expandFlags = function(flags) {
 
   return(flags)
 }
-
-
-convertVariantsToVCF = function(refvarstartendList) {
-  reference = refvarstartendList[[1]]
-  variant = refvarstartendList[[2]]
-  start = refvarstartendList[[3]]
-  end = refvarstartendList[[4]]
-  if ( any(grepl('-', variant)) ) {
-    deletions = grepl('-', variant)
-    nDel = as.numeric(gsub('-', '', variant[deletions]))
-    reference[deletions] = sapply(nDel, function(n) do.call(paste0, as.list(rep('N', n))))
-    variant[deletions] = '-'
-    start[deletions] = start[deletions]+1
-    end[deletions] = end[deletions]+nDel
-  }
-  if ( any(grepl('\\+', variant)) ) {
-    insertions = grepl('\\+', variant)
-    nIns = nchar(variant[insertions])-1
-    variant[insertions] = paste0(substr(reference[insertions], 1, 1), gsub('\\+', '', variant[insertions]))
-  }
-
-  return(list(reference, variant, start, end))
-}

@@ -195,5 +195,7 @@ spreadPositions = function(x, d) {
 
 #scalar product of the two normalsied vectors x and y.
 scalarNorm = function(x, y) {
-  return(sum(x*y)/norm(x)/norm(y))
+  return(sum(x*y)/vecNorm(x)/vecNorm(y))
 }
+#the length of a linear vector.
+vecNorm = function(x) sqrt(sum(x^2))

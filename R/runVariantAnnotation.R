@@ -218,13 +218,13 @@ qToGRanges = function(q, genome='hg19', addChrToSeqnames=F, seqlengths) {
 
 qToVCF = function(q, genome, addChrToSeqnames, seqlengths, fafile) {
   if ( any(is.na(q$variant)) ) warning('NA entries in q$variant in qToVCF.')
-  REF = DNAStringSet(q$reference)
-  ALT = CharacterList(as.list(q$variant))
+  REF = q$reference
+  ALT = q$variant
   QUAL = rep(40, nrow(q)) #placeholder, only want annotation anyway.
   FILTER = rep('PASS', nrow(q)) #placeholder, only want annotation anyway.
   refvarstartendList = convertVariantsToVCF(list(REF, ALT, q$x, q$x))
-  REF = refvarstartendList[[1]]
-  ALT = refvarstartendList[[2]]
+  REF = DNAStringSet(refvarstartendList[[1]])
+  ALT = CharacterList(as.list(refvarstartendList[[2]]))
 
   colData = DataFrame(Samples='sample')
 
@@ -246,7 +246,6 @@ qToVCF = function(q, genome, addChrToSeqnames, seqlengths, fafile) {
 convertVariantsToVCF = function(refvarstartendList) {
   reference = as.character(refvarstartendList[[1]])
   variant = as.character(refvarstartendList[[2]])
-  if ( class(variant) != 'CompressedCharacterList' ) warning('variant is not of class CompressedCharacterList in convertToVCF. Instead class ', class(variant))
   start = refvarstartendList[[3]]
   end = refvarstartendList[[4]]
   if ( any(grepl('-', variant)) ) {
@@ -264,8 +263,6 @@ convertVariantsToVCF = function(refvarstartendList) {
     variant[insertions] = paste0(substr(reference[insertions], 1, 1), gsub('\\+', '', variant[insertions]))
   }
 
-  reference = DNAStringSet(reference)
-  variant = CharacterList(as.list(variant))
   return(list(reference, variant, start, end))
 }
 
