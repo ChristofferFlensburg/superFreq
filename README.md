@@ -80,13 +80,6 @@ Rscript runSuperFreq.R
 Scroll down to the cohort section for analysing a larger number of indivudals on an HPC.
 
 
-``` R
-printHTML(metaDataFile=metaDataFile, outputFile=paste0(plotDirectory, '/superFreq.html'))
-```
-
-
-More information is in the manual. 
-
 ![example multisample heatmap](readmeImages/multisample.png)
 
 # What is the input?
