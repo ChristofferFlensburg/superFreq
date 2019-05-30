@@ -39,16 +39,12 @@ A typical analysis first sets the parameters and then calls the `superFreq()` fu
 ```R
 library(superFreq)
 
-#maximum number of threads.
-cpus=6
+#maximum number of threads. Limited speed up above ~5 cpus for exomes and RNA-Seq and ~10-20 for genomes.
+#Better to parallelise across individuals for cohorts, see the cohort section in the github README.
+cpus=4
 
 #this is the meta data input. See ?superFreq for how to set it up.
 metaDataFile = 'metaData.tsv'
-
-#an bed file with the capture regions of the exome.
-captureRegionsFile = '~/resources/captureRegions/myCaptureInThisBatch.bed'
-#if left empty (which is the default), then superFreq uses the ensembl exons for the specified genome assembly.
-captureRegionsFile = ''
 
 #This directory with (links to) the reference normals needs to be created and set up. See ?superFreq
 normalDirectory = '~/resources/superFreq/referenceNormals/myCaptureInThisBatch'
@@ -57,60 +53,32 @@ normalDirectory = '~/resources/superFreq/referenceNormals/myCaptureInThisBatch'
 reference = '~/resources/reference/hg19/hg19.fa'
 genome = 'hg19'
 
-#the resource directory with preprocessed data from dbSNP, ExAC, COSMIC, gene annotation and ClinVar.
-#Will be created and resources downlaoded from the WEHI server. If you point to an existing resource directory
-#then it'll be reused, and resources won't have to be redownloaded and duplicated.
-resourceDirectory = "superFreqResources"
-
 #The directory where the log file and saved .Rdata is stored. Will be created.
 Rdirectory = 'R'
 #The directory where all the plots and tables from the analysis go. Will be created.
 plotDirectory = 'plots'
 
-#superFreq reuses saved data if available. This setting can force it to redo part of the analysis.
-#default forceRedoNothing() means that saved information is used whenever available.
-#forceRedoEverything() ignores any saved data from this batch and overwrites any previous results and plots.
-forceRedo = forceRedoNothing()
-
-#a measure on how much large-scale biases are expected in the coverage.
-#this controls the sensitivity vs accuracy of the coverage part of copy number calls.
-#0.02 is default and works for exomes. Genomes might be able to go lower.
-#For RNA-Seq data, 0.1 is better starting point.
-systematicVariance=0.02
-#a measure on how much biases (such as PCR duplication) is expected in the VAFs.
-#this controls the sensitivity vs accuracy of the heterozygous SNP part of copy number calls.
-maxCov=150
-
-#The format of the quality scores of the base calls. Almost always 33 these days.
-BQoffset = 33
-
 #The mode. Default 'exome' is for exomes, while 'RNA' has some minor changes when running on RNA.
 #There is also a "genome" mode for genomes: ~24h for cancer-normal at 10 cpus, 200GB memory.
 mode = 'exome'
-
-#This setting runs each individual separately (as indicated in the metadata).
-#will create subdirectories in the plotDirectory and Rdirectory.
-#This is suggested whenever there is more than one individual in the batch.
-splitRun = T
 
 #this performs the actual analysis. output goes to Rdirectory and plotDirectory.
 #runtime is typically less than 6 hours at 4 cpus for a cancer-normal exome, but can vary significantly depending on input.
 #For a typical cancer-normal exome, 5-10GB of memory is used per cpus, but again, can vary significantly depending on input.
 #later runs typically a bit faster as the setup and part of the analysis on the reference normals can be reused.
 data =
-    superFreq(metaDataFile, captureRegions=captureRegionsFile, normalDirectory=normalDirectory,
+    superFreq(metaDataFile, normalDirectory=normalDirectory,
               Rdirectory=Rdirectory, plotDirectory=plotDirectory, reference=reference, genome=genome,
-              BQoffset=BQoffset, cpus=cpus, forceRedo=forceRedo, systematicVariance=systematicVariance,
-              maxCov=maxCov, mode=mode, splitRun=splitRun, resourceDirectory=resourceDirectory)
+              cpus=cpus, mode=mode)
 ```
 
-The most convenient way to set this up is to create a runSuperFreq.R file with the above code, and then run it from a [screen](https://en.wikipedia.org/wiki/GNU_Screen) with
+The most convenient way to set this up for one or a few individuals is to create a runSuperFreq.R file with the above code, and then run it from a [screen](https://en.wikipedia.org/wiki/GNU_Screen) with
 
 ```
 Rscript runSuperFreq.R
 ```
+Scroll down to the cohort section for analysing a larger number of indivudals on an HPC.
 
-Currently in development (please help if you can!), you can generate a .html to explore the data by adding this line after the superFreq() call. Currently no more than a draft.
 
 ``` R
 printHTML(metaDataFile=metaDataFile, outputFile=paste0(plotDirectory, '/superFreq.html'))
@@ -150,6 +118,39 @@ Plots (some shown here), tables, and R objects for downstream analysis. Analysis
 - R.
 - a bunch of R packages.
 - samtools 1.x
+
+# Cohort analysis (on HPC)
+When analysing more than a few individuals, the fastest way to get the analysis through is to parallelise across individuals, potentially across separate jobs if in an HPC environment. There are many ways to do this, but the key is the `participant` setting in the `superFreq()` call, which restricts the analysis to only one individual in the meta data, and allows you to submit parallel `superFreq()` calls for different individuals. We are on a torquelord system, and submit jobs through a bash file that takes individual and number of threads to analyse as input.
+
+```
+module load R
+module load samtools
+
+R --file=runSuperFreqOnDonor.R --args $1 $2
+```
+with the `runSuperFreqOnDonor.R` file:
+``` R
+library(superFreq)
+
+#take the INDIVIDUAL and cpu as input.
+participant = as.character(commandArgs(TRUE)[1])
+cpus = as.numeric(commandArgs(TRUE)[2])
+
+superFreq(
+          metaDataFile = 'metaData.tsv',  #all individuals in one metaData file.
+          genome='hg38',
+          normalDirectory='/path/to/my/reference/normals',
+          Rdirectory='/path/to/R',
+          plotDirectory='/path/to/plots',  #each individual will get a subdirectory in here
+          reference='/path/to/my/reference/genome/hg38.fa',
+          mode='genome',
+          cpus=cpus,
+          participants=participant  #run only on this individual
+          )
+```
+
+There is also an afterburner analysis that merges all patients and looks for repeatedly mutated genes, but it's not really streamlined for users yet. Soon. If you want to try it out, have a look here: https://github.com/ChristofferFlensburg/superFreq/issues/38
+
 
 # Acknowledgements
 We wish to thanks all the organisations sharing data and resources openly, which allows preprocessing and redistribution. This allows superFreq to depend on only a single connection (which is the WEHI servers atm) and a minimum amount of data downloaded. So this limits the risk of 'server X could not be found' type of errors, and it limits the download size of the preprocessed data to hundreds of MBs, rather than hundreds of GBs for the unprocessed original data. It also saves time for everyone by removing user parsing of external resources from the analysis.
