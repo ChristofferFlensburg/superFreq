@@ -77,7 +77,7 @@ The most convenient way to set this up for one or a few individuals is to create
 ```
 Rscript runSuperFreq.R
 ```
-Scroll down to the cohort section for analysing a larger number of indivudals on an HPC.
+Scroll down to the cohort section for analysing a larger number of individuals on an HPC.
 
 
 ![example multisample heatmap](readmeImages/multisample.png)
