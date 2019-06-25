@@ -528,7 +528,7 @@ plotStories = function(stories, variants, col='default', lty='default', add=F, a
       severity = lbls$severity
       severity[font %in% c(2,4)] = -1   #put bold-fonted mutations at the top of the list
       ord = order(severity)
-      legend('topright', lbls$label[ord], lwd=2, col=errcol[1:Nmut][ord], lty=errlty[1:Nmut][ord],
+      legend('topright', lbls$label[ord], lwd=2, col=errcol[1:Nmut][ord], lty=seglty[1:Nmut][ord],
              cex= legCex, text.col=lbls$colour[ord], text.font=lbls$font[ord], seg.len=4)
     }
     if ( labels ) text(1:Nsample, -0.02, colnames(clon), srt=20, cex=0.9)
