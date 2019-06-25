@@ -326,14 +326,17 @@ resetMargins = function() {
 
 #makes the multi-sample CNA summary heatmap across the genome.
 #WIP at this point.
-makeCNAheatmap = function(clusters, genome, onlyNumbers=F, add=F, yShift=0, legend=T) {
+plotCNAheatmap = function(clusters, genome, onlyNumbers=F, add=F, yShift=0, legend=T, xlim=NULL) {
   superFreq:::resetMargins()
   chrL = chrLengths(genome)
-  if ( !add ) plot(1, type='n', xlim=c(-0.1, 1)*sum(chrL), ylim=c(0.5, 1+length(clusters)), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
+  if ( is.null(xlim) ) xlim=c(0, 1)*sum(chrL)
+  xlimPlot = c(xlim[1] - 0.1*(xlim[2]-xlim[1]), xlim[2])
+  if ( !add ) plot(1, type='n', xlim=xlimPlot, ylim=c(0.5, 1+length(clusters)), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
   samples = names(clusters)
   for ( sample in samples ) {
     i = which(sample == samples)
     cluster = clusters[[sample]]$clusters
+    cluster = cluster[cluster$x2 > xlim[1] & cluster$x1 < xlim[2],]
     if ( onlyNumbers ) cluster = cluster[!(xToChr(cluster$x1, genome=genome) %in% c('X', 'Y')),]
     isCNN = cluster$call %in% c('AA', 'AA?', 'AA??')
     isAB = cluster$call == 'AB'
@@ -344,20 +347,33 @@ makeCNAheatmap = function(clusters, genome, onlyNumbers=F, add=F, yShift=0, lege
     green = ifelse(is.na(green), 0, green)
     col = ifelse(darkred, mcri('darkred'), ifelse(red > 0, mcri('red', red), ifelse(blue > 0, mcri('blue', blue), mcri('green', green))))
     width = ifelse(red+green+blue > 0.3, 1, 0)
-    x1 = cluster$x1
-    x2 = cluster$x2
+    #dont plot outside xlim
+    x1 = pmax(cluster$x1, xlim[1])
+    x2 = pmin(cluster$x2, xlim[2])
 
     y = yShift + i
     rect(x1, y-width/2, x2, y+width/2, col=col, border=F)
-    text(-0.004*sum(chrL), y, sample, adj=1, cex=0.7)
+    text(xlim[1] -0.004*(xlim[2]-xlim[1]), y, sample, adj=1, cex=0.7)
   }
   if ( !add ) superFreq:::addChromosomeLines(ylim=c(0.5, length(clusters)+1), col=mcri('grey'), genome=genome, onlyNumbers=onlyNumbers)
   if ( !add & legend ) legend('bottomright', c('amp', 'gain', 'loss', 'LOH'), pch=15, pt.cex=1.7, col=mcri(c('darkred', 'red', 'blue', 'green')), bg='white', cex=0.8)
 }
 
+#makes summary plots of CNAs across all individuals in the batch.
+makeCNAheatmap = function(clusters, plotDirectory, genome) {
+  summaryDir = paste0(plotDirectory, '/summary')
+  superFreq:::ensureDirectoryExists(summaryDir)
+  plotFile = paste0(summaryDir, '/CNAheatmap.pdf')
+  if ( file.exists(plotFile) ) return()
+  pdf(plotFile, width=15, height=10)
+  plotCNAheatmap(clusters=clusters, genome=genome)
+  dev.off()
+}
+
+
 #merges and makes CNA heatmaps across all the individuals of a batch.
 #requires the batch to be run with split=T (Which you should anyway).
-makeCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F) {
+plotCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F, xlim=NULL) {
   individuals = list.dirs(paste0(Rdirectory, '/'), full.names=F)
   individuals = individuals[individuals != '']
   clusterList = lapply(individuals, function(ind) {
@@ -367,12 +383,24 @@ makeCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F) {
 
   chrL = chrLengths(genome)
   ymax = 1+sum(sapply(clusterList, length)) + 0.5*(length(individuals)-1)
-  plot(1, type='n', xlim=c(-0.1, 1)*sum(chrL), ylim=c(0.5, ymax), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
+  if ( is.null(xlim) ) xlim=c(0, 1)*sum(chrL)
+  xlimPlot = c(xlim[1] - 0.1*(xlim[2]-xlim[1]), xlim[2])
+  plot(1, type='n', xlim=xlimPlot, ylim=c(0.5, ymax), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
   for ( i in 1:length(clusterList) ) {
     yShift=c(0,cumsum(sapply(clusterList, length)))[i] + 0.5*(i-1)
-    makeCNAheatmap(clusterList[[i]], genome=genome, onlyNumbers=onlyNumbers, add=T, yShift=yShift)
-    if ( i > 1 ) segments(-0.1*sum(chrL), yShift + 0.25, sum(chrL), yShift + 0.25, lwd=1, col='grey')
+    superFreq:::plotCNAheatmap(clusterList[[i]], genome=genome, onlyNumbers=onlyNumbers, add=T, yShift=yShift, xlim=xlim)
+    if ( i > 1 ) segments(xlimPlot[1], yShift + 0.25, xlimPlot[2], yShift + 0.25, lwd=1, col='grey')
   }
   superFreq:::addChromosomeLines(ylim=c(0.5, ymax*1.01), col=mcri('grey'), genome=genome, onlyNumbers=onlyNumbers)
   legend('bottomright', c('amp', 'gain', 'loss', 'LOH'), pch=15, pt.cex=1.7, col=mcri(c('darkred', 'red', 'blue', 'green')), bg='white', cex=0.8)
+}
+
+#makes summary plots of CNAs across all individuals in the batch.
+makeCNAbatchHeatmap = function(Rdirectory, plotDirectory, genome) {
+  cohortDir = paste0(plotDirectory, '/cohortWide')
+  superFreq:::ensureDirectoryExists(cohortDir)
+  plotFile = paste0(cohortDir, '/CNAsummary.pdf')
+  pdf(plotFile, width=15, height=10)
+  plotCNAbatchHeatmap(Rdirectory=Rdirectory, genome=genome)
+  dev.off()
 }
