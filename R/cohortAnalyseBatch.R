@@ -345,3 +345,47 @@ superCohort = function(metaDataFile, Rdirectory='R', plotDirectory='plots', cpus
                      ...)
 
 }
+
+
+
+checkRelatedness = function(Rdirectory='R', plotDirectory='plots', cpus=1) {
+  samples = list.dirs(Rdirectory, recursive=F, full.names=F)
+  variantFiles = paste0(Rdirectory, '/', samples, '/allVariants.Rdata')
+  variantFiles = variantFiles[file.exists(variantFiles)]
+  qsList = mclapply(variantFiles, function(file) {
+        load(file)
+        return(allVariants$variants$variants)
+    }, mc.cores=cpus, mc.preschedule=F)
+    qs = do.call(c, qsList)
+    
+    samples = names(qs)
+    relatednessList = mclapply(samples, function(sample1) {
+        cat(sample1, '\n')
+        sapply(samples, function(sample2) {
+            q1 = qs[[sample1]]
+            q2 = qs[[sample2]]
+
+            het1 = rownames(q1)[q1$db & !is.na(q1$dbMAF) & q1$dbMAF > 0.01 & q1$flag == '' &
+              q1$var < 0.9*q1$cov & q1$var > 0.2*q1$cov & q1$cov > 20]
+            het1loose = rownames(q1)[q1$var < 0.95*q1$cov & q1$var > 0.1*q1$cov & q1$cov > 5]
+            het2 = rownames(q2)[q2$db & !is.na(q2$dbMAF) &  q2$dbMAF > 0.01 & q2$flag == '' &
+              q2$var < 0.9*q2$cov & q2$var > 0.2*q2$cov & q2$cov > 20]
+            het2loose = rownames(q2)[q2$var < 0.95*q2$cov & q2$var > 0.1*q2$cov & q2$cov > 5]
+
+            agreeHet = (sum(het1 %in% het2loose) + sum(het2 %in% het1loose))/2
+            hetScore = agreeHet/((length(het1) + length(het2))/2)
+
+            return(hetScore)
+        })
+    }, mc.cores=5, mc.preschedule=F)
+    names(relatednessList) = samples
+    relatednessMx = do.call(rbind, relatednessList)
+  
+  cohortPlots = paste0(plotDirectory, '/cohortWide')
+  superFreq:::ensureDirectoryExists(cohortPlots)
+  pdf(paste0(cohortPlots, '/relatedness.pdf'), height=10, width=15)
+  makeHeatmap(relatednessMx, Rowv=NA, Colv=NA, col='sunset')
+  dev.off()
+
+  return(invisible(relatednessMx))
+}
