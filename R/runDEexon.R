@@ -6,7 +6,7 @@
 #' Run differential coverage analysis.
 #'
 #' @param bamFiles vector of paths to the bamfiles to be analysed
-#' @param names vector of names of the samples associated with the bam files.
+#' @param sampleNames vector of names of the samples associated with the bam files.
 #' @param externalNormalBams vector of paths to the pool of normal samples.
 #' @param captureRegions GRanges capture regions, as you get from importCaptureRegions.
 #' @param Rdirectory The directory to save or load the output to/from.
@@ -29,7 +29,7 @@
 #' @importFrom limma makeContrasts voom lmFit eBayes contrasts.fit
 #' @importFrom parallel mclapply
 #'
-runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory, plotDirectory, normalRdirectory,
+runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdirectory, plotDirectory, normalRdirectory,
   settings=list(), genome='hg19', cpus=1, mode='exome',
   forceRedoFit=F, forceRedoCount=F, forceRedoNormalCount=F) {
   catLog('Starting differential coverage analysis by sample.\n')
@@ -62,7 +62,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
     for ( col in colnames(fCsExon$counts) ) {
       catLog(col, ': ', sum(fCsExon$counts[,col]), '\n')
     }
-    colnames(fCsExon$counts) = names
+    colnames(fCsExon$counts) = sampleNames
     catLog('Saving sample counts to ', fCsSaveFile, '..', sep='')
     save(fCsExon, file=fCsSaveFile)
     catLog('done.\n')
@@ -127,8 +127,8 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   }
   else {
     maleScore =
-      colsums(10*libNorm(counts)[yes,])/sum(annotation$Length[yes]+300) -
-        colsums(libNorm(counts)[xes,])/sum(annotation$Length[xes]+300)
+      superFreq:::colsums(10*superFreq:::libNorm(counts)[yes,])/sum(annotation$Length[yes]+300) -
+        superFreq:::colsums(superFreq:::libNorm(counts)[xes,])/sum(annotation$Length[xes]+300)
     sex = ifelse(maleScore > 0, 'male', 'female')
     names(sex) = colnames(counts)
     catLog('done.\nSAMPLE', 'SCORE', 'SEX', '\n', sep='   ')
@@ -136,10 +136,10 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   }
 
   catLog('Setting up design matrix for linear analysis..')
-  group = c(names, paste0(rep('normal', length(externalNormalBams))))
+  group = c(sampleNames, paste0(rep('normal', length(externalNormalBams))))
   design = model.matrix(~0+group)
   colnames(design) = gsub('^group', '', gsub('^sex', '',colnames(design)))
-  contrastList = c(lapply(names, function(name) paste0(name, '-normal')), list(levels=colnames(design)))
+  contrastList = c(lapply(sampleNames, function(name) paste0(name, '-normal')), list(levels=colnames(design)))
   contrasts = do.call(makeContrasts, contrastList)
   catLog('done.\n')
   catLog('Design matrix is\n', colnames(design), '\n', sep='   ')
@@ -379,7 +379,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
     sexRows = 1:nrow(counts) %in% c(xes, yes)
     for (i in 1:ncol(counts)) {
       col = colnames(counts)[i]
-      if ( sex[col] == 'male' & i <= length(names) ) {
+      if ( sex[col] == 'male' & i <= length(sampleNames) ) {
         returnSampleSexCorrectionFactor[[i]] = ifelse(sexRows, 1/2, 1)
       }
       else returnSampleSexCorrectionFactor[[i]] = rep(1, nrow(counts))
@@ -504,7 +504,7 @@ runDE = function(bamFiles, names, externalNormalBams, captureRegions, Rdirectory
   catLog('Importing stats about feature counts..')
   tots = colSums(fCsExon$stat[,-1,drop=F])
   assigned = fCsExon$stat[1,-1]
-  names(tots) = names(assigned) = names
+  names(tots) = names(assigned) = sampleNames
   exonFit$totNReads = tots
   exonFit$assignedNReads = assigned
   fitSex = sex[1:ncol(exonFit)]

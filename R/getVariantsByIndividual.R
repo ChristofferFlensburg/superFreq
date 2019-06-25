@@ -826,7 +826,7 @@ inGene = function(SNPs, genes, noHit = NA, genome='hg19') {
 
 #Takes the sample variants and normal bam files and capture regions.
 #return the variant information for the normals on the positions that the samples are called on.
-getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, genome, BQoffset, dbDir, normalRdirectory,  Rdirectory, plotDirectory, cpus, exacPopulation='all', forceRedoSNPs=F, forceRedoVariants=F) {
+getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, genome, BQoffset, dbDir, normalRdirectory,  Rdirectory, plotDirectory, cpus, exacPopulation='all', forceRedoSNPs=F, forceRedoVariants=F) {  
   SNPs = variants$SNPs
   variants = variants$variants
   variantsToCheck = unique(do.call(c, lapply(variants, rownames)))
@@ -870,7 +870,7 @@ getNormalVariants = function(variants, bamFiles, names, captureRegions, fasta, g
             missingSNPs = SNPs[SNPs$x %in% missingX,]
             
             catLog('Filling in missing normal variants from ', name,'.\n', sep='')
-            qNew = newBamToVariants(bam, missingSNPs, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
+            qNew = newBamToVariants(bam, missingSNPs, fasta, Rdirectory, BQoffset=BQoffset, genome=genome, cpus=cpus)[[1]]
             q = rbind(q, qNew)
             q = q[!duplicated(paste0(q$x, q$variant)),]
             q = q[order(q$x, q$variant),]

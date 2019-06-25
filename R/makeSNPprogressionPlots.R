@@ -89,10 +89,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     p = ifelse(severity <= 11, 0, 1)
   }
 
-  SNPs = SNPs[SNPs$x %in% qs[[1]]$x,]
-  if ( 'inGene' %in% names(qs[[1]]) ) gene = qs[[1]]$inGene
-  else gene = paste0(gsub('.+:', '', SNPs[as.character(qs[[1]]$x),]$inGene), ' (', SNPs[as.character(qs[[1]]$x),]$chr, ')')
-  #if ( db ) gene = SNPs[as.character(qs[[1]]$x),]$chr
+  gene = qs[[1]]$inGene
   if ( db ) gene = xToChr(qs[[1]]$x, genome=genome)
   
   catLog('colours..')
