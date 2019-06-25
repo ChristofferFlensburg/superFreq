@@ -44,7 +44,7 @@ getStories = function(variants, cnvs, timeSeries, normals, genome, cloneDistance
       if ( any(!normals[ts]) ) {
         somaticMx = do.call(cbind, lapply(qs[!normals[ts]], function(q) q$somaticP > 0.95))
         somatic = apply(somaticMx, 1, any)
-        catLog('Found ', sum(somatic), ' high quality somatic SNVs to track. These are the anchors SNVs.\n', sep='')
+        catLog('Found ', sum(somatic), ' high quality somatic SNVs to track.\n', sep='')
       }
       else
         somatic = rep(FALSE, nrow(qs[[1]]))
@@ -994,33 +994,40 @@ makeTreeConsistent = function(cloneTree, cloneStories, storyList) {
   
 }
 
-findFirstUnitarityViolation = function(cloneTree, cloneStories, storyList) {
-  if ( length(cloneTree) == 0 ) return(c())
-
-  for ( name in names(cloneTree) ) {
-    if ( length(cloneTree[[name]]) == 0 ) {
+#looks recursively for unitarity violations in the clone tree, and returns the first main suspect of
+#false clone that cause unitarity violation. returns empty vector if consistent with unitarity.
+findFirstUnitarityViolation = function (cloneTree, cloneStories, storyList) {
+  if (length(cloneTree) == 0) 
+    return(c())
+  for (name in names(cloneTree)) {
+    if (length(cloneTree[[name]]) == 0) {
       next
     }
-      
-    isViolating = isUnitarityViolating(cloneStories[names(cloneTree[[name]]),], cloneStories[name,])
-    if ( isViolating ) { 
-      dodgyness = getDodgyness(storyList[names(cloneTree[[name]])], cloneStories[names(cloneTree[[name]]),])
-      suspect = names(cloneTree[[name]])[which.max(dodgyness)]
+    whichViolating = whichUnitarityViolating(cloneStories[names(cloneTree[[name]]),], cloneStories[name,])
+    if (length(whichViolating) > 0) {
+      dodgyness = superFreq:::getDodgyness(storyList[whichViolating], 
+        cloneStories[whichViolating,])
+      suspect = whichViolating[which.max(dodgyness)]
       return(suspect)
     }
-    
-    deeperSuspect = findFirstUnitarityViolation(cloneTree[[name]], cloneStories, storyList)
-    if ( length(deeperSuspect) > 0 ) {
+    deeperSuspect = findFirstUnitarityViolation(cloneTree[[name]], 
+      cloneStories, storyList)
+    if (length(deeperSuspect) > 0) {
       return(deeperSuspect)
     }
-
   }
-
   return(c())
 }
 
-isUnitarityViolating = function(cloneStories, parentStory) {
-  return(any(colsums(noneg(cloneStories$stories - cloneStories$errors)) > parentStory$stories+parentStory$errors))
+
+#check which, if any, of the immediate subclones contribute to unitarity violation.
+#returns a character vector of the contributing subclones, empty vector if consistent with unitarity.
+whichUnitarityViolating = function(cloneStories, parentStory) {
+  sampleTooHigh = superFreq:::colsums(superFreq:::noneg(cloneStories$stories - cloneStories$errors*1.5)) > (parentStory$stories+parentStory$errors*1.5)[1,]
+  if ( !any(sampleTooHigh) ) return(c())
+  contributing = superFreq:::rowsums(t(t(cloneStories$stories -
+  cloneStories$errors*1.5 > 0)*sampleTooHigh)) > 0
+  return(names(contributing)[contributing])
 }
 
 
