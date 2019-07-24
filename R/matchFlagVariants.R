@@ -368,12 +368,12 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
   #require consistent and very low frequency between normals.
   varN = do.call(cbind, lapply(normalVariants$variants, function(q) q$var))
   covN = do.call(cbind, lapply(normalVariants$variants, function(q) q$cov))
-  f = rowsums(varN)/rowsums(covN)
+  f = superFreq:::rowsums(varN)/superFreq:::rowsums(covN)
   fs = varN/covN
   fs[covN == 0] = 0  
-  f[rowsums(covN) == 0] = 0
-  psN = matrix(pBinom(as.integer(covN), as.integer(varN), rep(f, ncol(covN))), ncol=ncol(covN))
-  pSameF = apply(psN, 1, fisherTest)[2,]
+  f[superFreq:::rowsums(covN) == 0] = 0
+  psN = matrix(superFreq:::pBinom(as.integer(covN), as.integer(varN), rep(f, ncol(covN))), ncol=ncol(covN))
+  pSameF = apply(psN, 1, superFreq:::fisherTest)[2,]
   
   #count the ratio of non-db SNPs that have the 'Pn' flag, ie polymorphic normal
   observedPolymorphic = length(grep('Pn',variants$variants[[1]]$flag))
@@ -398,8 +398,8 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
     #should effectively be a cut on how certain it can be from number of normals, even with
     #perfect 0,0,0,0, 0.5 frequencies
     pPolymorphic = 1/(1+nrow(q)/(polymorphicFrequency*basePairs))
-    pNormalFreq = pBinom(q$cov, q$var, normalFreq)
-    normalOK = pmin(1, noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
+    pNormalFreq = superFreq:::pBinom(q$cov, q$var, normalFreq)
+    normalOK = pmin(1, superFreq:::noneg((0.05-normalFreq)/0.05))^2*(normalFreq < freq)
     
     if ( !(name %in% names(CNs)) ) catLog('\nNo matched normal, or normal sample: selecting somatic variants based on population frequencies. Selecting dbSNPs and ExAC below 0.1% population frequency as somatic candidates. These will include rare germline variants, which is desired for normals, but not for cancer samples without matched normals.\n', sep='')
     notDbSNP = !q$db | (q$db & !q$dbValidated & is.na(q$dbMAF))

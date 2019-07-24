@@ -1080,6 +1080,10 @@ newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33,
     catLog('Single variant read flags:', length(grep('Svr', ret$flag)), '\n')
     catLog('Minor variant flags:', length(grep('Mv', ret$flag)), '\n')
     catLog('Stutter flags:', length(grep('St', ret$flag)), '\n')
+    if ( nrow(ret) > 0 & sum(ret$cov) == 0 ) {
+      catLog('Found no reads over any positions in the VCF. This is typically a sign of failing to read from the bam (', file, '), bam index or fasta (', fasta, '). Or it can be an issue with samtools not being properly available. Cant recover, stopping here.\n', sep='')
+      stop('Found no reads over any positions in the VCF. This is typically a sign of failing to read from the bam (', file, '), bam index or fasta (', fasta, '). Or it can be an issue with samtools not being properly available.')
+    }
     if ( any(is.na(ret$x)) ) {
       catLog('\nWARNING: Found ', sum(is.na(ret$x)), ' NA variants. This will likely be a problem downstreams, but trying to continue.\n',
 'If no other relevant warnings, then out of memory may be the cause. If so, try increasing available memory or decrease cpus.\n\n', sep='')

@@ -4,15 +4,15 @@
 \alias{runDE}
 \title{Run differential coverage analysis.}
 \usage{
-runDE(bamFiles, names, externalNormalBams, captureRegions, Rdirectory,
-  plotDirectory, normalRdirectory, settings = list(), genome = "hg19",
-  cpus = 1, mode = "exome", forceRedoFit = F, forceRedoCount = F,
-  forceRedoNormalCount = F)
+runDE(bamFiles, sampleNames, externalNormalBams, captureRegions,
+  Rdirectory, plotDirectory, normalRdirectory, settings = list(),
+  genome = "hg19", cpus = 1, mode = "exome", forceRedoFit = F,
+  forceRedoCount = F, forceRedoNormalCount = F)
 }
 \arguments{
 \item{bamFiles}{vector of paths to the bamfiles to be analysed}
 
-\item{names}{vector of names of the samples associated with the bam files.}
+\item{sampleNames}{vector of names of the samples associated with the bam files.}
 
 \item{externalNormalBams}{vector of paths to the pool of normal samples.}
 

@@ -7,7 +7,7 @@
 #It then calls the CN of each clustered region, as well as clonality, uncertainty estimate and p-value
 #for normal CN.
 #returns a list of data frames with each region of the genome on a row.
-callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T, mode='exome') {
+callCNVs = function(variants, fitS, SNPs, samples, individuals, normals, Rdirectory, plotDirectory, genome='hg19', cpus=1, forceRedoCNV=F, correctReferenceBias=T, mode='exome', ploidyPriors=NULL) {
   clustersSaveFile = paste0(Rdirectory, '/clusters.Rdata')
   if ( file.exists(clustersSaveFile) & !forceRedoCNV ) {
     catLog('Loading saved CNV results.\n')
@@ -21,39 +21,44 @@ callCNVs = function(variants, fitS, SNPs, names, individuals, normals, Rdirector
   fitS = subsetFit(fitS, rows = abs(fitS$x2 - fitS$x1) < 5e6)
 
   #identify cancer-normal pairs, check which cancers have normals from the same individual
-  correspondingNormal = findCorrespondingNormal(names, individuals, normals)
+  correspondingNormal = findCorrespondingNormal(samples, individuals, normals)
 
   #run cnv on the samples, using cancer-normal where available
-  clusters = lapply(names, function(name) {
-    catLog('\nCalling CNVs for ', name, '.\n', sep='')
-    if ( !is.na(correspondingNormal[name]) ) {
-      catLog('Using', correspondingNormal[name], 'as matched normal.\n')
-      return(callCancerNormalCNVs(cancerVariants=variants$variants[[name]],
-                                  normalVariants=variants$variants[[correspondingNormal[name]]],
-                                  fit = subsetFit(fitS, cols=paste0(name, '-normal')),
-                                  plotDirectory, name, individuals, SNPs,
+  clusters = lapply(samples, function(sample) {
+    catLog('\nCalling CNVs for ', sample, '.\n', sep='')
+    ploidyPrior = NULL
+    if ( class(ploidyPriors) == 'numeric' & sample %in% names(ploidyPriors) ) {
+      ploidyPrior = ploidyPriors[sample]
+      catLog('Using prior bias towards ploidy of ', ploidyPrior, '.\n', sep='')
+    }
+    if ( !is.na(correspondingNormal[sample]) ) {
+      catLog('Using', correspondingNormal[sample], 'as matched normal.\n')
+      return(callCancerNormalCNVs(cancerVariants=variants$variants[[sample]],
+                                  normalVariants=variants$variants[[correspondingNormal[sample]]],
+                                  fit = subsetFit(fitS, cols=paste0(sample, '-normal')),
+                                  plotDirectory, sample, individuals, SNPs,
                                   genome=genome, cpus=cpus,
                                   correctReferenceBias=correctReferenceBias,
-                                  mode=mode))
+                                  mode=mode, ploidyPrior=ploidyPrior))
     }
     else
-      return(callCancerNormalCNVs(cancerVariants=variants$variants[[name]],
+      return(callCancerNormalCNVs(cancerVariants=variants$variants[[sample]],
                                   normalVariants=FALSE,
-                                  fit = subsetFit(fitS, cols=paste0(name, '-normal')),
-                                  plotDirectory, name, individuals, SNPs,
+                                  fit = subsetFit(fitS, cols=paste0(sample, '-normal')),
+                                  plotDirectory, sample, individuals, SNPs,
                                   genome=genome, cpus=cpus,
                                   correctReferenceBias=correctReferenceBias,
-                                  mode=mode))
+                                  mode=mode, ploidyPrior=ploidyPrior))
   })
 
-  names(clusters) = names
+  names(clusters) = samples
   save(clusters, file=clustersSaveFile)
   return(clusters)
 }
 
 
 #the high level function that controls the steps of the CNV calling for given sample and normal variant objects.
-callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T, mode='exome') {
+callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T, mode='exome', ploidyPrior=NULL) {
 
   #select good germline het variants from normals:
   if ( class(normalVariants) == 'logical')
@@ -93,8 +98,15 @@ callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirecto
 
   #run post processing, such as correcting normalisation from AB regions, calling CNVs and clonalities.
   catLog('Postprocessing...')
-  post = postProcess(cancerCluster, cancerCR, effectiveFreqs, plotDirectory, name, genome, cpus=cpus)
-
+  diagnosticPlotsDirectory = paste0(plotDirectory, '/diagnostics')
+  ploidyDirectory = paste0(diagnosticPlotsDirectory, '/ploidy')
+  if ( !file.exists(ploidyDirectory) ) dir.create(ploidyDirectory)
+  plotFile = paste0(ploidyDirectory, '/', name, '.png')
+  catLog('Plotting to ', plotFile, '.\n')
+  png(plotFile, width=10, height=7, res=150, units='in')
+  post = superFreq:::postProcess(cancerCluster, cancerCR, effectiveFreqs, plotDirectory, name, genome, cpus=cpus, ploidyPrior=ploidyPrior)
+  dev.off()
+  
   cancerCluster = post$clusters
   catLog('found total of', sum(cancerCluster$call != 'AB' & !grepl('\\?', cancerCluster$call)), 'CNVs..')
   cancerCR$M = cancerCR$M + post$shift
@@ -438,7 +450,7 @@ calledFromSingleSNP = function(cR, eFreqs) {
 fragmentLength = function() {return(300)}
 
 #takes clustered regions and post processes them by calling copy numbers and clonality.
-postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19', cpus=1) {
+postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19', cpus=1, ploidyPrior=NULL, hasMatchedNormal=T) {
   catLog('corrected frequencies..')
   cf = correctedFrequency(clusters, eFreqs, cpus=cpus)
   clusters$f = cf[,'f']
@@ -452,11 +464,12 @@ postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19'
   pdf(plotFile, width=15, height=7)
   clusters = redoHetCalculations(clusters, eFreqs, cpus=cpus, plot=T)
   dev.off()
+  if ( !hasMatchedNormal ) clusters = checkForMissedLOH(clusters, cRs, eFreqs, cpus=cpus)
   catLog('renormalising..')
   if ( exists('.doSuperFreqPloidyManually', envir= .GlobalEnv) && get('.doSuperFreqPloidyManually', envir= .GlobalEnv) )
-    renorm =  findShiftManually(clusters, cpus=cpus, plot=F)
+    renorm =  findShiftManually(clusters, cpus=cpus, plot=F, plotPloidy=T)
   else
-    renorm =  findShift(clusters, cpus=cpus, plot=F)
+    renorm =  findShift(clusters, cpus=cpus, plot=F, plotPloidy=T, ploidyPrior=ploidyPrior)
   shift = renorm$M[1] - clusters$M[1]
   clusters = renorm
   catLog('call CNVs..')
@@ -466,7 +479,7 @@ postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19'
   if ( any(sCAN) ) {
     catLog('found', sum(sCAN),'neighbouring regions with same call: merge and redo postprocessing!\n')
     clusters = forceMerge(clusters, sCAN, genome)
-    ret = postProcess(clusters, cRs, eFreqs, plotDirectory, name, genome=genome, cpus=cpus)
+    ret = postProcess(clusters, cRs, eFreqs, plotDirectory, name, genome=genome, cpus=cpus, ploidyPrior=ploidyPrior)
     ret$shift = ret$shift + shift
     return(ret)
   }
@@ -707,8 +720,8 @@ addCall = function(clusters, eFreqs) {
     clusters$pCall[row] = clusters$postHet[row]
     if ( !(isab$call) ) {
       for ( tryCall in allCalls() ) {
-        iscnv = isCNV(clusters[row,], efs, callTofM(tryCall)['M'], callTofM(tryCall)['f'], callPrior(tryCall),
-          sigmaCut=max(2, clusters$sigma[row]))
+        iscnv = superFreq:::isCNV(clusters[row,], efs, superFreq:::callTofM(tryCall)['M'], superFreq:::callTofM(tryCall)['f'],
+          superFreq:::callPrior(tryCall), sigmaCut=max(2, clusters$sigma[row]))
         if ( (iscnv$call & clusters$sigma[row] > 2) |
             (iscnv$call & (iscnv$clonality > clusters$clonality[row] | (iscnv$clonality == clusters$clonality[row] & iscnv$sigma < clusters$sigma[row]))) ) {
           clusters$clonality[row] = iscnv$clonality
@@ -743,14 +756,46 @@ isAB = function(cluster, efs, sigmaCut=3) {
 
 #the considered calls in the algorithm. (CL is complete loss, ie loss of both alleles.)
 allCalls = function() {
-  return(c('AB', 'A', 'AA', 'AAA', 'AAAA', 'AAAAA', 'AAB', 'AAAB', 'AAAAB', 'AAAAAB', 'AAAAAAB', 'AAAAAAAAAB', 'AAAAAAAAAAAAAAAAAAAB', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB', 'AABB', 'AAABB', 'AAAABB', 'CL'))
+  return(c('AB', 'A', 'AA', 'AAA', 'AAAA', 'AAAAA', 'AAB', 'AAAB', 'AAAAB', 'AAAAAB', 'AAAAAAB',
+           paste0(c(rep('A',9),'B'),collapse=''),
+           paste0(c(rep('A',13),'B'),collapse=''),
+           paste0(c(rep('A',19),'B'),collapse=''),
+           paste0(c(rep('A',27),'B'),collapse=''),
+           paste0(c(rep('A',39),'B'),collapse=''),
+           paste0(c(rep('A',56),'B'),collapse=''),
+           paste0(c(rep('A',79),'B'),collapse=''),
+           'AABB', 'AAABB', 'AAAABB', 'AAAAABB',
+           paste0(c(rep('A',8),'BB'),collapse=''),
+           paste0(c(rep('A',12),'BB'),collapse=''),
+           paste0(c(rep('A',18),'BB'),collapse=''),
+           paste0(c(rep('A',25),'BBB'),collapse=''),
+           paste0(c(rep('A',36),'BBBB'),collapse=''),
+           paste0(c(rep('A',51),'BBBBBB'),collapse=''),
+           paste0(c(rep('A',72),'BBBBBBBB'),collapse=''),
+           'CL'))
 }
 
 #returns the prior of a call.
 callPrior = function(call) {
-  priors = c('AB'=10, 'A'=1, 'AA'=1/2, 'AAA'=1/3, 'AAAA'=1/4, 'AAAAA'=1/5, 'AAB'=1, 'AAAB'=1/2, 'AAAAB'=1/3, 'AAAAAB'=1/4, 'AAAAAAB'=1/5, 'AAAAAAAAAB'=1/10, 'AAAAAAAAAAAAAAAAAAAB'=1/10, 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB'=1/10, 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB'=1/10,
-    'AABB'=1/2, 'AAABB'=1/4, 'AAAABB'=1/5, 'CL'=1/2)
-  priors = priors/sum(priors)
+  priors = c('AB'=10, 'A'=1, 'AA'=1/2, 'AAA'=1/3, 'AAAA'=1/4, 'AAAAA'=1/5, 'AAB'=1, 'AAAB'=1/2, 'AAAAB'=1/3, 'AAAAAB'=1/4, 'AAAAAAB'=1/5,
+    'a9b'=1/10,
+    'a13b'=1/12,
+    'a19b'=1/14,
+    'a27b'=1/16,
+    'a39b'=1/18,
+    'a56b'=1/20,
+    'a79b'=1/22,
+    'AABB'=1/2, 'AAABB'=1/4, 'AAAABB'=1/5, 'AAAAABB'=1/6,
+    'a8bb'=1/11,
+    'a12bb'=1/13,
+    'a18bb'=1/16,
+    'a25bbb'=1/19,
+    'a38bbbb'=1/22,
+    'a51bbbbbb'=1/25,
+    'a78bbbbbbbb'=1/28,
+    'CL'=1/2)
+  names(priors) = allCalls()
+  priors = priors/max(priors)
   if ( call %in% names(priors) ) return(priors[call])
   else return(0.1)
 }
@@ -788,6 +833,17 @@ isCNV = function(cluster, efs, M, f, prior, sigmaCut=3) {
   #estimate clonality from frequency and propagate uncertainty
   freqClonality = (0.5-cf)/(0.5-cf+2^M*(cf-f))
   clonalityErrorF = ferr*(freqClonality*(2^M-1)+1)/(0.5-cf+2^M*(cf-f))
+  #clonality as function of BAF can be non-linear at the scale of BAF error.
+  #do empirical error check by going ferr in either direction and take max.
+  cfp = cf+ferr
+  cfm = cf-ferr
+  empClonalityErrorF =
+    max(abs((0.5-cfp)/(0.5-cfp+2^M*(cfp-f))-freqClonality),
+        abs((0.5-cfm)/(0.5-cfm+2^M*(cfm-f))-freqClonality))
+  if ( !is.na(empClonalityErrorF) )
+    clonalityErrorF = max(clonalityErrorF, empClonalityErrorF)
+  else
+    clonalityErrorF = Inf
   if ( f == 0.5 | cluster$cov == 0 ) {
     freqClonality = 1
     clonalityErrorF = Inf
@@ -831,12 +887,11 @@ isCNV = function(cluster, efs, M, f, prior, sigmaCut=3) {
   MClone = log2(1 + (2^M-1)*clonality)
   #calculate likelihood for these f and M
   if ( cluster$cov == 0 ) pCall = exp(-1)
-  #else pCall = fisherTest(pBinom(efs$cov, efs$var, refBias(fClone)))['pVal']
-  else pCall = min(p.adjust(pBinom(efs$cov, efs$var, refBias(fClone)), method='fdr'))
-  pM = 2*pt(-noneg(abs(cluster$M - MClone))/(cluster$width+getSystematicVariance()), df=cluster$df)  #allow systematic error
+  else pCall = min(p.adjust(superFreq:::pBinom(efs$cov, efs$var, superFreq:::refBias(fClone)), method='fdr'))
+  pM = 2*pt(-noneg(abs(cluster$M - MClone))/(cluster$width+superFreq:::getSystematicVariance()), df=cluster$df)  #allow systematic error
 
   #likelihood for both MAF and LFC fitting the called clonality
-  pBoth = fisherTest(c(pCall + 1e-10, pM))[2]
+  pBoth = superFreq:::fisherTest(c(pCall + 1e-10, pM))[2]
   if ( cluster$cov == 0 ) pBoth = pM
   
   #add prior for this call to get posterior
@@ -1112,21 +1167,21 @@ plotMAFLFC = function(clusters, xlim=c(-1.2, 1.2)) {
   markClonalities = c(0.25, 0.5, 0.75)
   for ( call in c('AB', 'CL', 'A', 'AA', 'AAA', 'AAAA', 'AAAAA', 'AAB', 'AAAB', 'AAAAB', 'AABB', 'AAABB') ) {
     fMs = callCloneTofM(call, clonalities)
-    points(fMs[,2], fMs[,1], pch=16, cex=2*clonalities, col=callsToCol(call))
+    points(fMs[,2], fMs[,1], pch=16, cex=2*clonalities, col=callsToColMaypole(call))
     markFMs = callCloneTofM(call, markClonalities)
-    if ( call != 'AB' ) points(markFMs[,2], markFMs[,1], pch=4, cex=4*markClonalities,, lwd=2, col=callsToCol(call))
-    text(fMs[round(length(clonalities)*0.6),2]+0.05, fMs[round(length(clonalities)*0.6),1]+0.01, call, col=callsToCol(call))
+    if ( call != 'AB' ) points(markFMs[,2], markFMs[,1], pch=4, cex=4*markClonalities,, lwd=2, col=callsToColMaypole(call))
+    text(fMs[round(length(clonalities)*0.6),2]+0.05, fMs[round(length(clonalities)*0.6),1]+0.01, call, col=callsToColMaypole(call))
   }
   w = sqrt(clusters$width^2 + getSystematicVariance()^2)
   f = clusters$f
   ferr = ifelse(clusters$cov == 0, 0.25, clusters$ferr)
   f = ifelse(clusters$cov == 0, 0.25, f)
   if ( !('call' %in% names(clusters)) ) clusters$call = rep('', nrow(clusters))
-  points(clusters$M, f, pch=16, cex = pmin(1.5,pmax(0.2, sqrt((0.1/(w/2))^2 + (0.1/(ferr/0.5))^2))), col=callsToCol(clusters$call))
+  points(clusters$M, f, pch=16, cex = pmin(1.5,pmax(0.2, sqrt((0.1/(w/2))^2 + (0.1/(ferr/0.5))^2))), col=callsToColMaypole(clusters$call))
   segments(clusters$M+w, f, clusters$M-w, f,
-           lwd = pmin(1.5,pmax(0.2, 0.1/(w/2))), col=callsToCol(clusters$call))
+           lwd = pmin(1.5,pmax(0.2, 0.1/(w/2))), col=callsToColMaypole(clusters$call))
   segments(clusters$M, f+ferr, clusters$M, f-ferr,
-           lwd = pmin(1.5,pmax(0.2, 0.1/(ferr/0.5))), col=callsToCol(clusters$call))
+           lwd = pmin(1.5,pmax(0.2, 0.1/(ferr/0.5))), col=callsToColMaypole(clusters$call))
   legend('topright', paste0('clonality=',markClonalities), pch=4, pt.cex=4*markClonalities, pt.lwd=2)
   
 }
@@ -1138,10 +1193,10 @@ callCloneTofM = function(call, clonality) {
   return(cbind(f, M))
 }
 #helper function
-callsToCol = function(calls) {
-  return(sapply(calls, callToCol))
+callsToColMaypole = function(calls) {
+  return(sapply(calls, callToColMaypole))
 }
-callToCol = function(call) {
+callToColMaypole = function(call) {
   alpha = if ( grepl('\\?', call) ) 0.3 else 1
   call = gsub('\\?', '', call)
   if ( call == 'AB' ) return(mcri('black', alpha))
@@ -1149,16 +1204,17 @@ callToCol = function(call) {
   if ( call == 'AAB' ) return(mcri('cyan', alpha))
   if ( call == 'AAAB' ) return(mcri('orange', alpha))
   if ( call == 'AAAAB' ) return(mcri('green', alpha))
-  if ( call == 'AAAAAB' ) return(mcri('black', alpha))
-  if ( call == 'AAAAAAB' ) return(mcri('black', alpha))
+  if ( call == 'AAAAAB' ) return(mcri('darkred', alpha))
+  if ( call == 'AAAAAAB' ) return(mcri('darkred', alpha))
   if ( call == 'AA' ) return(mcri('green', alpha))
   if ( call == 'CL' ) return(mcri('orange', alpha))
   if ( call == 'AABB' ) return(mcri('purple', alpha))
   if ( call == 'AAA' ) return(mcri('blue', alpha))
   if ( call == 'AAAA' ) return(mcri('grey', alpha))
   if ( call == 'AAAAA' ) return(mcri('darkred', alpha))
-  if ( call == 'AAABB' ) return(mcri('blue', alpha))
-  return('black')
+  if ( call == 'AAABB' ) return(mcri('darkred', alpha))
+  if ( nchar(call) > 5 ) return(mcri('darkred', alpha))
+  return(mcri('black', alpha))
 }
 
 
@@ -1167,8 +1223,33 @@ shortenCalls = function(calls) {
   calls = gsub(' AAAAAB', ' 5AB', calls)
   calls = gsub(' AAAAAAB', ' 6AB', calls)
   calls = gsub(' AAAAAAAAAB', ' 9AB', calls)
+  calls = gsub(' AAAAAAAAAAAAAB', ' 13AB', calls)
   calls = gsub(' AAAAAAAAAAAAAAAAAAAB', ' 19AB', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAB', ' 27AB', calls)
   calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB', ' 39AB', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB', ' 56AB', calls)
   calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB', ' 79AB', calls)
-   return(calls)
-  }
+  calls = gsub(' AAAAAAAABB', ' 8ABB', calls)
+  calls = gsub(' AAAAAAAAAAAABB', ' 12ABB', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAABB', ' 18ABB', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAABBB', ' 25ABBB', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBB', ' 36A4B', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBB', ' 51A6B', calls)
+  calls = gsub(' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBB', ' 72A8B', calls)
+  return(calls)
+}
+
+#function that checks for large regions with fewer than expected het SNPs
+#This can be a sign of clonal LOH that is hard to find without matched normals
+checkForMissedLOH = function(clusters, cRs, eFreqs, cpus=1) {
+  #check global rate of SNPs, if not enough, don't even bother trying
+
+  #check for large enough regions, larger than 10MBs seems reasonable
+  #also require enough covered area in the region (sum x2-x1)
+
+  #test if the number of SNPs is way below expected
+
+  #for those regions, set f = 0, but ferr depending on how strong the signal is.
+  
+  return(clusters)
+}

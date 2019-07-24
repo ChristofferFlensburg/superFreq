@@ -72,7 +72,9 @@ downloadSuperFreqCOSMIC = function(directory='superFreqCOSMIC', genome='hg19') {
             paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
                    c('COSMIC/allCosmicCounts_hg38.Rdata', 'COSMIC/cosmicCounts.Rdata', 'ClinVar/clinvar38.Rdata'))
     if ( genome == 'mm10' )
-        urls = 'http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/CCGD_export.csv'
+      urls =
+        paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
+               c('COSMIC/CCGD_export.csv'))
     for ( url in urls ) {
       destFile = paste0(directory, '/', basename(url))
       if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
@@ -135,4 +137,21 @@ downloadSuperFreqAnnotation = function(directory='superFreqAnnotation', genome='
   
 }
 
+
+downloadSuperFreqSignatures = function(directory='superFreqSignatures') {
+    if ( !dir.exists(directory) ) {
+      cat('Downloading superFreq signatures to', directory, '.\n')
+      dir.create(directory)
+    }
+
+    urls =
+        paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
+               c('signatures/extendedPatternMx.Rdata', 'signatures/cosmicSignatures_v2_104.Rdata',
+                 'signatures/mutagenSignatures.Rdata'))
+    for ( url in urls ) {
+      destFile = paste0(directory, '/', basename(url))
+      if ( !file.exists(destFile) ) download.file(url, destfile = destFile, method="wget")
+    }
+  
+}
 

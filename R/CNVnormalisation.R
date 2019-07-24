@@ -81,14 +81,17 @@ clusterToConsistencies = function(cluster, shift=0, N=1000) {
       f = 0.5
       ferr = 1000
     }
-    callConsistencyNumeric(cluster$M+shift, cluster$width, f, ferr, cluster$postHet, call, N=N)
+    callScore = superFreq:::callConsistencyNumeric(cluster$M+shift, cluster$width, f, ferr, cluster$postHet, call, N=N)
+    #penalty for large regions of complete loss.
+    if ( call == 'CL' & cluster$x2-cluster$x1 > 5e6 ) callScore['sigma'] = callScore['sigma']*(cluster$x2-cluster$x1)/5e6
+    return(callScore)
   })
   return(t(ret))
 }
 
 callConsistencies = function(clusters, shift=0, N=1000) {
   ret = lapply(1:nrow(clusters), function(row) {
-    clusterToConsistencies(clusters[row,], shift=shift, N=N)
+    superFreq:::clusterToConsistencies(clusters[row,], shift=shift, N=N)
   })
   return(ret)
 }
@@ -111,7 +114,7 @@ scoreConsistencies = function(consistencies) {
 pToSigma = function(p) abs(qnorm(p/2, 0, 1))
 
 
-findShift = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T) {
+findShift = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T, plotPloidy=F, ploidyPrior=NULL) {
   #set up shifts more densely around 0
   nShiftsHalf = round(nShifts/2)
   shifts = ((0:nShiftsHalf)/nShiftsHalf)^2*maxShift
@@ -119,23 +122,42 @@ findShift = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T) {
 
   #get the scores from consistency for each shift
   shiftConsistencies = mclapply(shifts, function(shift) {
-    callConsistencies(clusters, shift=shift, N=1000)
+    superFreq:::callConsistencies(clusters, shift=shift, N=1000)
   }, mc.cores=cpus)
 
   #find the shift with best score
-  shiftScores = sapply(shiftConsistencies, scoreConsistencies)
+  shiftScores = sapply(shiftConsistencies, superFreq:::scoreConsistencies)
+  if ( !is.null(ploidyPrior) ) {
+    basePloidy = 2*sum((clusters$x2-clusters$x1)*2^clusters$M)/sum((clusters$x2-clusters$x1))
+    ploidies = basePloidy*2^shifts
+    #add penalty to the discrepancy proportional to square of distance from prior.
+    #but don't go too far above the max discrepancy before, for viz reasons
+    shiftScores = pmin(max(shiftScores)+0.1, shiftScores + (ploidies-ploidyPrior)^2)
+  }
   bestShift = shifts[shiftScores == min(shiftScores)][1]
 
   #return if no shift was best
   if ( bestShift == 0 ) {
-    if ( plot ) plotShiftedMAFLFC(clusters)
+    if ( plot ) superFreq:::plotShiftedMAFLFC(clusters)
+    if ( plotPloidy ) {
+      basePloidy = 2*sum((clusters$x2-clusters$x1)*2^clusters$M)/sum((clusters$x2-clusters$x1))
+      ploidies = basePloidy*2^shifts
+      main = 'ploidy fit'
+      if ( !is.null(ploidyPrior) ) main = paste0('ploidy fit (with prior=', ploidyPrior, ')')
+      superFreq:::plotColourScatter(ploidies, shiftScores, cex=2, xlim=basePloidy*c(0.2, 3), xlab='ploidy', ylab='fit discrepancy', main='ploidy fit')
+      lines(ploidies, shiftScores, lwd=2, col=mcri('blue'))
+      ymax = max(shiftScores)
+      yscale = ymax - min(shiftScores)
+      segments(basePloidy, 0, basePloidy, ymax-yscale*0.05, lwd=1.5, col=mcri('orange'))
+      text(basePloidy, ymax, round(basePloidy, digits=2), font=2, col=mcri('orange'))
+    }
     return(clusters)
   }
 
   #if a non-zero shift is better scored, renormalise and rerun to better find local minimum
   #with the denser shifts around 0.
   clusters$M = clusters$M + bestShift
-  clusters = findShift(clusters, nShifts=nShifts, maxShift=maxShift, cpus=cpus, plot=plot)
+  clusters = findShift(clusters, nShifts=nShifts, maxShift=maxShift, cpus=cpus, plot=plot, plotPloidy=plotPloidy, ploidyPrior=ploidyPrior)
   return(clusters)
 }
 
@@ -146,7 +168,7 @@ plotShiftedMAFLFC = function(clusters, shift=0) {
 
 
 
-findShiftManually = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T) {
+findShiftManually = function(clusters, nShifts=100, maxShift = 3, cpus=1, plot=T, plotPloidy=F) {
   #set up shifts more densely around 0
   nShiftsHalf = round(nShifts/2)
   nullShifts = ((0:nShiftsHalf)/nShiftsHalf)^2*maxShift

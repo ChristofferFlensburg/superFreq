@@ -13,7 +13,8 @@ superFreq(metaDataFile, captureRegions = "", normalDirectory, Rdirectory,
   mode = "exome", splitRun = T, participants = "all",
   manualStoryMerge = F, vepCall = "vep", correctReferenceBias = T,
   filterOffTarget = T, rareGermline = T, exacPopulation = "all",
-  cosmicSalvageRate = 0.001, annotationMethod = "VariantAnnotation")
+  cosmicSalvageRate = 0.001, annotationMethod = "VariantAnnotation",
+  ploidyPriors = NULL)
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -151,7 +152,7 @@ calculations. Default TRUE.}
 important information about the sample, but due to ethics this is not always desired.
 This options allows a user to run superFreq while avoiding germline information. The user
 should keep in mind that superFreq, like most open source software, comes with no warranty and
-there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples frmo germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.}
+there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples from germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.}
 
 \item{exacPopulation}{character. Which population to use for the exac data. This influences annotation, selection of
 heterozygous SNPs for variant calling and, in case of no matched normal, identification of
@@ -162,6 +163,8 @@ Other available options are 'AFR' (Africa), 'AMR' (America), 'EAS' (East Asia),
 \item{annotationMethod}{character. Which variant annotator to use. 'VEP' is the legacy method and requires a system
 installation of VEP. VariantAnnotation is contained in R and is significantly faster.
 Default 'VariantAnnotation'.}
+
+\item{ploidyPriors}{named numeric vector. Prior belief/knowledge that strongly biases the analysis to pick a ploidy close to the supplied prior. Names of the vector must match the samples you want to affect, but doesnt have to include all analysed samples. Entries not matching sample names are ignored. Note that this is sample-wide ploidy, including any normal contamination, so for example a 50% purity samples where the cancer has a AABB genotype genomewide will have a sample-wide ploidy of 3. If this is for a fix-the-analysis second run, it might be informative to look at the fitness curves in [plotDirectory]/diagnostics/ploidy of the first run to find the secondary local minimum that might be the ploidy you want to be used. Default NULL is a flat prior on ploidy, although the prior preference for less exotic copy numbers implicetely biases the analysis towards ploidies close to 2.}
 }
 \description{
 Wrapper to run default superFreq analysis

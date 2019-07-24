@@ -373,11 +373,13 @@ makeCNAheatmap = function(clusters, plotDirectory, genome) {
 
 #merges and makes CNA heatmaps across all the individuals of a batch.
 #requires the batch to be run with split=T (Which you should anyway).
-plotCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F, xlim=NULL) {
+plotCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F, xlim=NULL, excludeIndividuals=c(), excludeSamples=c()) {
   individuals = list.dirs(paste0(Rdirectory, '/'), full.names=F)
   individuals = individuals[individuals != '']
+  individuals = individuals[!(individuals %in% excludeIndividuals)]
   clusterList = lapply(individuals, function(ind) {
     load(paste0(Rdirectory, '/', ind, '/clusters.Rdata'))
+    clusters = clusters[!(names(clusters) %in% excludeSamples)]
     return(clusters)
   })
 

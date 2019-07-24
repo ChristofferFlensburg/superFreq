@@ -80,6 +80,7 @@ genomeToMPgenome = function(genome) {
 
 #plot the 104 profile
 plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colnames(mut_matrix), ' (', sum(mut_matrix), ' mutations)'), ...) {
+  if ( class(mut_matrix) %in% c('numeric', 'integer') & length(mut_matrix) == 104 ) mut_matrix = matrix(mut_matrix, ncol=1)
   norm_mut_matrix = apply(mut_matrix, 2, function(x) x/pmax(1,sum(x)))
   context = c(MutationalPatterns:::TRIPLETS_96, 'ins1', 'ins2', 'ins4', 'ins7', 'del1', 'del2', 'del4', 'del7')
   substitution = c(rep(MutationalPatterns:::SUBSTITUTIONS, each = 16), rep('indel',8))
@@ -122,7 +123,7 @@ plot104profilesBySample = function(qs, Rdirectory, plotDirectory, genome, somati
   pdf(paste0(patternDirectory, '/bySample.pdf'), width=10, height=6)
   mxList = lapply(names(qs), function(sample) {
     mx104 = get104profile(q=qs[[sample]], Rdirectory=Rdirectory, genome=genome, somaticPcut=somaticPcut)
-    plot_104_profile(mx104, main=paste0(sample, ' (', sum(mx104), ' mutations)'))
+    superFreq:::plot_104_profile(mx104, main=paste0(sample, ' (', sum(mx104), ' mutations)'))
     return(mx104)
   })
   dev.off()
@@ -186,4 +187,141 @@ plotProfiles = function(Rdirectory, plotDirectory, stories, variants, genome, fo
     catLog('done.\n')
   }
   else catLog('save file already there, moving along.\n')
+}
+
+#import functions for the preprocessed public signatures from COSMIC, TCGA and mutagens
+importCOSMICsignatures = function(resourceDirectory='superFreqResources') {
+  load(paste0(resourceDirectory, '/signatures/cosmicSignatures_v2_104.Rdata'))
+  return(as.matrix(cosmicSignatures))
+}
+importTCGAsignatures = function(resourceDirectory='superFreqResources') {
+  load(paste0(resourceDirectory, '/signatures/extendedPatternMx.Rdata'))
+  return(extendedPatternMx)
+}
+#this one parses the public csv at https://data.mendeley.com/datasets/m7r4msjb4c/2, but the .Rdata is
+#directly imported in superFreq, so this function is only an FYI for how we created the .Rdata
+parseMutagenSignatures = function(txt='~/majewski/resources/public_signatures/Mutagen53_sub_signature.txt') {
+  mutagenSignatures = read.table(txt, sep='\t', fill=T, stringsAsFactors=F)
+  rownames(mutagenSignatures) = mutagenSignatures[,1]
+  mutagenSignatures = mutagenSignatures[, -c(1,55)]
+  mutagen = as.character(mutagenSignatures[1,])
+  mutagenSignatures = mutagenSignatures[-1,]
+  colnames(mutagenSignatures) = mutagen
+  mutagenSignatures = rbind(mutagenSignatures, 'ins1'=0, 'ins2'=0, 'ins4'=0, 'ins7'=0, 'del1'=0, 'del2'=0, 'del4'=0, 'del7'=0)
+  for ( i in 1:ncol(mutagenSignatures) ) mutagenSignatures[[i]] = as.numeric(mutagenSignatures[[i]])
+  mutagenSignatures = as.matrix(mutagenSignatures)
+  return(mutagenSignatures)
+}
+importMutagenSignatures = function(resourceDirectory='superFreqResources') {
+  load(paste0(resourceDirectory, '/signatures/mutagenSignatures.Rdata'))
+  return(as.matrix(mutagenSignatures))
+}
+
+
+plotSimilarSignatures = function(signature, resourceDirectory='superFreqResources', TCGA=T, COSMIC=T, mutagen=T, ignoreIndels=F, main='similar signatures', nLabel=20, nLabelTCGA=5, nLabelCOSMIC=5, nLabelMutagen=5, csvFile=NULL, ylab='mutation rate + 1', ...) {
+  if ( !any(TCGA, COSMIC, mutagen) ) return()
+  sources = c('TCGA', 'COSMIC', 'mutagen')[c(TCGA, COSMIC, mutagen)]
+  sigList =
+    list('TCGA'=superFreq:::importTCGAsignatures(resourceDirectory),
+         'COSMIC'=superFreq:::importCOSMICsignatures(resourceDirectory),
+         'mutagen'=superFreq:::importMutagenSignatures(resourceDirectory))[c(TCGA, COSMIC, mutagen)]
+  sigMx = do.call(cbind, sigList)
+  dataSource = unlist(lapply(sources, function(s) rep(s, ncol(sigList[[s]]))))
+
+  if ( ignoreIndels ) {
+    signature = c(signature[1:96], rep(0, 8))
+    sigMx = rbind(sigMx[1:96,], matrix(0, ncol=ncol(sigMx), nrow=8))
+  }
+  
+  sourceToCol = c('TCGA'=mcri('blue'), 'COSMIC'=mcri('red'), 'mutagen'=mcri('green'))
+  sourceToLineCol = c('TCGA'=mcri('blue',al=0.5), 'COSMIC'=mcri('red',al=0.5), 'mutagen'=mcri('green',al=0.5))
+  sourceToScatterCol = c('TCGA'='defaultBlue', 'COSMIC'='defaultRed', 'mutagen'='defaultGreen')
+  sourceToCex = c('TCGA'=1.5, 'COSMIC'=2, 'mutagen'=2)
+  
+  sims = colSums(sigMx*signature)/sqrt(colSums(sigMx^2))/superFreq:::vecNorm(signature)
+  sims[is.nan(sims)] = 0
+  x = sims
+  y = colSums(sigMx)+1 + superFreq:::noneg(1 + rnorm(ncol(sigMx), 0, .5))
+  plot(x, y, type='n', xlab='cosine similarity', log='y', main=main, xlim=c(0,max(1, x*1.2)), ylab=ylab)
+  segments(1, 0.1, 1, 1e10, col='grey', lwd=0.5)
+  for ( s in sources )
+    plotColourScatter(x[dataSource==s], y[dataSource==s], cex=sourceToCex[s], col=sourceToScatterCol[s], add=T)
+  
+  label = rank(-sims) <= nLabel | (TCGA & rank(-sims-2*(dataSource=='TCGA')) <= nLabelTCGA) | (COSMIC & rank(-sims-2*(dataSource=='COSMIC')) <= nLabelCOSMIC) | (mutagen & rank(-sims-2*(dataSource=='mutagen')) <= nLabelMutagen)
+  labelPos = spreadPositions2D(x, log10(y), 0.07, 0.2, label, verbose=F)   #add to superFreq package, or external dependency
+  labelText = gsub('TCGA\\.TCGA-', '', gsub('COSMIC\\.Signature\\.', 'COSMIC-', gsub('mutagen\\.X\\.', '', colnames(sigMx))))
+  text(labelPos[1,], 10^labelPos[2,], colnames(sigMx)[label], col=sourceToCol[dataSource[label]], cex=0.7, font=2)
+  diff = rbind(x[label], log10(y[label])) - labelPos
+  dist = sqrt((labelPos[1,]-x[label])^2+(labelPos[2,]-y[label])^2)
+  segments(labelPos[1,] + 0.1*diff[1,], 10^(labelPos[2,] + 0.1*diff[2,]), x[label], y[label], col=sourceToLineCol[dataSource[label]], lwd=0.5)
+
+  if ( !is.null(csvFile) ) {
+    dat = data.frame(participant=colnames(extendedPatternMx), similarity=sims, mutation_rate=colSums(extendedPatternMx))
+    dat = dat[order(-dat$similarity),]
+    write.table(dat, sep=',', file=scvFile, quote=F,row.names=F)
+  }
+  
+  invisible(list('similarity'=sims, 'rates'=colSums(extendedPatternMx)))
+}
+
+
+#Takes a set of points with coordinates x, and y, of which the logical vector toLabel
+#denotes the points to be labeled. xR and yR are the size (the radius) of the labels,
+#used for collision ellipse.
+spreadPositions2D = function(x, y, xR, yR, toLabel, verbose=T) {
+  #starting condition
+  labelPos = sapply(which(toLabel), function(i) c('x'=x[i], 'y'=y[i]))
+  origin = labelPos
+  allX = c(labelPos[1,], x)
+  allY = c(labelPos[2,], y)
+  relDist = apply(labelPos, 2, function(pos) (pos[1] - allX)^2/xR^2 + (pos[2] - allY)^2/yR^2)
+  overlap = relDist < 1  #maybe should use square collision box instead?
+  overlap[row(overlap) == col(overlap)] = 0
+
+  #randomly move away from locally densest area until not overlapping 
+  while ( sum(overlap) > 0 ) {
+    labelPos = sapply(1:ncol(labelPos), function(id) {
+      dist = relDist[,id]
+      dist[id] = 100
+      closest = (dist < runif(1,1,6))
+      posOri = labelPos[,id]
+      if ( min(dist) >= 1 ) return(posOri)
+      pos0 = c('x'=mean(allX[closest]), 'y'=mean(allY[closest]))
+      diff = posOri - pos0
+      if ( diff[1] == 0 & diff[2] == 0 ) diff = c('x'=0, 'y'=1)
+      newPos = posOri + runif(1,0.1,0.5)*diff/sqrt((diff[1]/xR)^2 + (diff[2]/yR)^2)
+      return(newPos)
+    })
+
+    allX = c(labelPos[1,], x)
+    allY = c(labelPos[2,], y)
+    relDist = apply(labelPos, 2, function(pos) (pos[1] - allX)^2/xR^2 + (pos[2] - allY)^2/yR^2)
+    overlap = relDist < 1
+    overlap[row(overlap) == col(overlap)] = 0
+
+    if ( verbose ) cat(colSums(overlap), '\n')
+  }
+
+  #tighten rubber band towards starting point
+  tight = F
+  while ( !tight ) {
+    tight=T
+    for ( id in 1:ncol(labelPos) ) {
+      diff = origin[,id] - labelPos[,id]
+      dist = sqrt((labelPos[1,]-x[toLabel])^2+(labelPos[2,]-y[toLabel])^2)
+      newPos = labelPos[,id] + 0.1*diff
+      
+      dists = sqrt((newPos[1] - allX)^2/xR^2 + (newPos[2] - allY)^2/yR^2)
+      dists[id] = 100
+      if ( min(dists) >= 0.99 ) {
+        if ( verbose ) cat('tightening', id, '\n')
+        tight=F
+        labelPos[,id] = newPos
+        allX = c(labelPos[1,], x)
+        allY = c(labelPos[2,], y)
+      }
+    }
+  }
+
+  return(labelPos)
 }

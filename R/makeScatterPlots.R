@@ -3,7 +3,7 @@
 
 #Takes variants and plots the frequencies of any two samples from the same individual against each other.
 #Goes to some effort in marking interesting SNVs.
-makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, genome='hg19', cpus=1, plotPDF=F, forceRedo=F) {
+makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, genome='hg19', cpus=1, plotPDF=F, forceRedo=F, maxVariants=100000) {
   scatterDirectory = paste0(plotDirectory, '/scatters')
   if ( !file.exists(scatterDirectory) ) dir.create(scatterDirectory)
   for ( pair in samplePairs ) {
@@ -21,9 +21,9 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         q1$inGene = variants$SNPs[as.character(q1$x),]$inGene
         q2$inGene = variants$SNPs[as.character(q2$x),]$inGene
       }
-      
-      ps=vafScatter(q1, q2, cpus=cpus, verbose=F, doPlot=F, maxVariants=500e3)
-      psuf=vafScatter(q1, q2, cpus=cpus, plotFlagged=F, verbose=F, doPlot=F, maxVariants=500e3)
+
+      ps=vafScatter(q1, q2, cpus=cpus, verbose=F, doPlot=F, maxVariants=maxVariants)
+      psuf=vafScatter(q1, q2, cpus=cpus, plotFlagged=F, verbose=F, doPlot=F, maxVariants=maxVariants)
 
       if ( plotPDF ) {
         outfile = paste0(dir2, '/all.pdf')
@@ -35,7 +35,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         catLog('Plotting to', outfile, '\n')
         png(outfile, width = 10, height=10, res=300, units='in')
       }
-      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F, genome=genome, maxVariants=500e3,
+      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F, genome=genome, maxVariants=maxVariants,
                      main=paste0('clean variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1)
@@ -49,7 +49,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         outfile = paste0(dir2, '/allNamed.png')
         png(outfile, width = 10, height=10, res=300, units='in')
       }
-      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F, genome=genome, maxVariants=500e3,
+      vafScatter(q1, q2, verbose=F, ps=psuf, plotFlagged=F, genome=genome, maxVariants=maxVariants,
                      main=paste0('clean variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1,
@@ -64,7 +64,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
         outfile = paste0(dir2, '/allFlagged.png')
         png(outfile, width = 10, height=10, res=300, units='in')
       }
-      vafScatter(q1, q2, verbose=F, ps=ps, genome=genome, maxVariants=500e3,
+      vafScatter(q1, q2, verbose=F, ps=ps, genome=genome, maxVariants=maxVariants,
                      main=paste0('all variants: ', pair[1], ' vs ', pair[2]),
                      xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                      ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1)
@@ -85,7 +85,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
           png(outfile, width = 10, height=10, res=144, units='in')
         }
         catLog(chr, '..', sep='')
-        vafScatter(q1[use,], q2[use,], genome=genome, maxVariants=50e3,
+        vafScatter(q1[use,], q2[use,], genome=genome, maxVariants=maxVariants/10,
                        main=paste0('all variants: ', pair[1], ' vs ', pair[2], ', chr', chr),
                        xlab=paste0('variant frequency for ', pair[1], ' (', timePoints[pair[1]], ')'),
                        ylab=paste0('variant frequency for ', pair[2], ' (', timePoints[pair[2]], ')'), cpus=1, print=T,
@@ -447,7 +447,7 @@ makeCloneScatterPlots = function(variants, stories, samplePairs, individuals, ti
 #'
 #'
 #' @export
-vafScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main='', xlab='variant frequency: sample1', ylab='variant frequency: sample2', plotFlagged=T, cpus=1, verbose=T, print = F, printRedCut = 0.99, printOnlyNovel=F, plotPosition=F, genome='hg19', xlim=c(0,1), ylim=c(0,1), outputHighlighted=F, frame.plot=F, legend=T, redCut=0.75, forceCol=NA, add=F, GoI=c(), printCex=1, doPlot=T, minSomaticP=0, ignoreFlagsInOne = c('Svr', 'Mv', 'Nab'), ignoreFlagsInBoth = c('Srr'), flagOpacity=0.4, severityWidth=0.5, cosmicWidth=3, maxVariants=500e3, ...) {
+vafScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main='', xlab='variant frequency: sample1', ylab='variant frequency: sample2', plotFlagged=T, cpus=1, verbose=T, print = F, printRedCut = 0.99, printOnlyNovel=F, plotPosition=F, genome='hg19', xlim=c(0,1), ylim=c(0,1), outputHighlighted=F, frame.plot=F, legend=T, redCut=0.75, forceCol=NA, add=F, GoI=c(), printCex=1, doPlot=T, minSomaticP=0, ignoreFlagsInOne = c('Svr', 'Mv', 'Nab'), ignoreFlagsInBoth = c('Srr'), flagOpacity=0.4, severityWidth=0.5, cosmicWidth=3, maxVariants=500000, ...) {
   if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
 
   #cut down to shared variants that are present in at least one sample.
@@ -498,7 +498,7 @@ vafScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main
   nonSom = q1$somaticP == 0 & q2$somaticP == 0
   if ( sum(nonSom) > maxVariants ) {
     warning('There are a total of ', nrow(q1), ' variants to VAF scatter plot. Im subsampling to ', maxVariants, ' non-somatic variants to speed things up.')
-    #set the sampling seed for reproducibility
+    #fix seed so that the p-values can be reused in future calls to vafScatter
     set.seed(42)
     discard = sample(rownames(q1)[nonSom], sum(nonSom) - maxVariants)
     use = !(rownames(q1) %in% discard)

@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.2.8')
+superVersion = function() return('1.3.0')
 
 
 #' Wrapper to run default superFreq analysis
@@ -124,7 +124,7 @@ superVersion = function() return('1.2.8')
 #'                        important information about the sample, but due to ethics this is not always desired.
 #'                        This options allows a user to run superFreq while avoiding germline information. The user
 #'                        should keep in mind that superFreq, like most open source software, comes with no warranty and
-#'                        there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples frmo germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.
+#'                        there is always a risk of bugs producing unintended behaviour. Also note that for individuals without matched normal it can be difficult to separate cancer variants present in most cells in all samples from germline variants. So rare germline variants may be misidentified as somatic variants without a matched normal.
 #' @param exacPopulation character. Which population to use for the exac data. This influences annotation, selection of
 #'                        heterozygous SNPs for variant calling and, in case of no matched normal, identification of
 #'                        somatic variants. Default 'all' uses the total allele frequency across all of (non-TCGA) ExAC.
@@ -133,6 +133,7 @@ superVersion = function() return('1.2.8')
 #' @param annotationMethod character. Which variant annotator to use. 'VEP' is the legacy method and requires a system
 #'                        installation of VEP. VariantAnnotation is contained in R and is significantly faster.
 #'                        Default 'VariantAnnotation'.
+#' @param ploidyPriors named numeric vector. Prior belief/knowledge that strongly biases the analysis to pick a ploidy close to the supplied prior. Names of the vector must match the samples you want to affect, but doesnt have to include all analysed samples. Entries not matching sample names are ignored. Note that this is sample-wide ploidy, including any normal contamination, so for example a 50% purity samples where the cancer has a AABB genotype genomewide will have a sample-wide ploidy of 3. If this is for a fix-the-analysis second run, it might be informative to look at the fitness curves in [plotDirectory]/diagnostics/ploidy of the first run to find the secondary local minimum that might be the ploidy you want to be used. Default NULL is a flat prior on ploidy, although the prior preference for less exotic copy numbers implicetely biases the analysis towards ploidies close to 2.
 #'
 #' @details This function runs a full SNV, CNV and clonality analysis of the input exome data. Output it sent to the plotDirectory, where diagnostics as well as analysis results are placed. At 12 cpus, the pipeline typically runs overnight on an individual with not too many samples. Large numbers of samples or somatic mutations can increase runtime further. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf about how to set up the run and interpret the output.
 #'          
@@ -156,7 +157,8 @@ superVersion = function() return('1.2.8')
 superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory, reference,
   genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
   systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='', cosmicDirectory='', resourceDirectory='superFreqResources', mode='exome', splitRun=T, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
-  filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3, annotationMethod='VariantAnnotation') {
+  filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3, annotationMethod='VariantAnnotation',
+  ploidyPriors=NULL) {
 
   if ( dbSNPdirectory != '' ) warning("dbSNPdirectory is deprecated. Use superFreqResources instead.")
   if ( cosmicDirectory != '' ) warning("cosmicDirectory is deprecated. Use superFreqResources instead.")
@@ -196,7 +198,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
                 resourceDirectory=resourceDirectory, mode=mode, splitRun=F,
                 correctReferenceBias=correctReferenceBias, vepCall=vepCall,
                 filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation,
-                cosmicSalvageRate=cosmicSalvageRate, annotationMethod=annotationMethod)
+                cosmicSalvageRate=cosmicSalvageRate, annotationMethod=annotationMethod, ploidyPriors=ploidyPriors)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -209,6 +211,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
   dbSNPdirectory = paste0(resourceDirectory, '/dbSNP')
   cosmicDirectory = paste0(resourceDirectory, '/COSMIC')
   annotationDirectory = paste0(resourceDirectory, '/annotation')
+  signaturesDirectory = paste0(resourceDirectory, '/signatures')
   inputFiles = 
     superInputFiles(metaDataFile=metaDataFile, captureRegions=captureRegions, normalDirectory=normalDirectory,
                     dbSNPdirectory=dbSNPdirectory, reference=reference, normalCoverageDirectory=normalCoverageDirectory)
@@ -228,11 +231,12 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
   downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
   downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
   downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
+  downloadSuperFreqSignatures(signaturesDirectory)
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
           correctReferenceBias=correctReferenceBias, vepCall=vepCall, resourceDirectory=resourceDirectory, mode=mode,
-          filterOffTarget=filterOffTarget, rareGermline=rareGermline, annotationMethod=annotationMethod)
+          filterOffTarget=filterOffTarget, rareGermline=rareGermline, annotationMethod=annotationMethod, ploidyPriors=ploidyPriors)
 
 }
 
@@ -311,7 +315,8 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 #' }
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T,
-  vepCall='vep', resourceDirectory=resourceDirectory, mode='exome', filterOffTarget=T, rareGermline=T, annotationMethod='VariantAnnotation') {
+  vepCall='vep', resourceDirectory=resourceDirectory, mode='exome', filterOffTarget=T, rareGermline=T,
+  annotationMethod='VariantAnnotation', ploidyPriors=NULL) {
   options(stringsAsFactors = F)
   options(scipen = 10)
 
@@ -361,8 +366,8 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   vepCall = settings$vepCall
   sampleMetaDataFile = inputFiles$metaDataFile
   vcfFiles = inputFiles$vcfFiles
+  reference = ''
   if ( 'reference' %in% names(inputFiles) ) reference = inputFiles$reference
-  else reference = ''
   if ( !file.exists(reference) ) stop('Reference file doesnt exist at path ', reference, '. Please point to the .fa file used to align the .bams.')
   normalDirectory = inputFiles$normalDirectory
   normalRdirectory = paste0(normalDirectory, '/R')
@@ -483,42 +488,8 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   forceRedoVEP = forceRedo$forceRedoVEP
   forceRedoSignature = forceRedo$forceRedoSignature
 
-  externalNormalBams =
-    normalizePath(c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
-      list.files(path=paste0(normalDirectory, '/bam'), pattern = '*.bam$', full.names=T)))
-  names(externalNormalBams) = make.names(gsub('.bam$', '', basename(externalNormalBams)), unique=T)
-  catLog('Normal bamfiles are:\n')
-  catLog(externalNormalBams, sep='\n')
-  if ( length(externalNormalBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalDirectory,
-                                             ' and ', paste0(normalDirectory, '/bam'),
-                                             '. Please check that the path is correct and that at least 2 bam files are there.')
-
-  externalNormalbamIndexFiles = paste0(externalNormalBams, '.bai')
-  externalNormalbamIndexFiles2 = gsub('.bam$', '.bai', externalNormalBams)
-  if ( any(!(file.exists(externalNormalbamIndexFiles) | file.exists(externalNormalbamIndexFiles2))) ) {
-    missingIndex = !(file.exists(externalNormalbamIndexFiles) | file.exists(externalNormalbamIndexFiles2))
-    catLog('Could not find bam index files for:' , externalNormalBams[missingIndex], '.\n')
-    stop('Could not find bam index files for:' , externalNormalBams[missingIndex], '\n')
-  }
-
-
-  externalNormalCoverageBams =
-        normalizePath(c(list.files(path=paste0(normalCoverageDirectory), pattern = '*.bam$', full.names=T),
-      list.files(path=paste0(normalCoverageDirectory, '/bam'), pattern = '*.bam$', full.names=T)))
-  names(externalNormalCoverageBams) = make.names(gsub('.bam$', '', basename(externalNormalCoverageBams)), unique=T)
-  catLog('Normal coverage bamfiles are:\n')
-  catLog(externalNormalCoverageBams, sep='\n')
-  if ( length(externalNormalCoverageBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalCoverageDirectory,
-                                             ' and ', paste0(normalCoverageDirectory, '/bam'),
-                                             '. Please check that the path is correct and that at least 2 .bam files are there.')
-
-    externalNormalCoveragebamIndexFiles = paste0(externalNormalCoverageBams, '.bai')
-  externalNormalCoveragebamIndexFiles2 = gsub('.bam$', '.bai', externalNormalCoverageBams)
-  if ( any(!(file.exists(externalNormalCoveragebamIndexFiles) | file.exists(externalNormalCoveragebamIndexFiles2))) ) {
-    missingIndex = !(file.exists(externalNormalCoveragebamIndexFiles) | file.exists(externalNormalCoveragebamIndexFiles2))
-    catLog('Could not find bam index files for:' , externalNormalCoverageBams[missingIndex], '.\n')
-    stop('Could not find bam index files for:' , externalNormalCoverageBams[missingIndex], '\n')
-  }
+  externalNormalBams = findReferenceBams(normalDirectory)
+  externalNormalCoverageBams = findReferenceBams(normalCoverageDirectory)
 
   if ( captureRegionsFile == '' ) captureRegionsFile = downloadCaptureRegions(directory=Rdirectory, genome=genome, mode=mode)
   captureRegions = importCaptureRegions(captureRegionsFile, reference=reference, Rdirectory=Rdirectory, genome=genome)
@@ -549,7 +520,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     catLog('Want only YES or NO in normal column, aborting.\n')
     stop('Want only YES or NO in normal column, aborting.\n')
   }
-  bamFiles = sampleMetaData$BAM
+  bamFiles = sapply(sampleMetaData$BAM, findBamWithBai)
   sampleNames = make.names(sampleMetaData$NAME, unique=T)
   individuals = sampleMetaData$INDIVIDUAL
   timePoints = sampleMetaData$TIMEPOINT
@@ -565,8 +536,12 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   }
   if ( 'VCF' %in% colnames(sampleMetaData) ) {
     if ( any(!file.exists(sampleMetaData$VCF)) ) {
-      catLog('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '.\n')
-      stop('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)])
+      catLog('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '. Trying to generate from BAM files with varscan.\n')
+      performPreliminaryVariantCallingOnMissingVCFs(sampleMetaData, reference, cpus)
+      if ( any(!file.exists(sampleMetaData$VCF)) ) {
+        catLog('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '. Could not generate with varscan, exiting. Enable varscan, or point to existing VCFs.\n')
+        stop('Missing (or misnamed) vcf files:' , sampleMetaData$VCF[!file.exists(sampleMetaData$VCF)], '. Could not generate with varscan, exiting. Enable varscan, or point to existing VCFs.')
+      }
     }
   }
   bamIndexFiles = paste0(bamFiles, '.bai')
@@ -589,15 +564,26 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     catLog('',ts, '\n', sep='   ')
   catLog('\n##################################################################################################\n\n')
 
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
+  
   #compare coverage of samples to the pool of normals, using limma-voom.
   fit = runDE(bamFiles, sampleNames, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
     normalCoverageRdirectory, settings=settings, cpus=cpus, forceRedoFit=forceRedoFit, forceRedoCount=forceRedoCount,
     forceRedoNormalCount=forceRedoNormalCount, mode=mode)
 
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
+
   #Plot volcanoes and output an excel file with top DE regions.
   ret = makeFitPlots(fit, plotDirectory, genome,
     forceRedoVolcanoes=forceRedoVolcanoes, forceRedoDifferentRegions=forceRedoDifferentRegions)
 
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
 
   saveFile = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
   {
@@ -638,13 +624,20 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
   rm(normalVariants)
   rm(allVariants)
-  gc()
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
 
-  #run VEP
+  #annotate variants
   saveFile = paste0(Rdirectory, '/allVariants.Rdata')
   if ( file.exists(saveFile) & !forceRedoVEP ) {
     catLog('Loading final version of combined variants.\n')
     load(file=saveFile)
+    variants = allVariants$variants
+    rm(allVariants)
+    gcSummary = colSums(gc(reset=T))[c(2,6)]
+    catLog(as.character(Sys.time()), '\n')
+    catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
   }
   else {
     if ( annotationMethod == 'VEP' ) {
@@ -659,65 +652,100 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
       variants$variants = annotateSomaticQs(variants$variants, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
       load(file=paste0(Rdirectory, '/allVariantsPreVEP.Rdata'))
       allVariants$variants = variants
+      catLog('Saving annotated variants to ', saveFile, '.\n', sep='')
       save(allVariants, file=saveFile)
     }
     rm(allVariants)
-    gc()
+    gcSummary = colSums(gc(reset=T))[c(2,6)]
+    catLog(as.character(Sys.time()), '\n')
+    catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
   }
 
 
   #call CNVs compared to the normals.
   cnvs =
     callCNVs(variants=variants, fitS=fit$fit, variants$SNPs,
-                 names=sampleNames, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
-                 genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias, mode=mode)
+             samples=sampleNames, individuals=individuals, normals=normals, Rdirectory=Rdirectory, plotDirectory=plotDirectory,
+             genome=genome, cpus=cpus, forceRedoCNV=forceRedoCNV, correctReferenceBias=correctReferenceBias, mode=mode,
+             ploidyPriors=ploidyPriors)
 
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
 
   #make CNV plots
+  catLog(as.character(Sys.time()), '\n')
   cnvplot = makeCNVplots(cnvs, plotDirectory=plotDirectory, genome, forceRedoCNVplots=forceRedoCNVplots)
 
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
+
   #combine SNPs and CNVs into stories of subclones.
-  stories = getStories(variants=variants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome, cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
-    plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge,
-    correctReferenceBias=correctReferenceBias)
+  catLog(as.character(Sys.time()), '\n')
+  stories =
+    getStories(variants=variants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome,
+               cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
+               plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge,
+               correctReferenceBias=correctReferenceBias)
   variants = stories$variants
   normalVariants = stories$normalVariants
   stories = stories$stories
   rm(normalVariants)
-  gc()
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
 
   #do multi-sample heatmaps and frequency progression
+  catLog(as.character(Sys.time()), '\n')
   progression = makeSNPprogressionPlots(variants, timeSeries, normals, plotDirectory, cpus=cpus, forceRedo=forceRedoSNPprogression, genome=genome)
   
   #make summary plots
+  catLog(as.character(Sys.time()), '\n')
   summary = makeSummaryPlot(variants, cnvs, normals, individuals, timePoints, plotDirectory,
     genome, cpus, forceRedo=forceRedoSummary)
   
   #identify and output new variants
+  catLog(as.character(Sys.time()), '\n')
   newVar = outputNewVariants(variants, samplePairs, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoNewVariants)
   
   #output somatic variants
+  catLog(as.character(Sys.time()), '\n')
   somatics = outputSomaticVariants(variants, genome, plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic)
 
   #plot the rivers
+  catLog(as.character(Sys.time()), '\n')
   river =
     makeRiverPlots(stories, variants, genome, cpus=cpus, plotDirectory,
                    forceRedo=forceRedoRiver, annotationMethod=annotationMethod)
 
   #Make the scatter plots of the pairs
+  catLog(as.character(Sys.time()), '\n')
   scatter = makeScatterPlots(variants, samplePairs, timePoints, plotDirectory,
     genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
   #also the version coloured by clone
+  catLog(as.character(Sys.time()), '\n')
   makeCloneScatterPlots(variants, stories, samplePairs, individuals, timePoints,
                         plotDirectory, genome=genome, cpus=cpus, forceRedo=forceRedoScatters)
 
+  #make the CNA summary plot across individuals
+  catLog(as.character(Sys.time()), '\n')
+  makeCNAheatmap(clusters=cnvs, plotDirectory=plotDirectory, genome=genome)
+
   #make the signature plots
+  catLog(as.character(Sys.time()), '\n')
   plotProfiles(Rdirectory=Rdirectory, plotDirectory=plotDirectory, stories=stories,
                variants=variants, genome=genome, forceRedo=forceRedoSignature)
   
   #output smore data
+  catLog(as.character(Sys.time()), '\n')
   outputData(cnvs, stories, plotDirectory, genome=genome)
+
+  gcSummary = colSums(gc(reset=T))[c(2,6)]
+  catLog(as.character(Sys.time()), '\n')
+  catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
       
+  catLog(as.character(Sys.time()), '\n')
   catLog('\nDone! :)\n\n')
   
   return(list('fit'=fit, 'variants'=variants, 'cnvs'=cnvs, 'stories'=stories))
@@ -1197,10 +1225,6 @@ propagateForceRedo = function(forceRedo) {
     forceRedo$forceRedoOutputSomatic = T
     forceRedo$forceRedoSignature = T
   }
-  if ( forceRedo$forceRedoOutputSomatic ) {
-    catLog('Redoing somaitc spread sheets, so need to redo variant annotation.\n')
-    forceRedo$forceRedoVEP = T
-  }
   return(forceRedo)
 }
 
@@ -1265,4 +1289,40 @@ checkSystem = function(vepCall, testVEP=F) {
         catLog('Found VEP. Seems ok.\n')
     }
   }
+}
+
+
+
+
+findReferenceBams = function(normalDirectory) {
+  
+  externalNormalBams = c(list.files(path=paste0(normalDirectory), pattern = '*.bam$', full.names=T),
+    list.files(path=paste0(normalDirectory, '/bam'), pattern = '*.bam$', full.names=T))
+  externalNormalBams = sapply(externalNormalBams, findBamWithBai)
+  names(externalNormalBams) = make.names(gsub('.bam$', '', basename(externalNormalBams)), unique=T)
+  
+  catLog('Normal bamfiles are:\n')
+  catLog(externalNormalBams, sep='\n')
+  if ( length(externalNormalBams) < 2 ) stop('Found less than 2 reference normal bam files in ', normalDirectory,
+                                             ' and ', paste0(normalDirectory, '/bam'),
+                                             '. Please check that the path is correct and that at least 2 bam files are there.')
+
+  if ( any(is.na(externalNormalBams)) ) stop('Got NA normal bams in findReferenceBamsAndBais when looking for reference normal bams in ', normalDirectory)
+  
+  return(externalNormalBams)
+}
+  
+findBamWithBai = function(bamPath) {
+  if ( length(bamPath) > 1 ) stop('findBamWithBai called with input longer than 1 :o')
+  if ( !file.exists(bamPath) ) stop('The input bam file ', bamPath, ' does not exist in findBamWithBai. :/')
+  absBamPath = normalizePath(bamPath)
+  absBaiPath1 = paste0(absBamPath, '.bai')
+  absBaiPath2 = gsub('.bam$', '.bai', absBamPath)
+  if ( grepl('\\.bam$', absBamPath) & any(file.exists(c(absBaiPath1, absBaiPath2))) ) return(absBamPath)
+
+  baiPath1 = paste0(bamPath, '.bai')
+  baiPath2 = gsub('.bam$', '.bai', bamPath)
+  if ( grepl('\\.bam$', bamPath) & any(file.exists(c(baiPath1, baiPath2))) ) return(bamPath)
+
+  stop('Couldnt find an index file for the bam file ', bamPath, ', physically located at ', absBamPath, '. The file (link or absolute) needs to end in .bam and have a corresponding index file called .bam.bai, or .bai. Some versions of dependencies prefer the index file at the absolute location, so if in doubt, place them there.')
 }
