@@ -383,6 +383,8 @@ addCOSMICannotation = function(q, genome, resourceDirectory) {
   xr = xr[xr$x %in% q$x,] #this speeds up the random access next lines
   rownames(xr) = xr$x
   xr = xr[as.character(q$x),]
+  xr$rates[is.na(xr$rates)] = 0
+  xr$rank[is.na(xr$rank)] = nrow(cosmicCounts$xRates)+1
   q$cosmicVariantFrequency = xr$rates
   q$cosmicVariantRank = xr$rank
 
@@ -535,97 +537,6 @@ preprocessClinvar = function(clinvarFile, saveDir) {
   save(clinvar, file=paste0(saveDir, '/clinvar38.Rdata'))
 }
 
-
-#set up for example during development
-if ( F ) {
-  #uval melanoma from TCGA
-  setwd('~/gdc/TCGA/analysis/TCGA-YZ-A985/')
-  library(superFreq)
-  source('~/home/Rscripts/CNVcaller/runVariantAnnotation.R')
-  library(VariantAnnotation)
-  genome='hg38'
-  resourceDirectory = '~/temp/sfRes'
-  reference = '~/home/leukemia_genomics/data/reference/hg38/hg38.fa'
-  cpus = 5
-
-  load('~/gdc/TCGA/analysis/TCGA-YZ-A985/WXS_R/allVariants.Rdata')
-  q = allVariants$variants$variants$TCGA.YZ.A985.PrimaryTumor.WXS.194
-  q = q[q$somaticP > 0,]
-  qs = allVariants$variants$variants
-  catLog = cat
-
-
-  #an internal dlbcl sample
-  library(superFreq)
-  source('~/home/Rscripts/CNVcaller/runVariantAnnotation.R')
-  library(VariantAnnotation)
-  genome='hg19'
-  resourceDirectory = '~/gdc/superFreq/testCNVdlbcl/superFreqResources'
-  reference = '~/gdc/superFreq/testCNVdlbcl/reference/hg19.fa'
-  cpus = 5
-  load('~/gdc/superFreq/testCNVdlbcl/R/allVariantsPreVEP.Rdata')
-  qs = allVariants$variants$variants
-  catLog = cat
-
-
-  #an internal dlbcl sample
-  library(superFreq)
-  source('~/home/Rscripts/CNVcaller/runVariantAnnotation.R')
-  library(VariantAnnotation)
-  genome='hg19'
-  resourceDirectory = '~/gdc/superFreq/testCNV108/superFreqResources'
-  reference = '~/gdc/superFreq/testCNV108/reference/hg19.fa'
-  cpus = 5
-  load('~/gdc/superFreq/testCNV108/R/patient1/allVariantsPreVEP.Rdata')
-  qs = allVariants$variants$variants
-  catLog = cat
-
-  #an internal mm10 sample
-  library(superFreq)
-  source('~/home/Rscripts/CNVcaller/runVariantAnnotation.R')
-  library(VariantAnnotation)
-  genome='mm10'
-  resourceDirectory = '~/gdc/superFreq/testCNVmm/superFreqResources'
-  reference = '~/gdc/superFreq/testCNVmm/reference/mm10.fa'
-  cpus = 5
-
-  #try running without this to test performance on 60k variants.
-  load('~/gdc/superFreq/testCNVmm/R/mouse/allVariantsPreVEP.Rdata')
-  qs = allVariants$variants$variants
-
-
-  #annotate
-  qs = annotateSomaticQs(qs=qs, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
-
-  #plot scatter
-  source('~/home/Rscripts/CNVcaller/makeScatterPlots.R')
-  vafScatter(qs[[2]], qs[[1]], plotFlagged=F, cpus=cpus, genome=genome)
-
-  #river
-  load('~/gdc/superFreq/testCNVuveal/R/stories.Rdata')
-  stories = stories$stories
-  load('~/gdc/superFreq/testCNVuveal/R/allVariants.Rdata')
-  patVar = allVariants$variants
-  patVar$variants = patVar$variants[colnames(stories[[1]]$consistentClusters$cloneStories$stories)]
-  plotRiver(cloneTree=stories[[1]]$consistentClusters$cloneTree, cloneStories=stories[[1]]$consistentClusters$cloneStories, storyList=stories[[1]]$consistentClusters$storyList, allStories=stories[[1]]$allConsistent, variants=patVar, genome='hg38')
-
-  #somaticVariants
-  load('~/gdc/superFreq/testCNVuveal/R/allVariants.Rdata')
-  variants = allVariants$variants
-  somatics = outputSomaticVariants(variants, genome='hg38', '~/gdc/superFreq/testCNVuveal/plots', cpus=cpus, forceRedo=T)
-
-  #function that compares calls between VEP and VariantAnnotator
-  compareVEP = function(allVariantsFile, genome='hg19') {
-    load(allVariantsFile)
-    qs = allVariants$variants$variants
-    newQs = annotateSomaticQs(qs=qs, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
-    use = qs[[1]]$severity < 100
-    plotColourScatter(qs[[1]]$severity[use], newQs[[1]]$severity[use])
-    segments(0,11,100,11)
-    segments(11,0,11,100)
-    print(table(paste0(qs[[1]]$severity[use], ' - ', newQs[[1]]$severity[use])))
-  }
-}
 
 
 
