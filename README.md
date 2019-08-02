@@ -89,6 +89,8 @@ You need the aligned bam files of the exomes, and a preliminary (liberal) varian
 samtools mpileup -d 1000 -q 15 -Q 15 -A -f reference/theAlignedToReference.fa  bam/mySample.bam | varscan mpileup2cns - --variants --strand-filter 0 --p-value 0.01 --min-var-freq 0.02 --output-vcf 1 > vcf/mySample.vcf
 ```
 
+From version 1.3.0, superFreq will automatically run this command in case the .vcf files linked in the meta data are missing. Note that this requires both `samtools` and `varscan` to be available in the system environment in which the superFreq R session is running.
+
 SuperFreq also requires a set of (at least 2, 5+ is better) reference normal samples from the same sequencing technology and exome capture.
 Preferably sequenced in the same lab. These samples do not have to be related to the analysed cancer exomes.
 
@@ -142,8 +144,19 @@ superFreq(
           )
 ```
 
-There is also an afterburner analysis that merges all patients and looks for repeatedly mutated genes, but it's not really streamlined for users yet. Soon. If you want to try it out, have a look here: https://github.com/ChristofferFlensburg/superFreq/issues/38
+When analysing multiple indivuduals, there are cohort-level analysis and visualisation tools available, wrapped into the function `superFreq::runSummaryPostAnalysis`. After all the superFreq runs have finished for the individuals, you can run the cohort analysis with:
 
+``` R
+runSummaryPostAnalysis(metaDataFile='metaData.tsv',
+           Rdirectory='/path/to/R',
+           plotDirectory='/path/to/plots',
+           cpus=4,
+           genome='hg38')
+```
+
+The output will be in `/path/to/plots/cohortWide`. Some of the output is focused on a shortlist of Genes of Interest (GoI) that can be given as argument (`runSummaryPostAnalysis(..., GoI=c('TP53', 'KRAS', 'NRAS'))`), or it will otherwise be set from frequently altered genes in the samples, filtered against COSMIC and ClinVar.
+
+Varikondo developed at https://github.com/annaquaglieri16/varikondo is an R package that provides interactive visualisation of output from superFreq and other variant callers over a subset of Genes of Interest.
 
 # Acknowledgements
 We wish to thanks all the organisations sharing data and resources openly, which allows preprocessing and redistribution. This allows superFreq to depend on only a single connection (which is the WEHI servers atm) and a minimum amount of data downloaded. So this limits the risk of 'server X could not be found' type of errors, and it limits the download size of the preprocessed data to hundreds of MBs, rather than hundreds of GBs for the unprocessed original data. It also saves time for everyone by removing user parsing of external resources from the analysis.
