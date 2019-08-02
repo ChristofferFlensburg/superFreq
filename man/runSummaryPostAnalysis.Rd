@@ -38,13 +38,13 @@ This function carries out a number analyses across the individuals analysed in t
 superFreq(metaDataFile='metaData.tsv',
           Rdirectory='R',
           plotDirectory='plots',
-          cpus='4',
+          cpus=4,
           genome='hg38')
 
 runSummaryPostAnalysis(metaDataFile='metaData.tsv',
           Rdirectory='R',
           plotDirectory='plots',
-          cpus='4',
+          cpus=4,
           genome='hg38')
 
 }

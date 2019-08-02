@@ -459,13 +459,13 @@ makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdire
 #' superFreq(metaDataFile='metaData.tsv',
 #'           Rdirectory='R',
 #'           plotDirectory='plots',
-#'           cpus='4',
+#'           cpus=4,
 #'           genome='hg38')
 #'
 #' runSummaryPostAnalysis(metaDataFile='metaData.tsv',
 #'           Rdirectory='R',
 #'           plotDirectory='plots',
-#'           cpus='4',
+#'           cpus=4,
 #'           genome='hg38')
 #'
 #' }
@@ -527,7 +527,7 @@ runSummaryPostAnalysis = function(Rdirectory='R', plotDirectory='plots', metaDat
 
 
 loadQsList = function(Rdirectory='R', excludeIndividuals=c(), excludeSamples=c()) {
-  individuals = list.dirs(paste0(Rdirectory, "/"), full.names = F)
+  individuals = list.dirs(paste0(Rdirectory, "/"), full.names = F, recursive=F)
   individuals = individuals[individuals != ""]
   individuals = individuals[!(individuals %in% excludeIndividuals)]
   names(individuals) = individuals

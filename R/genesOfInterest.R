@@ -298,7 +298,7 @@ findGoI = function(Rdirectory='R', cosmicCensus=T, clinvarPathogenic=T, clinvarA
       grepl('[pP]athogenic$', paste0(q$ClinVar_ClinicalSignificance))
     use =
       isSomatic & isCoding & isntSubclonal &
-      (isCosmicCensus*cosmicCensus | isClinvarPathogenic*clinvarPathogenic | isClinvarAny*clinvarAny)
+      ((isCosmicCensus&cosmicCensus) | (isClinvarPathogenic&clinvarPathogenic) | (isClinvarAny&clinvarAny))
     return(unique(q$inGene[use]))
     })
   GoI = unique(unlist(GoIlist))
