@@ -228,10 +228,16 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
 
   parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut, cosmicSalvageRate=cosmicSalvageRate)
 
-  downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
-  downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
-  downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
-  downloadSuperFreqSignatures(signaturesDirectory)
+  worked = try({
+    downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
+    downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
+    downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
+    downloadSuperFreqSignatures(signaturesDirectory)
+  })
+  if ( class(worked) == 'try-error' ) {
+    catLog("\nError in resource download, exiting. This might be due to connection issues, or due to the WEHI servers being offline. Make sure the machine has internet connection, or try re-using reosurces from a previous run, or download manually from the mirror at https://figshare.com/articles/superFreqResources_tar_gz/9202289.\n")
+    stop('Error in resource download, exiting. This might be due to connection issues, or due to the WEHI servers being offline. Make sure the machine has internet connection, or try re-using reosurces from a previous run, or download manually from the mirror at https://figshare.com/articles/superFreqResources_tar_gz/9202289.')
+  }
   
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
