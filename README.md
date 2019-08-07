@@ -19,12 +19,14 @@ Start R
 #load devtools that allows installation from github (may need to install devtools first with install.packages("devtools"))
 library(devtools)
 
-#there has been conflicts between install_github and bioconductor in different version
-#so safer to manually install bioconductor dependencies first.
-source("https://bioconductor.org/biocLite.R")
-biocLite("GenomeInfoDb")
-biocLite("GenomicFeatures")
-biocLite("VariantAnnotation")
+#there are sometimes conflicts between the github install and bioconductor in different version
+#so safer to manually install bioconductor dependencies.
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install()
+BiocManager::install("GenomeInfoDb")
+BiocManager::install("GenomicFeatures")
+BiocManager::install("VariantAnnotation")
 
 #then install superFreq
 install_github('ChristofferFlensburg/superFreq')
