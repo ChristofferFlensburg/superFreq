@@ -470,10 +470,8 @@ makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdire
 #'
 #' }
 runSummaryPostAnalysis = function(Rdirectory='R', plotDirectory='plots', metaDataFile='metaData.tsv', genome, GoI=NA, GoIakas=c(), excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
-  if ( !base::exists('catLog') ) {
-    logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
-    assign('catLog', function(...) {cat(...);cat(..., file=logFile, append=T)}, envir = .GlobalEnv)
-  }
+  logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
+  assign('catLog', function(...) {cat(...);cat(..., file=logFile, append=T)}, envir = .GlobalEnv)
 
   catLog('\nRunning summary post analysis.\n')
   
