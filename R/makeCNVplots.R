@@ -373,18 +373,12 @@ makeCNAheatmap = function(clusters, plotDirectory, genome) {
 
 #merges and makes CNA heatmaps across all the individuals of a batch.
 #requires the batch to be run with split=T (Which you should anyway).
-plotCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F, xlim=NULL, excludeIndividuals=c(), excludeSamples=c()) {
-  individuals = list.dirs(paste0(Rdirectory, '/'), full.names=F)
-  individuals = individuals[individuals != '']
-  individuals = individuals[!(individuals %in% excludeIndividuals)]
-  clusterList = lapply(individuals, function(ind) {
-    load(paste0(Rdirectory, '/', ind, '/clusters.Rdata'))
-    clusters = clusters[!(names(clusters) %in% excludeSamples)]
-    return(clusters)
-  })
+plotCNAbatchHeatmap = function(Rdirectory, metaDataFile, genome, onlyNumbers=F, xlim=NULL, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+  clusterList = loadClusterList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
+                                excludeSamples=excludeSamples, cpus=cpus)
 
   chrL = chrLengths(genome)
-  ymax = 1+sum(sapply(clusterList, length)) + 0.5*(length(individuals)-1)
+  ymax = 1+sum(sapply(clusterList, length)) + 0.5*(length(clusterList)-1)
   if ( is.null(xlim) ) xlim=c(0, 1)*sum(chrL)
   xlimPlot = c(xlim[1] - 0.1*(xlim[2]-xlim[1]), xlim[2])
   plot(1, type='n', xlim=xlimPlot, ylim=c(0.5, ymax), xlab='', ylab='', xaxt='n', yaxt='n', frame.plot=F)
@@ -398,11 +392,12 @@ plotCNAbatchHeatmap = function(Rdirectory, genome, onlyNumbers=F, xlim=NULL, exc
 }
 
 #makes summary plots of CNAs across all individuals in the batch.
-makeCNAbatchHeatmap = function(Rdirectory, plotDirectory, genome) {
+makeCNAbatchHeatmap = function(Rdirectory, plotDirectory, metaDataFile, genome, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
   cohortDir = paste0(plotDirectory, '/cohortWide')
   superFreq:::ensureDirectoryExists(cohortDir)
   plotFile = paste0(cohortDir, '/CNAsummary.pdf')
   pdf(plotFile, width=15, height=10)
-  plotCNAbatchHeatmap(Rdirectory=Rdirectory, genome=genome)
+  plotCNAbatchHeatmap(Rdirectory=Rdirectory, metaDataFile=metaDataFile, genome=genome,
+                      excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   dev.off()
 }

@@ -4,8 +4,9 @@
 \alias{plotCNAheatmapOverGoI}
 \title{plots a heatmap of copy numbers, focusing on a gene of interest}
 \usage{
-plotCNAheatmapOverGoI(gene, Rdirectory, genome, padding = 3e+06,
-  excludeIndividuals = c(), excludeSamples = c(), GoIakas = c())
+plotCNAheatmapOverGoI(gene, Rdirectory, genome, metaDataFile,
+  excludeIndividuals = c(), excludeSamples = c(), GoIakas = c(),
+  cpus = 1, padding = 3000000)
 }
 \arguments{
 \item{Rdirectory}{character The Rdirectory where the superFreq run was run.}

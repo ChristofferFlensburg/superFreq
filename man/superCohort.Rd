@@ -4,8 +4,7 @@
 \alias{superCohort}
 \title{looks for reccuring events across all individuals in a batch run}
 \usage{
-superCohort(metaDataFile, Rdirectory = "R", plotDirectory = "plots",
-  cpus = 1, genome = "hg19",
+superCohort(metaDataFile, Rdirectory, plotDirectory, genome, cpus = 1,
   resourceDirectory = "superFreqResources", ...)
 }
 \arguments{
@@ -15,9 +14,9 @@ superCohort(metaDataFile, Rdirectory = "R", plotDirectory = "plots",
 
 \item{plotDirectory}{character: path to the plotDirectory of the batch run.}
 
-\item{cpus}{integer: maximum number of threads used. default 1.}
-
 \item{genome}{character: The genome build. 'hg19', hg38' or 'mm10'. Default 'hg19'}
+
+\item{cpus}{integer: maximum number of threads used. default 1.}
 
 \item{resourceDirectory}{character: path to the superFreq resources. Default 'superFreqResources'.}
 

@@ -35,7 +35,7 @@ projectMeanCNV = function(metaData, project, cpus=1, cosmicDirectory='', onlyDNA
   subgroups = getSubgroups(metaData, project, includeNormal=includeNormal)
   catLog('Subgroups:\n')
   for ( sg in subgroups ) cat(sg, '\n')
-  if ( length(subgroups) > 0 ) { 
+  if ( length(subgroups) > 1 ) { 
     for ( subgroup in subgroups ) {
       catLog('Plotting mean CNV for subgroup', subgroup, '...')
       plotDirectory = paste0(metaData$project[project,]$plotDirectory, '/', subgroup)

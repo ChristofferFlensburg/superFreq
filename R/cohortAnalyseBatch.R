@@ -309,7 +309,7 @@ mergeBatches = function(paths, targetMetaDataFile, targetRdirectory, cpus=1) {
 #'           genome=genome)
 #'
 #' }
-superCohort = function(metaDataFile, Rdirectory='R', plotDirectory='plots', cpus=1, genome='hg19', resourceDirectory='superFreqResources', ...) {
+superCohort = function(metaDataFile, Rdirectory, plotDirectory, genome, cpus=1, resourceDirectory='superFreqResources', ...) {
   metaDataDir = paste0(dirname(metaDataFile), '/splitMetaData')
   metaDataFiles = list.files(metaDataDir, pattern='*.tsv', full.names=T)
   cohortDir = normalizePath(paste0(plotDirectory, '/cohort'))
@@ -349,20 +349,10 @@ superCohort = function(metaDataFile, Rdirectory='R', plotDirectory='plots', cpus
 
 #calculates hwo related the sampels are based on germline SNPs, and makes a heatmap.
 #purpose is to catch mislabeled samples assigned to the wrong individual
-checkRelatedness = function(Rdirectory='R', plotDirectory='plots', cpus=1) {
-  if ( !file.exists(Rdirectory) ) stop('Rdirectory input to checkRelatedness: ', Rdirectory, ' doesnt exist.')
-  if ( !file.exists(plotDirectory) ) stop('plotDirectory input to checkRelatedness: ', plotDirectory, ' doesnt exist.')
-  samples = list.dirs(Rdirectory, recursive=F, full.names=F)
-  variantFiles = paste0(Rdirectory, '/', samples, '/allVariants.Rdata')
-  variantFiles = variantFiles[file.exists(variantFiles)]
-  cat('Loading variants')
-  qsList = mclapply(variantFiles, function(file) {
-    cat('.')
-    load(file)
-    return(allVariants$variants$variants)
-  }, mc.cores=cpus, mc.preschedule=F)
+checkRelatedness = function(Rdirectory, plotDirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+  qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, metaDataFile=metaDataFile,
+                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   qs = do.call(c, qsList)
-  cat('done.\n')
   
   cat('Calculating relatedness matrix')
   samples = names(qs)
@@ -399,39 +389,17 @@ checkRelatedness = function(Rdirectory='R', plotDirectory='plots', cpus=1) {
 }
 
 #takes all the somatic variants in the cohort and outputs them to a CSV.
-makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdirectory='R', plotDirectory='plots', cpus=1) {
-  if ( !file.exists(Rdirectory) ) stop('Rdirectory input to checkRelatedness: ', Rdirectory, ' doesnt exist.')
-  if ( !file.exists(plotDirectory) ) stop('plotDirectory input to checkRelatedness: ', plotDirectory, ' doesnt exist.')
-  if ( !file.exists(metaDataFile) ) stop('metaDataFile input to checkRelatedness: ', metaDataFile, ' doesnt exist.')
-  samples = list.dirs(Rdirectory, recursive=F, full.names=F)
-  variantFiles = paste0(Rdirectory, '/', samples, '/allVariants.Rdata')
-  variantFiles = variantFiles[file.exists(variantFiles)]
-  md = importSampleMetaData(metaDataFile)
+makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdirectory='R', plotDirectory='plots', cpus=1, excludeIndividuals=c(), excludeSamples=c()) {
   cat('Loading variants')
-  qsList = mclapply(variantFiles, function(file) {
-    cat('.')
-    load(file)
-    qs = allVariants$variants$variants
-    qs = lapply(names(qs), function(sample) {
-      q = qs[[sample]]
-      q = q[q$somaticP > 0,]
-      q$sample = sample
-      q$individual = basename(gsub('/allVariants.Rdata', '', file))
-      q$normalSample = md[sample,]$NORMAL
-      q$chr = xToChr(q$x, genome=genome)
-      q$pos = xToPos(q$x, genome=genome)
-      q = q[,c((ncol(q)-4):ncol(q), 1:(ncol(q)-5))]
-      return(q)
-    })
-    return(qs)
-  }, mc.cores=cpus, mc.preschedule=F)
+  qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, metaDataFile=metaDataFile,
+                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   qs = do.call(c, qsList)
   q = do.call(rbind, qs)
   cat('done.\n')
 
   cohortPlots = paste0(plotDirectory, '/cohortWide')
   superFreq:::ensureDirectoryExists(cohortPlots)
-  csvFile = paste0(cohortPlots, '/pointMutations.csv')
+  csvFile = paste0(cohortPlots, '/variants.csv')
   write.csv(q, file=csvFile)
 
   return(invisible(q))
@@ -469,7 +437,11 @@ makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdire
 #'           genome='hg38')
 #'
 #' }
-runSummaryPostAnalysis = function(Rdirectory='R', plotDirectory='plots', metaDataFile='metaData.tsv', genome, GoI=NA, GoIakas=c(), excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+runSummaryPostAnalysis = function(Rdirectory, plotDirectory, metaDataFile, genome, resourceDirectory='superFreqResources', GoI=NA, GoIakas=c(), excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+  if ( !file.exists(Rdirectory) ) stop('Rdirectory: ', Rdirectory, ' not found.')
+  if ( !file.exists(metaDataFile) ) stop('metaDataFile: ', metaDataFile, ' not found.')
+  if ( !file.exists(plotDirectory) ) stop('plotDirectory: ', plotDirectory, ' not found.')
+
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) {cat(...);cat(..., file=logFile, append=T)}, envir = .GlobalEnv)
 
@@ -477,45 +449,53 @@ runSummaryPostAnalysis = function(Rdirectory='R', plotDirectory='plots', metaDat
   
   if ( is.na(GoI[1]) ) {
     catLog('Finding frequently mutated genes as Genes of Interest...')
-    GoI = superFreq:::findGoI(Rdirectory=Rdirectory, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples)
+    GoI = superFreq:::findGoI(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
+                              excludeSamples=excludeSamples, cpus=cpus)
     catLog('done.\n')
     catLog('GoI are:', GoI, '\n')
   }
   
   catLog('Making summary .csv of all somatic point mutations.\n')
-  superFreq:::makeCSVofAllPointMutations(genome=genome, metaDataFile=metaDataFile, Rdirectory=Rdirectory, plotDirectory=plotDirectory, cpus=cpus)
+  superFreq:::makeCSVofAllPointMutations(genome=genome, metaDataFile=metaDataFile, Rdirectory=Rdirectory,
+                                         plotDirectory=plotDirectory, cpus=cpus, excludeIndividuals=excludeIndividuals,
+                                         excludeSamples=excludeSamples)
   
   catLog('Making heatmap of CNAs across all samples.\n')
-  superFreq:::makeCNAbatchHeatmap(Rdirectory, plotDirectory, genome)
+  superFreq:::makeCNAbatchHeatmap(Rdirectory=Rdirectory, plotDirectory=plotDirectory, metaDataFile=metaDataFile,
+                                  genome=genome, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   
   catLog('Making relatedness matrix.\n')
-  superFreq:::checkRelatedness(Rdirectory=Rdirectory, plotDirectory=plotDirectory, cpus=cpus)
+  superFreq:::checkRelatedness(Rdirectory=Rdirectory, plotDirectory=plotDirectory, metaDataFile=metaDataFile,
+                               excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   
   catLog('Making heatmap of CNAs across all samples with GoI highlighted.\n')
   plotDir = paste0(plotDirectory, '/cohortWide')
   superFreq:::ensureDirectoryExists(plotDir)
   pdf(paste0(plotDir, '/GoI_cnaHeatmap.pdf'), width=15, height=10)
-  superFreq:::plotCNAheatmapWithGoI(GoI, Rdirectory, genome, GoIakas=GoIakas)
+  superFreq:::plotCNAheatmapWithGoI(GoI=GoI, Rdirectory=Rdirectory, genome=genome, metaDataFile=metaDataFile,
+                                    excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus, GoIakas=GoIakas)
   dev.off()
   
   catLog('Making heatmaps of CNAs zoomed in on the GoI.\n')
   pdf(paste0(plotDir, '/GoI_cnaHeatmap_zoomed.pdf'), width=15, height=10)
   for ( gene in GoI )
-    superFreq:::plotCNAheatmapOverGoI(gene, Rdirectory, genome, GoIakas=GoIakas)
+    superFreq:::plotCNAheatmapOverGoI(gene=gene, Rdirectory=Rdirectory, genome=genome, metaDataFile=metaDataFile,
+                                      excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus, GoIakas=GoIakas)
   dev.off()
   
   catLog('Making mutation matrix across samples for GoI.\n')
   pdf(paste0(plotDir, '/GoI_mutationMatrix.pdf'), width=15, height=10)
-  superFreq:::plotCohortMutationHeatmap(GoI, Rdirectory, GoIakas=GoIakas)
+  superFreq:::plotCohortMutationHeatmap(GoI=GoI, Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
+                                        excludeSamples=excludeSamples, cpus=cpus, GoIakas=GoIakas)
   dev.off()
 
   catLog('Running legacy cohort analysis of CNAs and point mutations.\n')
-  superFreq:::superCohort(metaDataFile='metaData.tsv', Rdirectory='R', plotDirectory='plots', cpus=cpus, genome=genome)
+  superFreq:::superCohort(metaDataFile=metaDataFile, Rdirectory=Rdirectory, plotDirectory=plotDirectory, cpus=cpus, genome=genome, resourceDirectory=resourceDirectory)
 
-  catLog('Moving legacy meanCNV and mutationMatrix plots to cohortWide directory.\n')
-  meanCNVfile = 'plots/cohort/data/cohortAnalysis/plots/projects/myProject/meanCNV.pdf'
+  catLog('Copying legacy meanCNV and mutationMatrix plots to cohortWide directory.\n')
+  meanCNVfile = paste0(plotDirectory, '/cohort/data/cohortAnalysis/plots/projects/myProject/meanCNV.pdf')
   if ( file.exists(meanCNVfile) ) system(paste0('cp ', meanCNVfile, ' ', plotDir, '/meanCNV.pdf'))
-  mmFile = 'plots/cohort/data/cohortAnalysis/plots/projects/myProject/mutationMatrix.pdf'
+  mmFile = paste0(plotDirectory, '/cohort/data/cohortAnalysis/plots/projects/myProject/mutationMatrix.pdf')
   if ( file.exists(mmFile) ) system(paste0('cp ', mmFile, ' ', plotDir, '/mutationMatrix.pdf'))
   
   catLog('Done with summary post analysis.\n\n')
@@ -524,18 +504,46 @@ runSummaryPostAnalysis = function(Rdirectory='R', plotDirectory='plots', metaDat
 
 
 
-loadQsList = function(Rdirectory='R', excludeIndividuals=c(), excludeSamples=c()) {
-  individuals = list.dirs(paste0(Rdirectory, "/"), full.names = F, recursive=F)
-  individuals = individuals[individuals != ""]
-  individuals = individuals[!(individuals %in% excludeIndividuals)]
-  names(individuals) = individuals
-  qsList = lapply(individuals, function(ind) {
+loadQsList = function(Rdirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+  individuals = superFreq:::findFinishedCohortIndividuals(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals)
+  qsList = mclapply(individuals, function(ind) {
     load(paste0(Rdirectory, "/", ind, "/allVariants.Rdata"))
     allVariants$variants$variants = allVariants$variants$variants[!(names(allVariants$variants$variants) %in% excludeSamples)]
     return(allVariants$variants$variants)
-  })
+  }, mc.cores=cpus, mc.preschedule=F)
   qsList = qsList[sapply(qsList, length) > 0]
   return(qsList)
 }
 
+loadClusterList = function(Rdirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+  individuals = superFreq:::findFinishedCohortIndividuals(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals)
+  clusterList = mclapply(individuals, function(ind) {
+    load(paste0(Rdirectory, "/", ind, "/clusters.Rdata"))
+    clusters = clusters[!(names(clusters) %in% excludeSamples)]
+    return(clusters)
+  }, mc.cores=cpus, mc.preschedule=F)
+  clusterList = clusterList[sapply(clusterList, length) > 0]
+  return(clusterList)
+}
 
+
+findFinishedCohortIndividuals = function(Rdirectory, metaDataFile, excludeIndividuals=c()) {
+  if ( !file.exists(Rdirectory) ) stop('Rdirectory: ', Rdirectory, ' not found.')
+  if ( !file.exists(metaDataFile) ) stop('metaDataFile: ', metaDataFile, ' not found.')
+  metaData = importSampleMetaData(metaDataFile)
+  individuals = unique(metaData$INDIVIDUAL)
+  individuals = individuals[!(individuals %in% excludeIndividuals)]
+  names(individuals) = individuals
+  files = paste0(Rdirectory, "/", individuals, "/stories.Rdata")
+  if ( !all(file.exists(files)) ) {
+    warning('Cant find variant files ', files[!file.exists(files)], ' maybe the superFreq run hasnt finished yet, or crashed. Trying to load the rest anyway, but this might be a problem.')
+    files = files[file.exists(files)]
+  }
+  return(individuals)
+}
+
+loadAnyCaptureRegions = function(Rdirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c()) {
+  individuals = superFreq:::findFinishedCohortIndividuals(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals)
+  load(paste0(Rdirectory, '/', individuals[1], '/captureRegions.Rdata'))
+  return(captureRegions)
+}

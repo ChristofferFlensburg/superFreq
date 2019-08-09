@@ -10,14 +10,11 @@
 #'
 #' @export
 #'
-plotCNAheatmapWithGoI = function(GoI, Rdirectory, genome, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c()) {
+plotCNAheatmapWithGoI = function(GoI, Rdirectory, genome, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c(), cpus=1) {
   superFreq:::resetMargins()
-  superFreq:::plotCNAbatchHeatmap(Rdirectory=Rdirectory, genome=genome,
-                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples)
-  individuals = list.dirs(paste0(Rdirectory, "/"), full.names = F)
-  individuals = individuals[individuals != ""]
-  individuals = individuals[!(individuals %in% excludeIndividuals)]
-  load(paste0(Rdirectory, '/', individuals[1], '/captureRegions.Rdata'))
+  superFreq:::plotCNAbatchHeatmap(Rdirectory=Rdirectory, metaDataFile=metaDataFile, genome=genome,
+                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
+  captureRegions = loadAnyCaptureRegions(Rdirectory, metaDataFile, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples)
   ymax = par("usr")[4]
   for ( gene in GoI ) {
     crs = captureRegions[captureRegions$region == gene]
@@ -41,20 +38,16 @@ plotCNAheatmapWithGoI = function(GoI, Rdirectory, genome, excludeIndividuals=c()
 #'
 #' @export
 #'
-plotCNAheatmapOverGoI = function(gene, Rdirectory, genome, padding=3e6, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c()) {
-  individuals = list.dirs(paste0(Rdirectory, "/"), full.names = F)
-  individuals = individuals[individuals != ""]
-  individuals = individuals[!(individuals %in% excludeIndividuals)]
-  load(paste0(Rdirectory, '/', individuals[1], '/captureRegions.Rdata'))
-
+plotCNAheatmapOverGoI = function(gene, Rdirectory, genome, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c(), cpus=1, padding=3e6) {
+  captureRegions = loadAnyCaptureRegions(Rdirectory, metaDataFile, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples)
   crs = captureRegions[captureRegions$region == gene]
   maxx = chrToX(seqnames(crs[1]), max(end(crs)), genome=genome)
   minx = chrToX(seqnames(crs[1]), min(start(crs)), genome=genome)
   midx = (minx+maxx)/2
-
+  
   superFreq:::resetMargins()
-  superFreq:::plotCNAbatchHeatmap(Rdirectory=Rdirectory, genome=genome, xlim=c(minx-padding, maxx+padding),
-                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples)
+  superFreq:::plotCNAbatchHeatmap(Rdirectory=Rdirectory, metaDataFile=metaDataFile, genome=genome, xlim=c(minx-padding, maxx+padding),
+                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   ymax = par("usr")[4]
   segments(minx, 0.5, minx, ymax-0.75, col=mcri('cyan'))
   segments(maxx, 0.5, maxx, ymax-0.75, col=mcri('cyan'))
@@ -126,22 +119,12 @@ plotZoomedCNAOnGoI = function(GoI, Rdirectory, individual, sample, genome, paddi
 #'
 #' @export
 #'
-plotCohortMutationHeatmap = function(GoI, Rdirectory, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c()) {
-  individuals = list.dirs(paste0(Rdirectory, "/"), full.names = F)
-  individuals = individuals[individuals != ""]
-  individuals = individuals[!(individuals %in% excludeIndividuals)]
-  names(individuals) = individuals
-  clusterList = lapply(individuals, function(ind) {
-    load(paste0(Rdirectory, "/", ind, "/clusters.Rdata"))
-    clusters = clusters[!(names(clusters) %in% excludeSamples)]
-    return(clusters)
-  })
-  allVariantsList = lapply(individuals, function(ind) {
-    load(paste0(Rdirectory, "/", ind, "/allVariants.Rdata"))
-    allVariants$variants$variants = allVariants$variants$variants[!(names(allVariants$variants$variants) %in% excludeSamples)]
-    return(allVariants)
-  })
+plotCohortMutationHeatmap = function(GoI, Rdirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c(), cpus=1) {
+  clusterList = loadClusterList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
+                                excludeSamples=excludeSamples, cpus=cpus)
   sampleList = lapply(clusterList, names)
+  qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, metaDataFile=metaDataFile,
+                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   
   #set up plot and sample/gene labels
   PID = setupCohortPlot(GoI, sampleList, GoIakas)
@@ -150,7 +133,7 @@ plotCohortMutationHeatmap = function(GoI, Rdirectory, excludeIndividuals=c(), ex
   addCNAs(GoI, clusterList, sampleList)
 
   #add dots for point mutations
-  addPointMutations(GoI, allVariantsList, sampleList)
+  addPointMutations(GoI, qsList, sampleList)
 }
 
 #helper function
@@ -239,7 +222,7 @@ callToColHeatmap = function(call, clonality) {
 
 
 #helper function
-addPointMutations = function(GoI, allVariantsList, sampleList) {
+addPointMutations = function(GoI, qsList, sampleList) {
   #set up scale and grid
   xScale = length(GoI)
   yScale = length(unlist(sampleList))
@@ -254,7 +237,7 @@ addPointMutations = function(GoI, allVariantsList, sampleList) {
     samples = sampleList[[ind]]
     names(sys) = samples
     for ( sample in samples ) {
-      q = allVariantsList[[ind]]$variants$variants[[sample]]
+      q = qsList[[ind]][[sample]]
       q = q[q$somaticP > 0.5 & q$severity < 11 & q$inGene %in% GoI & q$var > 0.15*q$cov,]
       y = sys[sample]
       for ( gene in GoI ) {
@@ -284,8 +267,8 @@ renameGoIs = function(genes, GoIakas) {
 }
 
 
-findGoI = function(Rdirectory='R', cosmicCensus=T, clinvarPathogenic=T, clinvarAny=F, excludeIndividuals=c(), excludeSamples=c(), maxNumberOfGenes=50) {
-  qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples)
+findGoI = function(Rdirectory, metaDataFile, cosmicCensus=T, clinvarPathogenic=T, clinvarAny=F, excludeIndividuals=c(), excludeSamples=c(), maxNumberOfGenes=50, cpus=1) {
+  qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   qs = do.call(c, qsList)
   GoIlist = lapply(qs, function(q) {
     isSomatic = q$somaticP > 0.5
