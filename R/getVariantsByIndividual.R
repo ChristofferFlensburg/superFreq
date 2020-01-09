@@ -266,6 +266,8 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
   dbAF = dbAF[relevantDB]
   dbNames = names(dbAF)
   isDB = qNames %in% dbNames
+
+  # save subset of db for all variants in any VCF
   dbAF = dbAF[qNames[isDB]]
   if ( any(is.na(dbAF)) ) {
     dbValidated = !is.na(dbAF) & dbAF > 0
@@ -274,8 +276,26 @@ matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
     dbValidated = dbAF < 3 | dbAF > 70
     dbAF = ifelse(dbAF > 30, NA, ifelse(dbAF > 3, dbAF-10, dbAF))
   }
-  
   variants = lapply(variants, function(q) {
+    print(nrow(q))
+
+    # save subset of db for individual VCF
+    qNames = unique(rownames(q))
+    dbNames = names(dbAF)
+    relevantDB = dbNames %in% qNames
+    dbAF = dbAF[relevantDB]
+    dbNames = names(dbAF)
+    isDB = qNames %in% dbNames
+    dbAF = dbAF[qNames[isDB]]
+
+    if ( any(is.na(dbAF)) ) {
+      dbValidated = !is.na(dbAF) & dbAF > 0
+    }
+    else {
+      dbValidated = dbAF < 3 | dbAF > 70
+      dbAF = ifelse(dbAF > 30, NA, ifelse(dbAF > 3, dbAF-10, dbAF))
+    }
+
     q$db = isDB
     q$dbMAF = NA
     q$dbValidated = NA
