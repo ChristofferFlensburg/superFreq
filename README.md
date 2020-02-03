@@ -116,6 +116,17 @@ Plots (some shown here), tables, and R objects for downstream analysis. Analysis
 - a bunch of R packages.
 - samtools 1.x
 
+# Resource usage
+Most of the heavy calculation stages of superFreq (such as the variant calling) are parallelised over `cpus` threads, and runtime should scale close to linearly for small numbers of cpus. However, some parts of the analysis requires use of all the data together and is difficult to efficiently parallelise, which will bottleneck runtime for high `cpus`. Further, while the R parallel package that manages threading in theory does "copy on write", the interaction with the R garbage collection in practice makes memory usage increase almost linearly with `cpus`. With this in mind, recommended `cpus` for version 1.3.2 are:
+
+- RNA-Seq: 2-4 cpus (~2h runtime, ~10GB memory per cpu typically enough)
+- exome: 4-6 cpus (~3h runtime, ~15GB memory per cpu typically enough)
+- genome: 10-20 cpus (~24h runtime, ~20GB memory per cpu typically enough)
+
+Runtime and memory usage are for a cancer-normal pair with typical read depths. Memory and runtime use increases with number of studied samples, and runtime increases with read depth (memory shouldn't be affected too much). Runtime can be decreased further by increasing cpus, but expect limited gain above 2x recommended cpus.
+
+Runtime and memory usage also scales with the number of preliminary variant calls in the input VCF, so another way to decrease resourse usage is to restrict parameters in the varscan call above (such as increasing minimum VAF up to 5%, at the cost of potentially losing low VAF variants).
+
 # Cohort analysis (on HPC)
 When analysing more than a few individuals, the fastest way to get the analysis through is to parallelise across individuals, potentially across separate jobs if in an HPC environment. There are many ways to do this, but the key is the `participant` setting in the `superFreq()` call, which restricts the analysis to only one individual in the meta data, and allows you to submit parallel `superFreq()` calls for different individuals. We are on a torquelord system, and submit jobs through a bash file that takes individual and number of threads to analyse as input.
 
