@@ -20,9 +20,15 @@ importSampleMetaData = function(sampleMetaDataFile) {
   if ( !file.exists(sampleMetaDataFile) ) stop("Meta data file ", sampleMetaDataFile, ' doesnt exist.')
   catLog('Loading sample meta data from file...')
   metaData = read.table(sampleMetaDataFile, header=T, as.is=T, fill=T, sep='\t', strip.white=T)
-  if ( any(!(c('BAM', 'VCF', 'INDIVIDUAL', 'NAME', 'NORMAL') %in% colnames(metaData))) )
-    stop('Could not find required columns BAM, VCF, INDIVIDUAL, NAME, NORMAL in sample meta data.\n
+  if ( any(!(c('BAM', 'VCF', 'INDIVIDUAL', 'NAME', 'NORMAL', 'TIMEPOINT') %in% colnames(metaData))) )
+    stop('Could not find required columns BAM, VCF, INDIVIDUAL, NAME, NORMAL, TIMEPOINT in sample meta data.\n
 The meta data file should be a tab separated file with headings.\n')
+  metaData$BAM = as.character(metaData$BAM)
+  metaData$VCF = as.character(metaData$VCF)
+  metaData$INDIVIDUAL = as.character(metaData$INDIVIDUAL)
+  metaData$NAME = as.character(metaData$NAME)
+  metaData$NORMAL = as.character(metaData$NORMAL)
+  metaData$TIMEPOINT = as.character(metaData$TIMEPOINT)
   catLog('done.\n')
   newNames = make.names(c('normal', metaData$NAME), unique=T)[-1]
   if ( any(newNames != metaData$NAME) ) {
