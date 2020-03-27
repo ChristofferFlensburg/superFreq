@@ -1,4 +1,5 @@
 preprint: https://www.biorxiv.org/content/early/2018/07/30/380097
+Plos Computational Biology: https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007603
 
 # superFreq
 SuperFreq is an R package that analyses cancer exomes.
