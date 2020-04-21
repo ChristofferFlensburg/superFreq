@@ -177,7 +177,7 @@ Varikondo developed at https://github.com/annaquaglieri16/varikondo is an R pack
 
 ~~~~bash
 cd r-superfreq
-conda build -c bioconda -c conda-forge .
+conda build -c bioconda -c conda-forge --debug .
 conda install -c bioconda -c conda-forge --use-local r-superfreq
 ~~~~
 

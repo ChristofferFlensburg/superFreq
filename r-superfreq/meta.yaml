@@ -8,9 +8,7 @@ package:
   version: {{ version|replace("-", "_") }}
 
 source:
-
-  git_url: https://github.com/ChristofferFlensburg/superFreq
-  git_tag: v1.3.2
+  path: ../
 
 build:
   merge_build_host: True  # [win]
