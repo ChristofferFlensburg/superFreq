@@ -488,7 +488,7 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
       stories = rbind(stories, noneg(clonalities$clonality))
       errors = rbind(errors, clonalities$clonalityError)
       sigmas = rbind(sigmas, clonalities$sigma)
-      if ( any(clonalities$clonality < 0) & any(clonalities$clonality > 0) ) {
+      if ( any(clonalities$clonality < 0) & any(clonalities$clonality > 0) & !any(is.na(clonalities$clonality)) ) {
         negativeClonalities = clonalities
         negativeClonalities$clonality = noneg(-negativeClonalities$clonality)
         negEvent = events[i,]
@@ -511,7 +511,7 @@ cnvsToStories = function(cnvs, events, normal, genome, filter=T) {
         subStories = stories[rows,,drop=F]
         subSigmas = sigmas[rows,,drop=F]
         subKeep = keep[rows]
-        while ( any(colSums(subStories[subKeep,,drop=F]) > 1) ) {
+        while ( !any(is.na(colSums(subStories[subKeep,,drop=F]))) & any(colSums(subStories[subKeep,,drop=F]) > 1) ) {
           presence = rowMeans(subStories[subKeep,,drop=F])
           inconsistency = sqrt(rowMeans(subSigmas[subKeep,,drop=F]^2))
           score = presence - inconsistency/3
@@ -595,7 +595,7 @@ extractClonalities = function(cnvs, event) {
       direction = sapply(1:nSample, function(i) {
         sN = scalarNorm(directionScores[,strongestSample], directionScores[,i])
         power = sqrt(sum(directionScores[,i]^2))
-        if ( power < 10 ) return(NA)  #if not enough power to tell up or down, nevermind.
+        if ( (is.na(power) == TRUE) || power < 10 ) return(NA)  #if not enough power to tell up or down, nevermind.
         return(sN)
       })
     }
