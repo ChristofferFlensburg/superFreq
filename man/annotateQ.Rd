@@ -4,8 +4,13 @@
 \alias{annotateQ}
 \title{Run VariantAnnotation on the provided variants}
 \usage{
-annotateQ(q, genome = "hg19", resourceDirectory = "superFreqResources",
-  reference, cpus = 1)
+annotateQ(
+  q,
+  genome = "hg19",
+  resourceDirectory = "superFreqResources",
+  reference,
+  cpus = 1
+)
 }
 \arguments{
 \item{q}{data.frame: The variants to be annotated.}

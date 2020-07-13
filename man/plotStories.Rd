@@ -4,11 +4,27 @@
 \alias{plotStories}
 \title{plots line plots of clonalities}
 \usage{
-plotStories(stories, variants, col = "default", lty = "default",
-  add = F, alpha = 1, xlab = "sample", ylab = "clonality",
-  lwd = "default", errorBars = T, setPar = T, legend = T,
-  labels = T, xlim = "default", genome = "hg19", xSpread = 0.25,
-  sampleOrder = NA, annotationMethod = "VariantAnnotation", ...)
+plotStories(
+  stories,
+  variants,
+  col = "default",
+  lty = "default",
+  add = F,
+  alpha = 1,
+  xlab = "sample",
+  ylab = "clonality",
+  lwd = "default",
+  errorBars = T,
+  setPar = T,
+  legend = T,
+  labels = T,
+  xlim = "default",
+  genome = "hg19",
+  xSpread = 0.25,
+  sampleOrder = NA,
+  annotationMethod = "VariantAnnotation",
+  ...
+)
 }
 \arguments{
 \item{stories}{dataFrame from superFreq. such as data$stories$stories$mySample$all.}

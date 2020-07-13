@@ -136,7 +136,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   }
 
   catLog('Setting up design matrix for linear analysis..')
-  group = c(sampleNames, paste0(rep('normal', length(externalNormalBams))))
+  group = c(sampleNames, paste0(rep('normal', ncol(normalFCsExon$counts))))
   design = model.matrix(~0+group)
   colnames(design) = gsub('^group', '', gsub('^sex', '',colnames(design)))
   contrastList = c(lapply(sampleNames, function(name) paste0(name, '-normal')), list(levels=colnames(design)))
@@ -195,10 +195,10 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   if ( getSettings(settings, 'MAcorrection') ) {
     catLog('Loess normalising counts to normals..')
     counts = countsSex
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
+    counts[,group=='normal'] = superFreq:::loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group=='normal'] = superFreq:::loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = superFreq:::loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = superFreq:::loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
     loessCorrectionFactor = (0.5+counts)/(0.5+countsSex)
     countsSexLo = counts
     catLog('done.\n')
@@ -211,6 +211,16 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
 
   #local binding strength correction
   if ( getSettings(settings, 'GCcorrection') ) {
+  	#new correction based on fraction
+  	#correct all normal samples based the mean of the absolute counts
+  	
+  	
+  	#then go sample by sample (also studied) and correct with the LFC vs the corrected normal mean count.
+  
+  
+  
+  
+  	#old code
     catLog('Correcting for binding strength bias..')
     BSdirectory = paste0(diagnosticPlotsDirectory, '/BSplots/')
     if ( !file.exists(BSdirectory) ) dir.create(BSdirectory)
@@ -252,9 +262,9 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
         if ( !file.exists(plotfile) | forceRedoFit ) {
           ylim = quantile(LFC, probs=c(0.01, 0.99))+c(0.5,0.5)
           png(plotfile, height=6, width=12, res=144, unit='in')
-          plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
+          plotColourScatter(superFreq:::annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
                             ylab='~log(1+read depth)')
-          points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
+          points(superFreq:::annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
           addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
           legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
@@ -264,11 +274,11 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
         if ( !file.exists(plotfile) | forceRedoFit ) {
           ylim = quantile(LFC + log(correctionFactor), probs=c(0.01, 0.99))+c(0.5,0.5)
           png(plotfile, height=6, width=12, res=144, unit='in')
-          plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
+          plotColourScatter(superFreq:::annotationToX(annotation, genome), LFC, cex=w, ylim=ylim, xlab='genome',
                             ylab='~log(1+read depth)')
-          points(annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
+          points(superFreq:::annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
-          addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
+          superFreq:::addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
           legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
           dev.off()
         }
@@ -285,77 +295,11 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
     countsSexLoBS = countsSexLo
   }
 
-  
-
-  #binding strength correcting with running average
-  if ( getSettings(settings, 'GCregionCorrection') ) {
-    catLog('Correcting for regional binding strength bias..')
-    x = annotationToX(annotation, genome)
-    counts = countsSexLoBS
-    w = pmin(2, pmax(0.1, sqrt(rowMeans(countsOri)/100)))
-    regionIs = mclapply(x, function(X) which(abs(x-X) < 5e5), mc.cores=cpus)
-    regionDN = sapply(regionIs, function(is) sum(dn[is]*w[is])/sum(w[is]))
-    maxCorrection = 10
-    DNregionCorrectionFactor =
-      mclapply(1:ncol(counts), function(i) {
-        col = colnames(counts)[i]
-        catLog(col, '..', sep='')
-        LFC = log((1+counts[,col])/(annotation$Length))
-        smoothLFC = sapply(regionIs, function(is) sum(LFC[is]*w[is])/sum(w[is]))
-        lo = loess(LFC~regionDN, data=data.frame(LFC=smoothLFC, regionDN=regionDN),
-          weights=w, span=0.3, degrees=1, trace.hat='approximate', family='symmetric')
-        los = predict(lo, regionDN)
-        biasFactor = exp(los)
-        correctionFactor = (1/biasFactor)/mean(1/biasFactor)
-        correctionFactor = correctionFactor*sum(counts[,col])/sum(counts[,col]*correctionFactor)
-        #find normalisation such that no count is corrected more than a factor 10 and maintaining normalisation
-        trialN = (500:2000)/1000
-        trialTotCount = sapply(trialN, function(N)
-          sum(counts[,col]*pmax(1/maxCorrection, pmin(maxCorrection,N*correctionFactor))))
-        totCount = sum(counts[,col])
-        diff = trialTotCount - totCount
-        N = trialN[which(abs(diff) == min(abs(diff)))[1]]
-        correctionFactor = pmax(1/maxCorrection, pmin(maxCorrection,N*correctionFactor))
-        plotfile = paste0(BSdirectory, col, '.region.png')
-        if ( !file.exists(plotfile) | forceRedoFit ) {
-          ylim = quantile(smoothLFC, probs=c(0.01, 0.99))
-          png(plotfile, height=6, width=12, res=144, unit='in')
-          plotColourScatter(regionDN, smoothLFC, cex=w, main=col, ylim=ylim,
-                            xlab='region binding strength', ylab='region mean log(reads/bp)')
-          lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
-          legend('topleft', 'loess fit', lwd=5, col=mcri('orange'))
-          dev.off()
-        }
-        plotfile = paste0(BSdirectory, col, '.region.overGenome.png')
-        if ( !file.exists(plotfile) | forceRedoFit ) {
-          ylim = quantile(LFC, probs=c(0.01, 0.99))+c(0.5,0.5)
-          png(plotfile, height=6, width=12, res=144, unit='in')
-          plotColourScatter(annotationToX(annotation, genome), LFC, cex=w, ylim=ylim,
-                            xlab='genome', ylab='~log(1+read depth)')
-          points(annotationToX(annotation, genome), (regionDN-mean(regionDN))/1.5 + mean(ylim), cex=w/2,
-                 pch=16, col=mcri('orange', 0.5))
-          addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
-          legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
-          dev.off()
-        }
-        return(correctionFactor)
-      }, mc.cores=cpus)
-    DNregionCorrectionFactor = do.call(cbind, DNregionCorrectionFactor)
-    countsSexLoBSregion = countsSexLoBS*DNregionCorrectionFactor
-    #maintain total count for each gene. Removed, as it increases interaction between GC and loess corrections.
-    #countsSexLoBSregion = countsSexLoBSregion*(1+rowSums(countsOri))/(1+rowSums(countsSexLoBSregion))
-    catLog('done!\n')
-  }
-  else {
-    catLog('Skipping correction for regional GC bias.\n')
-    countsSexLoBSregion = countsSexLoBS
-  }
-
 
   #loess correct the BS corrected counts
   if ( getSettings(settings, 'MAcorrection') ) {
     catLog('Second round of loess normalisation..')
-    counts = countsSexLoBSregion
+    counts = countsSexLoBS
     counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
     counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
     counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
@@ -366,7 +310,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   }
   else {
     catLog('Skipping second round of loess normalisation.\n')
-    counts = countsSexLoBSregion
+    counts = countsSexLoBS
     countsSexLoBSLo = counts
   }
 
@@ -546,6 +490,10 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   catLog('done.\n')
 
   if ( doubleHack ) fit = subsetFit(fit, rows=1:length(geneOrder))
+  
+  #correct for regional GC content, but not for RNA, as the effect isn't expected to be there
+  if ( mode != 'RNA' )
+  	fit = regionalGCcorrect(fit, captureRegions, genome=genome, plotDirectory=plotDirectory)
 
   fit = list('fit'=fit, 'exonFit'=exonFit)
   

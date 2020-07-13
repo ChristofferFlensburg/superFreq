@@ -4,9 +4,18 @@
 \alias{runSummaryPostAnalysis}
 \title{runs analyses across all samples in the batch}
 \usage{
-runSummaryPostAnalysis(Rdirectory, plotDirectory, metaDataFile, genome,
-  resourceDirectory = "superFreqResources", GoI = NA, GoIakas = c(),
-  excludeIndividuals = c(), excludeSamples = c(), cpus = 1)
+runSummaryPostAnalysis(
+  Rdirectory,
+  plotDirectory,
+  metaDataFile,
+  genome,
+  resourceDirectory = "superFreqResources",
+  GoI = NA,
+  GoIakas = c(),
+  excludeIndividuals = c(),
+  excludeSamples = c(),
+  cpus = 1
+)
 }
 \arguments{
 \item{Rdirectory}{character: path to the Rdirectory of the batch run.}

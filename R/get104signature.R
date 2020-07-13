@@ -242,7 +242,7 @@ plotSimilarSignatures = function(signature, resourceDirectory='superFreqResource
   sims[is.nan(sims)] = 0
   x = sims
   y = colSums(sigMx)+1 + superFreq:::noneg(1 + rnorm(ncol(sigMx), 0, .5))
-  plot(x, y, type='n', xlab='cosine similarity', log='y', main=main, xlim=c(0,max(1, x*1.2)), ylab=ylab)
+  plot(x, y, type='n', xlab='cosine similarity', log='y', main=main, xlim=c(0,max(1, x*1.2)), ylab=ylab, ...)
   segments(1, 0.1, 1, 1e10, col='grey', lwd=0.5)
   for ( s in sources )
     plotColourScatter(x[dataSource==s], y[dataSource==s], cex=sourceToCex[s], col=sourceToScatterCol[s], add=T)
@@ -256,9 +256,9 @@ plotSimilarSignatures = function(signature, resourceDirectory='superFreqResource
   segments(labelPos[1,] + 0.1*diff[1,], 10^(labelPos[2,] + 0.1*diff[2,]), x[label], y[label], col=sourceToLineCol[dataSource[label]], lwd=0.5)
 
   if ( !is.null(csvFile) ) {
-    dat = data.frame(participant=colnames(extendedPatternMx), similarity=sims, mutation_rate=colSums(extendedPatternMx))
+    dat = data.frame(participant=colnames(sigMx), similarity=sims, mutation_rate=colSums(sigMx))
     dat = dat[order(-dat$similarity),]
-    write.table(dat, sep=',', file=scvFile, quote=F,row.names=F)
+    write.table(dat, sep=',', file=csvFile, quote=F,row.names=F)
   }
   
   invisible(list('similarity'=sims, 'rates'=colSums(extendedPatternMx)))
@@ -325,3 +325,7 @@ spreadPositions2D = function(x, y, xR, yR, toLabel, verbose=T) {
 
   return(labelPos)
 }
+
+
+
+

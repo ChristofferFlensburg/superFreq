@@ -4,13 +4,25 @@
 \alias{cohortAnalyseBatch}
 \title{Analyse individuals for reccuring mutations}
 \usage{
-cohortAnalyseBatch(metaDataFile, outputDirectories, cpus = 1,
-  onlyDNA = T, clonalityCut = 0.4, includeNormal = F,
-  excludeSamples = c(), excludeIndividuals = c(),
-  cosmicDirectory = "", analysisName = "cohortAnalysis",
-  cnvWeight = 1, forceRedoVariants = F, forceRedoMean = F,
-  forceRedoMatrixPlot = F, forceRedoMeanPlot = F, genome = "hg19",
-  ignoreCNAonly = F)
+cohortAnalyseBatch(
+  metaDataFile,
+  outputDirectories,
+  cpus = 1,
+  onlyDNA = T,
+  clonalityCut = 0.4,
+  includeNormal = F,
+  excludeSamples = c(),
+  excludeIndividuals = c(),
+  cosmicDirectory = "",
+  analysisName = "cohortAnalysis",
+  cnvWeight = 1,
+  forceRedoVariants = F,
+  forceRedoMean = F,
+  forceRedoMatrixPlot = F,
+  forceRedoMeanPlot = F,
+  genome = "hg19",
+  ignoreCNAonly = F
+)
 }
 \arguments{
 \item{metaDataFile}{character: path to the metaData file.}

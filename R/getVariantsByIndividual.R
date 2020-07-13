@@ -66,8 +66,22 @@ getVariantsByIndividual = function(metaData, captureRegions, fasta, genome, BQof
     }
 
     #extract variant information over the identified positions
-    bamFiles = metaData[samples,]$BAM
-    variants = newBamToVariants(bamFiles, positions, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)
+    variants = lapply(samples, function(sampleName) {
+    	qSaveFile = paste0(Rdirectory, '/q_', sampleName, '.Rdata')
+		if ( file.exists(qSaveFile) & !forceRedo ) {
+		  catLog('Loading saved variants for ', sampleName, '.\n')
+		  load(file=qSaveFile)
+		  return(q)
+		}
+    	q = newBamToVariants(metaData[sampleName,]$BAM, positions,
+    	                     fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)[[1]]
+		save(q, file=qSaveFile)
+    	return(q)
+	})
+	names(variants) = samples
+    #bamFiles = metaData[samples,]$BAM
+    #variants = newBamToVariants(bamFiles, positions, fasta, Rdirectory, BQoffset, genome=genome, cpus=cpus)
+    
     
     names(variants) = samples
     variants = lapply(variants, function(q) q[!apply(is.na(q), 1, any),])
@@ -182,7 +196,24 @@ vcfToPositions = function(files, genome='hg19') {
   }
 
   catLog('Reading file ', files, '...', sep='')
-  raw = read.table(files, fill=T, skip=0, row.names=NULL, header=F, as.is=T)
+  raw = try(read.table(files, fill=T, skip=0, row.names=NULL, header=F, as.is=T))
+  #empty VCF files throws an error in read.table.
+  #catch and demote to a warning for that case, as there are legitimate reasons for empty VCF files as input.
+  if ( class(raw) == 'try-error' ) {
+    if ( grepl('no lines available in input', raw) ) {
+      catLog('WARNING: Empty input VCF file ', files, '. Unless you know why this is, you probably want to check that input file, or you risk miss variants present in this sample.', sep='')
+      warning('Empty input VCF file ', files, '. Unless you know why this is, you probably want to check that input file, or you risk miss variants present in this sample.')
+      ret = data.frame(
+        chr = character(0),
+        start = numeric(0),
+        end = numeric(0),
+        x = numeric(0),
+        reference = character(0),
+        variant = character(0), stringsAsFactors=F)
+      return(ret)
+    }
+    else stop(raw)
+  }
   raw = raw[!grepl('^#', raw$V1),]
   catLog('done.\nProcessing data...')
   if ( nrow(raw) == 0 ) return(matrix(1, nrow=0, ncol=22))
@@ -244,6 +275,11 @@ SNP2GRanges = function(SNPs, genome=genome) {
 
 #hepler function that marks the variants in a SNPs object as db or non db SNPs.
 matchTodbSNPs = function(variants, dir, genome='hg19', cpus=1) {
+
+  if ( !all(sapply(variants, nrow) == nrow(variants[[1]])) ) {
+  	catLog('\nWARNING: variants does not have same number of rows in all elements in matchTodbSNPs. This is not intended and is due to an upstream error. Likely to crash with unrelated hard-to-interpret error.\n\n')
+  	warning('variants does not have same number of rows in all elements in matchTodbSNPs. This is not intended and is due to an upstream error. Likely to crash with unrelated hard-to-interpret error.')
+  }
 
   variants = lapply(variants, function(q) {
     q$db = rep(F, nrow(q))
@@ -723,6 +759,7 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
     if ( is.na(pbq) ) pbq = 1
     if ( pbq < 0.01 & mean(pileup$qual[var]) < 30 & mean(pileup$qual[ref]) - mean(pileup$qual[var]) > 10  ) flag = paste0(flag, 'Bq')
     else if ( mean(pileup$qual[var]) < 15 ) flag = paste0(flag, 'Bq')
+    else if ( mean(pileup$qual[var]) < 30 - sum(var)*3 ) flag = paste0(flag, 'Bq') #if few reads, better be high quality
     #else if ( sum(pileup$qual[var] > 30) < 0.1*sum(var) ) flag = paste0(flag, 'Bq')
     #the wilcox test fails if all the scores are the same, returning NA. handle.
     if ( is.na(pbq) ) pbq=1
@@ -735,6 +772,7 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
     if ( is.na(pmq) ) pmq = 1
     if ( pmq < 0.01 & mean(pileup$mapq[var]) < 30 & mean(pileup$mapq[ref]) - mean(pileup$mapq[var]) > 10 ) flag = paste0(flag, 'Mq')
     else if ( mean(pileup$mapq[var]) < 15 ) flag = paste0(flag, 'Mq')
+    else if ( mean(pileup$mapq[var]) < 30 - sum(var)*3 ) flag = paste0(flag, 'Mq') #if few reads, better be high quality
     #else if ( sum(pileup$mapq[var] > 30) < 0.1*sum(var) ) flag = paste0(flag, 'Mq')
     #the wilcox test fails if all the scores are the same, returning NA. Handle.
     if ( is.na(pmq) ) pmq=1
@@ -795,6 +833,11 @@ shareVariants = function(variants) {
     if ( length(new) > 0 ) {
       catLog('Found ', length(new), '..', sep='')      
       x = as.numeric(gsub('[AGNTCagtcn+-].*$', '', new))
+      if ( !all(x %in% q$x) ) {
+      	misX = x[!(x %in% q$x)]
+      	top10 = misX[1:min(10,length(misX))]
+      	warning('shareVariants found ', length(misX), ' positions where only some samples have data, such as x=', top10, '. This is likely to cause a crash. Cause is likely upstream related to reading out the variant information from the BAMs.')
+      }
       newQ = q[q$x %in% x,]
       newQ = newQ[!duplicated(newQ$x),]
       rownames(newQ) = newQ$x
@@ -1025,6 +1068,19 @@ bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', batchSize
 
 newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33, genome='hg19', batchSize=1000, cpus=1) {
   
+  samVerString = system('samtools --version', intern=T)[1]
+  samtoolsVersion = NA
+  if ( grepl('^samtools 1\\.', samVerString) )
+  	samtoolsVersion = as.numeric(gsub('^samtools 1\\.', '', samVerString))
+  if ( is.na(samtoolsVersion) ) {
+  	catLog('WARNING: Couldnt identify samtools version.\n')
+  	warning('Couldnt identify samtools version.')	
+  }
+if ( samtoolsVersion > 10 ) {
+  	catLog('WARNING: Samtools version later than 1.10, this hasnt been tested.\n')
+  	warning('Samtools version later than 1.10, this hasnt been tested.')	
+  }
+
   variants = lapply(bamFiles, function(file) {
     catLog(as.character(Sys.time()), '\n')
     hasChr = any(grepl('^chr', names(scanBamHeader(file)[[1]]$targets)))
@@ -1037,7 +1093,8 @@ newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33,
     varList = mclapply(1:Nbatch, function(batchI) {
       catLog(batchI, '.', sep='')
       use = ((batchI-1)*reducedBatchSize+1):min(Npos, batchI*reducedBatchSize)
-      pileups = bamToPileup(file, fasta, positions[use,], batchI, Rdirectory=Rdirectory, BQoffset=BQoffset)
+      pileups = bamToPileup(file, fasta, positions[use,], batchI, Rdirectory=Rdirectory,
+      						BQoffset=BQoffset, samtoolsVersion=samtoolsVersion)
       catLog('.', sep='')
       
       references = as.character(positions$reference[use])

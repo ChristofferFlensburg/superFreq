@@ -4,8 +4,13 @@
 \alias{makeFitPlots}
 \title{Plots results from differential coverage analysis}
 \usage{
-makeFitPlots(fit, plotDirectory, genome, forceRedoVolcanoes = F,
-  forceRedoDifferentRegions = F)
+makeFitPlots(
+  fit,
+  plotDirectory,
+  genome,
+  forceRedoVolcanoes = F,
+  forceRedoDifferentRegions = F
+)
 }
 \description{
 Plots results from differential coverage analysis

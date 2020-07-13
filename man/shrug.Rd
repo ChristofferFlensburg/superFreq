@@ -13,5 +13,5 @@ shruggie
 ¯\_(ツ)_/¯
 }
 \examples{
-cat("Sample quality is too low to tell if your favourite gene is mutated or not.", shrug(), '\\n')
+cat("Sample quality is too low to tell if your favourite gene is mutated or not.", shrug(), '\n')
 }

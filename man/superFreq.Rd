@@ -4,17 +4,38 @@
 \alias{superFreq}
 \title{Wrapper to run default superFreq analysis}
 \usage{
-superFreq(metaDataFile, captureRegions = "", normalDirectory, Rdirectory,
-  plotDirectory, reference, genome = "hg19", BQoffset = 33, cpus = 3,
-  outputToTerminalAsWell = T, forceRedo = forceRedoNothing(),
-  normalCoverageDirectory = "", systematicVariance = 0.02,
-  maxCov = 150, cloneDistanceCut = -qnorm(0.01), dbSNPdirectory = "",
-  cosmicDirectory = "", resourceDirectory = "superFreqResources",
-  mode = "exome", splitRun = T, participants = "all",
-  manualStoryMerge = F, vepCall = "vep", correctReferenceBias = T,
-  filterOffTarget = T, rareGermline = T, exacPopulation = "all",
-  cosmicSalvageRate = 0.001, annotationMethod = "VariantAnnotation",
-  ploidyPriors = NULL)
+superFreq(
+  metaDataFile,
+  captureRegions = "",
+  normalDirectory,
+  Rdirectory,
+  plotDirectory,
+  reference,
+  genome = "hg19",
+  BQoffset = 33,
+  cpus = 3,
+  outputToTerminalAsWell = T,
+  forceRedo = forceRedoNothing(),
+  normalCoverageDirectory = "",
+  systematicVariance = 0.03,
+  maxCov = 150,
+  cloneDistanceCut = -qnorm(0.01),
+  dbSNPdirectory = "",
+  cosmicDirectory = "",
+  resourceDirectory = "superFreqResources",
+  mode = "exome",
+  splitRun = T,
+  participants = "all",
+  manualStoryMerge = F,
+  vepCall = "vep",
+  correctReferenceBias = T,
+  filterOffTarget = T,
+  rareGermline = T,
+  exacPopulation = "all",
+  cosmicSalvageRate = 0.001,
+  annotationMethod = "VariantAnnotation",
+  ploidyPriors = NULL
+)
 }
 \arguments{
 \item{metaDataFile}{Character. A path to a tab separated files with headers:
@@ -69,8 +90,7 @@ or "mm10". Defaults to "hg19".}
 
 \item{BQoffset}{Integer. The offset of the base quality encoding. Defaults to 33.}
 
-\item{cpus}{Integer. Maximum number of parallel threads. Often threaded over chromsomes,
-so numbers like 4, 6, 8, 12, 24 are good for human genomes. Default 3.}
+\item{cpus}{Integer. Maximum number of parallel threads. Memory use increase with cpus, and speed up is limited at high cpus, due to parts of the analysis not being parallelised, or I/O limited. Suggested is 4 for RNA, 6 for exomes and 10 for genomes.}
 
 \item{outputToTerminalAsWell}{Boolean. If the rather verbose log output should be sent to
 terminal as well as to the logfile (in the Rdirectory).
@@ -131,8 +151,8 @@ where R is run).}
 \item{mode}{Character. The mode to run in. The default 'Exome' is almost always used. If running on RNA,
 switch to "RNA", which seems to work decently, but beware of limitations of the data.}
 
-\item{splitRun}{logical. If the superFreq run should be split by individual. Runs each individual separately,
-which decrease memory footprint. Default TRUE.}
+\item{splitRun}{logical. If the superFreq run should be split by individual. This should always be left
+as default, especially when running multiple individuals. Default TRUE.}
 
 \item{participants}{character. When run in split mode, this allows you to run on a subset of individuals.
 Default is "all" which runs on all individuals.}

@@ -654,6 +654,70 @@ makeHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='de
   invisible(ret)
 }
 
+#' plots a heatmap
+#'
+#' @param mx numeric. The matrix to be plotted.
+#' @param nCol numeric. The number of colours in the gradient. Default 200.
+#' @param col character. The colour scheme to be used. The default 'default' gives a scale adapted for freqwuencies between 0 and 1, with extra attention to values close to 0. 'sunset' is a easier on the eye, but has less ability to resolve values close to the lowest value. 'DE' is meant for differential expression, and sets 0 to black, with red and blue gradient towards positive and negative values, saturating at the DEsaturation parameter.
+#' @param maxVal numeric. Only for internal use. Default 'default'.
+#' @param minVal numeric. Only for internal use. Default 'default'.
+#' @param label character. The label for the colour scale on the side. Default ''.
+#' @param DEsaturation numeric. The value where the colour saturates when col='DE'. Default log2(10).
+#' @param ...  remaining arguments are passed to base heatmap(...)
+#'
+#' @details This function is a wrapped pheatmap() function with some changed colours and defaults. Depends on pheatmap package, which is not a superFreq dependency, so need to load that library before using this.
+#'
+#'
+#' @examples
+#' #random matrix to plot, centered around 0. Plot in 'DE' colours.
+#' mx = matrix(rt(400, df=10), nrow=100)
+#' makeHeatmap(mx, col='DE')
+#' 
+#' #random matrix to plot, between 0 and 1. Plot in default and sunset colours.
+#' mx = matrix(runif(400), nrow=100)
+#' makeHeatmap(mx)
+#' makeHeatmap(mx, col='sunset')
+#'
+makepHeatmap = function(mx, nCol=200, col='default', maxVal='default', minVal='default', label='', DEsaturation=log2(10), reverseGradient=F, border_color=NA, cluster_rows=F, cluster_cols=F, ...) {
+  if ( !exists('catLog') ) assign('catLog', cat, envir=.GlobalEnv)
+  if ( nrow(mx) < 2 | ncol(mx) < 2 ) {
+    cat('Not two lines and two columns in the heatmap. skip.')
+    return()
+  }
+  if ( maxVal == 'default' ) maxVal = max(mx, na.rm=T)
+  if ( minVal == 'default' ) minVal = min(mx, na.rm=T)
+  if ( col[1] == 'default' )
+    col = superFreq:::colourGradient(cols=mcri(c('black', 'grey', 'cyan', 'blue', 'red')),
+      anchors=c(0, 0.02, 0.2, 0.5, 1), steps=nCol, reverseGradient=reverseGradient)
+  if ( col[1] == 'sunset' )
+    col = superFreq:::colourGradient(cols=mcri(c('black', 'blue', 'cyan', 'orange')),
+      anchors=c(0, 0.1, 0.5, 1), steps=nCol, reverseGradient=reverseGradient)
+  DEmode = F
+  if ( col[1] == 'DE' ) {
+    DEmode = T
+    zero = min(mx,na.rm=T)/(min(mx,na.rm=T)-max(mx,na.rm=T))
+    upScale = min(1, DEsaturation/max(mx,na.rm=T))
+    dnScale = min(1, -DEsaturation/min(mx,na.rm=T))
+    if ( max(mx,na.rm=T) <= 0 )
+      col = superFreq:::colourGradient(cols=mcri(c('cyan', 'blue', 'black')),
+        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero))), steps=nCol,
+        reverseGradient=reverseGradient)
+    else if ( min(mx,na.rm=T) >= 0 )
+      col = superFreq:::colourGradient(cols=mcri(c('black', 'red', 'orange')),
+        anchors=c(max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))),
+        steps=nCol, reverseGradient=reverseGradient)
+    else
+      col = superFreq:::colourGradient(cols=mcri(c('cyan', 'blue', 'black', 'red', 'orange')),
+        anchors=c(max(0,min(1,zero - zero*dnScale)), max(0,min(1,zero - zero*dnScale/2)), max(0,min(1,zero)), max(0,min(1,zero + (1-zero)*upScale/2)), max(0,min(1,zero + (1-zero)*upScale))), steps=nCol, reverseGradient=reverseGradient)
+    
+  }
+
+  ret = pheatmap(mx, col=col, border_color=border_color, cluster_rows=cluster_rows,
+  	             cluster_cols=cluster_cols, ...)
+  
+  invisible(ret)
+}
+
 
 #This function takes two colours (in a format that can be handled by col2rgb, such as "red", or rgb(0.1, 0.2, 0.3))
 #and two weights and returns a weighted average between the two colours.

@@ -4,8 +4,14 @@
 \alias{importCaptureRegions}
 \title{Imports capture regions from a bed file with GC information.}
 \usage{
-importCaptureRegions(bedFile, reference, Rdirectory, genome = "hg19",
-  forceRedoCR = F, forceRedoRdirectorySave = F)
+importCaptureRegions(
+  bedFile,
+  reference,
+  Rdirectory,
+  genome = "hg19",
+  forceRedoCR = F,
+  forceRedoRdirectorySave = F
+)
 }
 \arguments{
 \item{genome}{Which genome the bed file is on. 'hg19', 'hg38' and 'mm10' only supported atm.}

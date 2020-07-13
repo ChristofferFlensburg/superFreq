@@ -4,7 +4,15 @@
 \alias{bamToPileup}
 \title{Gets pileup from bam over positions.}
 \usage{
-bamToPileup(bam, fasta, positions, index, Rdirectory, BQoffset = 33)
+bamToPileup(
+  bam,
+  fasta,
+  positions,
+  index,
+  Rdirectory,
+  BQoffset = 33,
+  samtoolsVersion = 9
+)
 }
 \description{
 Gets pileup from bam over positions.

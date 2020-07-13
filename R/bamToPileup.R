@@ -2,7 +2,7 @@
 
 
 #' Gets pileup from bam over positions.
-bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33) {
+bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33, samtoolsVersion=9) {
 
   #read in mpileups, split by chromosome if needed.
   chrs = unique(positions$chr)
@@ -54,7 +54,8 @@ bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33) {
       toRemove = c()
       if ( length(inss) > 0 ) {
         for ( ins in inss ) {
-          insSize = as.numeric(gsub('[a-zA-Z].*$', '', substring(string, ins+1, ins+10)))
+          #insSize = as.numeric(gsub('[a-zA-Z].*$', '', substring(string, ins+1, ins+10)))
+          insSize = as.numeric(gsub('[^0-9].*$', '', substring(string, ins+1, ins+10)))
           insertion = substring(string, ins+floor(log10(insSize))+2, ins+floor(log10(insSize))+1+insSize)
           toRemove = c(toRemove, ins-1, (ins+1):(ins+floor(log10(insSize))+1+insSize))
           base[ins] = paste0('+', insertion)
@@ -70,6 +71,11 @@ bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33) {
       }
       base = base[-toRemove]
     }
+	if ( any(grepl('=', base)) ) {
+	  warning('Found = in samtools mpileup at ', paste0(parts[[1]], ':', parts[[2]]),'. This can be caused by a samtools bug when reading deletions immediately followed by insertions. Will remove, but this variant will likely not read out properly.')
+	  base = gsub('=' , '', base)
+	}
+
     
     strand = ifelse(grepl('[a-z,]', base), '-', '+')
     base[grepl('^-', base)] = gsub('[a-zA-Z]+$', '', base[grepl('^-', base)])
@@ -77,9 +83,12 @@ bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33) {
     base[isRef] = reference
     base = toupper(base)
     indel = grepl('[+-]', base)
+    
+    mqColumn = 7
+    if ( !is.na(samtoolsVersion) & samtoolsVersion > 9 ) mqColumn = 8
 
     baseQuality = charToInt(strsplit(parts[6], split='')[[1]]) - BQoffset
-    mapQuality = charToInt(strsplit(parts[7], split='')[[1]]) - BQoffset
+    mapQuality = charToInt(strsplit(parts[mqColumn], split='')[[1]]) - BQoffset
 
     note = rep('', length(base))
     

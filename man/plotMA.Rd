@@ -4,9 +4,21 @@
 \alias{plotMA}
 \title{a plotting function for MA plots.}
 \usage{
-plotMA(x, y, col = mcri("darkblue"), libNorm = F, span = 0.2,
-  medianSigma = T, xlab = "A = log2(x*y)/2", ylab = "M = log2(x/y)",
-  loess = F, cex = 0.6, pch = 16, verbose = T, ...)
+plotMA(
+  x,
+  y,
+  col = mcri("darkblue"),
+  libNorm = F,
+  span = 0.2,
+  medianSigma = T,
+  xlab = "A = log2(x*y)/2",
+  ylab = "M = log2(x/y)",
+  loess = F,
+  cex = 0.6,
+  pch = 16,
+  verbose = T,
+  ...
+)
 }
 \arguments{
 \item{x}{The x coordinates. Large x will push points towards up right.}

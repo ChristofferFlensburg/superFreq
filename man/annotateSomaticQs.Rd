@@ -4,8 +4,13 @@
 \alias{annotateSomaticQs}
 \title{Run VariantAnnotation on the provided samples}
 \usage{
-annotateSomaticQs(qs, genome = "hg19",
-  resourceDirectory = "superFreqResources", reference, cpus = 1)
+annotateSomaticQs(
+  qs,
+  genome = "hg19",
+  resourceDirectory = "superFreqResources",
+  reference,
+  cpus = 1
+)
 }
 \arguments{
 \item{qs}{list of data.frame: The variants to be annotated by sample}

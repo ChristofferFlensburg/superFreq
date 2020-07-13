@@ -4,16 +4,43 @@
 \alias{qualityScatter}
 \title{plots a scatter of the VAF between two samples}
 \usage{
-qualityScatter(q1, q2, ps = NA, covScale = 100, maxCex = 1.5,
-  minCov = 10, main = "", xlab = "variant frequency: sample1",
-  ylab = "variant frequency: sample2", plotFlagged = T, cpus = 1,
-  verbose = T, print = F, printRedCut = 0.99, printOnlyNovel = F,
-  plotPosition = F, genome = "hg19", xlim = c(0, 1), ylim = c(0,
-  1), outputHighlighted = F, frame.plot = F, legend = T,
-  redCut = 0.75, forceCol = NA, add = F, GoI = c(), printCex = 1,
-  doPlot = T, minSomaticP = 0, ignoreFlagsInOne = c("Svr", "Mv",
-  "Nab"), ignoreFlagsInBoth = c("Srr"), flagOpacity = 0.4,
-  severityWidth = 0.5, cosmicWidth = 3, ...)
+qualityScatter(
+  q1,
+  q2,
+  ps = NA,
+  covScale = 100,
+  maxCex = 1.5,
+  minCov = 10,
+  main = "",
+  xlab = "variant frequency: sample1",
+  ylab = "variant frequency: sample2",
+  plotFlagged = T,
+  cpus = 1,
+  verbose = T,
+  print = F,
+  printRedCut = 0.99,
+  printOnlyNovel = F,
+  plotPosition = F,
+  genome = "hg19",
+  xlim = c(0, 1),
+  ylim = c(0, 1),
+  outputHighlighted = F,
+  frame.plot = F,
+  legend = T,
+  redCut = 0.75,
+  forceCol = NA,
+  add = F,
+  GoI = c(),
+  printCex = 1,
+  doPlot = T,
+  minSomaticP = 0,
+  ignoreFlagsInOne = c("Svr", "Mv", "Nab"),
+  ignoreFlagsInBoth = c("Srr"),
+  flagOpacity = 0.4,
+  severityWidth = 0.5,
+  cosmicWidth = 3,
+  ...
+)
 }
 \arguments{
 \item{q1}{data.frame. The variants of the x sample, taken from the loaded data$allVariants$variants$variants$mySample}

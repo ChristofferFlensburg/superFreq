@@ -4,9 +4,13 @@
 \alias{getCosmicCounts}
 \title{Retrieves information about cosmic variant IDs}
 \usage{
-getCosmicCounts(cosmic,
-  cosmicDirectory = "/wehisan/general/academic/grp_leukemia_genomics/data/resources/COSMIC",
-  onlyCensus = T, genome = "hg19")
+getCosmicCounts(
+  cosmic,
+ 
+    cosmicDirectory = "/wehisan/general/academic/grp_leukemia_genomics/data/resources/COSMIC",
+  onlyCensus = T,
+  genome = "hg19"
+)
 }
 \arguments{
 \item{cosmic}{character: The cosmic IDs.}

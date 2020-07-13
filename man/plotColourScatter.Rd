@@ -4,8 +4,18 @@
 \alias{plotColourScatter}
 \title{A better version of plot}
 \usage{
-plotColourScatter(x, y, xlab = "", ylab = "", col = "defaultBlue",
-  main = "cor", add = F, cex = 1, showDensity = T, ...)
+plotColourScatter(
+  x,
+  y,
+  xlab = "",
+  ylab = "",
+  col = "defaultBlue",
+  main = "cor",
+  add = F,
+  cex = 1,
+  showDensity = T,
+  ...
+)
 }
 \arguments{
 \item{x}{Numeric. The x coordinates.}

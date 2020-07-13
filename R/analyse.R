@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.3.2')
+superVersion = function() return('1.4.0')
 
 
 #' Wrapper to run default superFreq analysis
@@ -88,8 +88,7 @@ superVersion = function() return('1.3.2')
 #'
 #'                  The default value is forceRedoNothing(), setting all entries to FALSE.
 #'                  To redo everything, set to forceRedoEverything().
-#' @param cpus Integer. Maximum number of parallel threads. Often threaded over chromsomes,
-#'             so numbers like 4, 6, 8, 12, 24 are good for human genomes. Default 3.
+#' @param cpus Integer. Maximum number of parallel threads. Memory use increase with cpus, and speed up is limited at high cpus, due to parts of the analysis not being parallelised, or I/O limited. Suggested is 4 for RNA, 6 for exomes and 10 for genomes.
 #' @param outputToTerminalAsWell Boolean. If the rather verbose log output should be sent to
 #'                               terminal as well as to the logfile (in the Rdirectory).
 #'                               Default TRUE.
@@ -109,8 +108,8 @@ superVersion = function() return('1.3.2')
 #' @param mode Character. The mode to run in. The default 'Exome' is almost always used. If running on RNA,
 #'                        switch to "RNA", which seems to work decently, but beware of limitations of the data.
 #                         "genome" is also allowed, but is in an early developmental stage.
-#' @param splitRun logical. If the superFreq run should be split by individual. Runs each individual separately,
-#'                        which decrease memory footprint. Default TRUE.
+#' @param splitRun logical. If the superFreq run should be split by individual. This should always be left
+#'                        as default, especially when running multiple individuals. Default TRUE.
 #' @param participants character. When run in split mode, this allows you to run on a subset of individuals.
 #'                        Default is "all" which runs on all individuals.
 #' @param manualStoryMerge logical. A flag which gives you some manual control over the merging of mutations into clones.
@@ -154,11 +153,14 @@ superVersion = function() return('1.3.2')
 #' data = superFreq(metaDataFile, captureRegions, normalDirectory,
 #'                  Rdirectory, plotDirectory, reference)
 #' }
-superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory, reference,
-  genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T, forceRedo=forceRedoNothing(), normalCoverageDirectory='',
-  systematicVariance=0.02, maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='', cosmicDirectory='', resourceDirectory='superFreqResources', mode='exome', splitRun=T, participants='all', manualStoryMerge=F, vepCall='vep', correctReferenceBias=T,
-  filterOffTarget=T, rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3, annotationMethod='VariantAnnotation',
-  ploidyPriors=NULL) {
+superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirectory, plotDirectory,
+                     reference, genome='hg19', BQoffset=33, cpus=3, outputToTerminalAsWell=T,
+                     forceRedo=forceRedoNothing(), normalCoverageDirectory='', systematicVariance=0.03,
+                     maxCov=150, cloneDistanceCut=-qnorm(0.01), dbSNPdirectory='', cosmicDirectory='',
+                     resourceDirectory='superFreqResources', mode='exome', splitRun=T, participants='all',
+                     manualStoryMerge=F, vepCall='vep', correctReferenceBias=T, filterOffTarget=T,
+                     rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3,
+                     annotationMethod='VariantAnnotation', ploidyPriors=NULL) {
 
   if ( dbSNPdirectory != '' ) warning("dbSNPdirectory is deprecated. Use superFreqResources instead.")
   if ( cosmicDirectory != '' ) warning("cosmicDirectory is deprecated. Use superFreqResources instead.")
@@ -191,14 +193,17 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
       input = splitInput[[participant]]
       catLog(date(), ': ', participant, '...')
       superFreq(metaDataFile=input$metaDataFile, captureRegions=captureRegions,
-                normalDirectory=normalDirectory, Rdirectory=input$Rdirectory, plotDirectory=input$plotDirectory,
+                normalDirectory=normalDirectory, Rdirectory=input$Rdirectory,
+                plotDirectory=input$plotDirectory,
                 reference=reference, genome=genome, BQoffset=BQoffset, cpus=cpus,
-                outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo, normalCoverageDirectory=normalCoverageDirectory,
+                outputToTerminalAsWell=outputToTerminalAsWell, forceRedo=forceRedo,
+                normalCoverageDirectory=normalCoverageDirectory,
                 systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut,
                 resourceDirectory=resourceDirectory, mode=mode, splitRun=F,
                 correctReferenceBias=correctReferenceBias, vepCall=vepCall,
                 filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation,
-                cosmicSalvageRate=cosmicSalvageRate, annotationMethod=annotationMethod, ploidyPriors=ploidyPriors)
+                cosmicSalvageRate=cosmicSalvageRate, annotationMethod=annotationMethod,
+                ploidyPriors=ploidyPriors, participants=participant)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -206,7 +211,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
       }
     return()
   }
-
+  
   ensureDirectoryExists(resourceDirectory)
   dbSNPdirectory = paste0(resourceDirectory, '/dbSNP')
   cosmicDirectory = paste0(resourceDirectory, '/COSMIC')
@@ -229,10 +234,10 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
   parameters = defaultSuperParameters(systematicVariance=systematicVariance, maxCov=maxCov, cloneDistanceCut=cloneDistanceCut, cosmicSalvageRate=cosmicSalvageRate)
 
   worked = try({
-    downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
-    downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
-    downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
-    downloadSuperFreqSignatures(signaturesDirectory)
+    superFreq:::downloadSuperFreqDbSNP(dbSNPdirectory, genome=genome)
+    superFreq:::downloadSuperFreqCOSMIC(cosmicDirectory, genome=genome)
+    superFreq:::downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
+    superFreq:::downloadSuperFreqSignatures(signaturesDirectory)
   })
   if ( class(worked) == 'try-error' ) {
     catLog("\nError in resource download, exiting. This might be due to connection issues, or due to the WEHI servers being offline. Make sure the machine has internet connection, or try re-using reosurces from a previous run, or download manually from the mirror at https://figshare.com/articles/superFreqResources_tar_gz/9202289.\n")
@@ -435,13 +440,16 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Normal directory:', normalDirectory, '\n')
   catLog('Normal coverage directory:', normalCoverageDirectory, '\n')
   catLog('dbSNP directory:', dbSNPdirectory, '\n')
-  catLog('capture regions:', captureRegionsFile, '\n')
+  if ( captureRegionsFile == '' ) catLog('capture regions: will be downloaded from superFreq server.\n')
+  if ( captureRegionsFile != '' ) catLog('capture regions:', captureRegionsFile, '\n')
   catLog('Plotting to', plotDirectory, '\n')
   catLog('Saving R files to', Rdirectory, '\n')
   catLog('Genome is', genome, '\n')
   catLog('Running in ', mode, ' mode.\n')
   catLog('exacPopulation is', exacPopulation, '\n')
   catLog('Running on at most', cpus, 'cpus.\n')
+  if ( rareGermline ) catLog('Rare germline variants are shown in output.\n')
+  if ( !rareGermline ) catLog('Rare germline variants are hidden from output.\n')
 
 
   if ( !(genome %in% c('hg19', 'hg38', 'mm10')) ) stop('Only genomes that are supported atm are hg19, hg38 and mm10, sorry.\nNew genomes can be added though, please contact the authors.\n')
@@ -569,6 +577,11 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   for ( ts in timeSeries )
     catLog('',ts, '\n', sep='   ')
   catLog('\n##################################################################################################\n\n')
+  
+  if ( length(unique(individuals)) > 1 ) {
+  	catLog('\nWARNING: Seems we are running with multiple individuals, but superFreq(..., splitRun=FALSE). This is now deprecated and will likely crash downstream. If so, rerun with splitRun=TRUE.\n\n')
+  	warning('Seems we are running with multiple individuals, but superFreq(..., splitRun=FALSE). This is now deprecated and will likely crash downstream. If so, rerun with splitRun=TRUE.')
+  }
 
   gcSummary = colSums(gc(reset=T))[c(2,6)]
   catLog(as.character(Sys.time()), '\n')
@@ -648,7 +661,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   else {
     if ( annotationMethod == 'VEP' ) {
       outputSomaticVariants(variants, genome=genome, plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoOutputSomatic, onlyForVEP=T, rareGermline=rareGermline)
-      variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP)
+      variants = runVEP(variants, plotDirectory, cpus=cpus, genome=genome, vepCall=vepCall, forceRedoVEP=forceRedoVEP, rareGermline=rareGermline)
       variants = getMoreVEPinfo(variants, plotDirectory, genome=genome, cosmicDirectory=cosmicDirectory)
       load(file=paste0(Rdirectory, '/allVariantsPreVEP.Rdata'))
       allVariants$variants = variants
@@ -692,8 +705,9 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   stories =
     getStories(variants=variants, cnvs=cnvs, timeSeries=timeSeries, normals=normals, genome=genome,
                cloneDistanceCut=get('.cloneDistanceCut', envir = .GlobalEnv), Rdirectory=Rdirectory,
-               plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories, manualStoryMerge=manualStoryMerge,
-               correctReferenceBias=correctReferenceBias)
+               plotDirectory=plotDirectory, cpus=cpus, forceRedo=forceRedoStories,
+               manualStoryMerge=manualStoryMerge, correctReferenceBias=correctReferenceBias,
+               rareGermline=rareGermline)
   variants = stories$variants
   normalVariants = stories$normalVariants
   stories = stories$stories
@@ -745,7 +759,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   
   #output smore data
   catLog(as.character(Sys.time()), '\n')
-  outputData(cnvs, stories, plotDirectory, genome=genome)
+  outputData(cnvs, stories, plotDirectory, genome=genome, resourceDirectory=resourceDirectory)
 
   gcSummary = colSums(gc(reset=T))[c(2,6)]
   catLog(as.character(Sys.time()), '\n')
@@ -922,7 +936,6 @@ getSettings = function(settings, name) {
 
   #if not set, return defaults
   if ( name == 'GCcorrection' ) return(TRUE)
-  if ( name == 'GCregionCorrection' ) return(FALSE)
   if ( name == 'MAcorrection' ) return(TRUE)
   if ( name == 'sexCorrection' ) return(TRUE)
   if ( name == 'MAFstat' ) return(TRUE)

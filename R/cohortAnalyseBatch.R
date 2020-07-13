@@ -389,18 +389,33 @@ checkRelatedness = function(Rdirectory, plotDirectory, metaDataFile, excludeIndi
 }
 
 #takes all the somatic variants in the cohort and outputs them to a CSV.
-makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdirectory='R', plotDirectory='plots', cpus=1, excludeIndividuals=c(), excludeSamples=c()) {
+makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdirectory='R', plotDirectory='plots', cpus=1, excludeIndividuals=c(), excludeSamples=c(), GoI=c()) {
   cat('Loading variants')
   qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, metaDataFile=metaDataFile,
                                   excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
+  qsList = lapply(qsList, function(qs) {
+  	qs = lapply(names(qs), function(sampleName) {
+  	  q = qs[[sampleName]]
+  	  q$sample = sampleName
+  	  return(q)
+  	})
+    return(qs)
+  })
   qs = do.call(c, qsList)
   q = do.call(rbind, qs)
   cat('done.\n')
 
   cohortPlots = paste0(plotDirectory, '/cohortWide')
   superFreq:::ensureDirectoryExists(cohortPlots)
-  csvFile = paste0(cohortPlots, '/variants.csv')
-  write.csv(q, file=csvFile)
+  csvFile = paste0(cohortPlots, '/somaticVariants.csv')
+  write.csv(q[q$somaticP > 0.5,], file=csvFile)
+  
+  if ( sum(q$inGene %in% GoI) > 0 ) {
+    csvFile = paste0(cohortPlots, '/somaticVariants_GoI.csv')
+    write.csv(q[q$inGene %in% GoI & q$somaticP > 0.5, ], file=csvFile)
+    csvFile = paste0(cohortPlots, '/unfilteredVariants_GoI.csv')
+    write.csv(q[q$inGene %in% GoI, ], file=csvFile)    
+  }
 
   return(invisible(q))
 }
@@ -458,7 +473,7 @@ runSummaryPostAnalysis = function(Rdirectory, plotDirectory, metaDataFile, genom
   catLog('Making summary .csv of all somatic point mutations.\n')
   superFreq:::makeCSVofAllPointMutations(genome=genome, metaDataFile=metaDataFile, Rdirectory=Rdirectory,
                                          plotDirectory=plotDirectory, cpus=cpus, excludeIndividuals=excludeIndividuals,
-                                         excludeSamples=excludeSamples)
+                                         excludeSamples=excludeSamples, GoI=GoI)
   
   catLog('Making heatmap of CNAs across all samples.\n')
   superFreq:::makeCNAbatchHeatmap(Rdirectory=Rdirectory, plotDirectory=plotDirectory, metaDataFile=metaDataFile,

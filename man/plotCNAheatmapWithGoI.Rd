@@ -4,9 +4,16 @@
 \alias{plotCNAheatmapWithGoI}
 \title{plots a heatmap of copy numbers, highlighting genes of interest}
 \usage{
-plotCNAheatmapWithGoI(GoI, Rdirectory, genome, metaDataFile,
-  excludeIndividuals = c(), excludeSamples = c(), GoIakas = c(),
-  cpus = 1)
+plotCNAheatmapWithGoI(
+  GoI,
+  Rdirectory,
+  genome,
+  metaDataFile,
+  excludeIndividuals = c(),
+  excludeSamples = c(),
+  GoIakas = c(),
+  cpus = 1
+)
 }
 \arguments{
 \item{GoI}{character vector. Genes of interest.}

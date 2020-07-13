@@ -208,8 +208,11 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
     f = refUnbias(cRf$var/cRf$cov)
     if ( 'f' %in% colnames(cR) ) f = cRf$f
     yf = -1.1 + 2*f
+    #to protect from 0 variant reads giving 0 error below, we pmax with a Poisson, for getting 0 from
+    #a non-zero expected alt count.
+    #getting 0 from Poisson with lambda=2 is p-value 86%, which roughly corresponds to the CI of our error.
     if ( 'ferr' %in% names(cR) ) ferr = cRf$ferr
-    else ferr = 2*sqrt(cRf$var)/cRf$cov
+    else ferr = 2*sqrt(pmax(2,cRf$var))/cRf$cov
     fCex = pt.cex*pmax(0.2, pmin(3, sqrt(0.025/ferr)))
     #plot the average MAFs, opaqueness from how likely a non-het is.
     pHet = cRf$pHet
@@ -374,7 +377,7 @@ makeCNAheatmap = function(clusters, plotDirectory, genome) {
 #merges and makes CNA heatmaps across all the individuals of a batch.
 #requires the batch to be run with split=T (Which you should anyway).
 plotCNAbatchHeatmap = function(Rdirectory, metaDataFile, genome, onlyNumbers=F, xlim=NULL, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
-  clusterList = loadClusterList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
+  clusterList = superFreq:::loadClusterList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
                                 excludeSamples=excludeSamples, cpus=cpus)
 
   chrL = chrLengths(genome)
@@ -385,7 +388,9 @@ plotCNAbatchHeatmap = function(Rdirectory, metaDataFile, genome, onlyNumbers=F, 
   for ( i in 1:length(clusterList) ) {
     yShift=c(0,cumsum(sapply(clusterList, length)))[i] + 0.5*(i-1)
     superFreq:::plotCNAheatmap(clusterList[[i]], genome=genome, onlyNumbers=onlyNumbers, add=T, yShift=yShift, xlim=xlim)
-    if ( i > 1 ) segments(xlimPlot[1], yShift + 0.25, xlimPlot[2], yShift + 0.25, lwd=1, col='grey')
+    #if many samples, thinner separating lines or no lines at all.
+    if ( i > 1 & length(clusterList) < 100 )
+      segments(xlimPlot[1], yShift + 0.25, xlimPlot[2], yShift + 0.25, lwd=min(1, 30/length(clusterList)), col='grey')
   }
   superFreq:::addChromosomeLines(ylim=c(0.5, ymax*1.01), col=mcri('grey'), genome=genome, onlyNumbers=onlyNumbers)
   legend('bottomright', c('amp', 'gain', 'loss', 'LOH'), pch=15, pt.cex=1.7, col=mcri(c('darkred', 'red', 'blue', 'green')), bg='white', cex=0.8)
@@ -397,7 +402,7 @@ makeCNAbatchHeatmap = function(Rdirectory, plotDirectory, metaDataFile, genome, 
   superFreq:::ensureDirectoryExists(cohortDir)
   plotFile = paste0(cohortDir, '/CNAsummary.pdf')
   pdf(plotFile, width=15, height=10)
-  plotCNAbatchHeatmap(Rdirectory=Rdirectory, metaDataFile=metaDataFile, genome=genome,
-                      excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
+  superFreq:::plotCNAbatchHeatmap(Rdirectory=Rdirectory, metaDataFile=metaDataFile, genome=genome,
+                                  excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   dev.off()
 }

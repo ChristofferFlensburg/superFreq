@@ -231,23 +231,6 @@ selectGermlineHetsFromCancer = function(cancerVariants, sex, SNPs, genome, minCo
   use = use[!indel]
   cancerVariants = cancerVariants[use,]
   catLog('done! Got', sum(!indel), 'variants.\n')
-
-  #take variants between 5% and 95%
-  catLog('Taking unflagged cancer variants that have frequency above 5% and below 95%..')
-  cancerF = cancerVariants$var/cancerVariants$cov
-  normalHet = abs(cancerF-0.5) < 0.45 & cancerVariants$flag == ''
-  use = use[normalHet]
-  cancerVariants = cancerVariants[use,]
-  catLog('done! Got', sum(normalHet), 'variants.\n')
-
-  #require support from at least 2 reads
-  catLog('Taking cancer variants that have support from at least 2 reads..')
-  cancerF = cancerVariants$var/cancerVariants$cov
-  supported = cancerVariants$var > 1 & cancerVariants$var < cancerVariants$cov-1
-  use = use[supported]
-  cancerVariants = cancerVariants[use,]
-  catLog('done! Got', sum(supported), 'variants.\n')
-
   
   #again to filter out noisy variants, filter on the RIB statistic in the cancer sample
   catLog('Taking variants that have low expected rate of incorrect basecalls in the sample..')
@@ -274,6 +257,27 @@ selectGermlineHetsFromCancer = function(cancerVariants, sex, SNPs, genome, minCo
   use = use[isFrequentDb | isFrequentExac]
   cancerVariants = cancerVariants[use,]
   catLog('done! Got', sum(isFrequentDb | isFrequentExac), 'variants.\n')
+  
+  #before filtering homozygous, look for stretches of no het, which indicates clonal LOH.
+  catLog('Checking for regions with depletion of heterozygous SNPs...')
+  LOHhets = checkForMissedLOH(cancerVariants, genome) 
+  catLog('done: Protecting ', length(LOHhets), ' variants above 95% VAF as germline heterozygous.\n', sep='')
+
+  #require support from at least 2 reads for both alleles
+  catLog('Taking cancer variants that have support from at least 2 reads on both alleles..')
+  cancerF = cancerVariants$var/cancerVariants$cov
+  supported = cancerVariants$var > 1 & cancerVariants$var < cancerVariants$cov-1
+  use = use[supported | rownames(cancerVariants) %in% LOHhets]
+  cancerVariants = cancerVariants[use,]
+  catLog('done! Retaining', sum(supported), 'variants.\n')
+
+  #take variants between 5% and 95%
+  catLog('Taking unflagged cancer variants that have frequency above 5% and below 95%..')
+  cancerF = cancerVariants$var/cancerVariants$cov
+  normalHet = abs(cancerF-0.5) < 0.45 & cancerVariants$flag == ''
+  use = use[normalHet | rownames(cancerVariants) %in% LOHhets]
+  cancerVariants = cancerVariants[use,]
+  catLog('done! Retaining', sum(normalHet), 'variants.\n')
 
   #remove variants from male X and Y, and female Y-chromsomes
   if ( sex == 'male' )
@@ -464,7 +468,6 @@ postProcess = function(clusters, cRs, eFreqs, plotDirectory, name, genome='hg19'
   pdf(plotFile, width=15, height=7)
   clusters = redoHetCalculations(clusters, eFreqs, cpus=cpus, plot=T)
   dev.off()
-  if ( !hasMatchedNormal ) clusters = checkForMissedLOH(clusters, cRs, eFreqs, cpus=cpus)
   catLog('renormalising..')
   if ( exists('.doSuperFreqPloidyManually', envir= .GlobalEnv) && get('.doSuperFreqPloidyManually', envir= .GlobalEnv) )
     renorm =  findShiftManually(clusters, cpus=cpus, plot=F, plotPloidy=T)
@@ -974,7 +977,21 @@ sameCNV = function(cR) {
   #find the prior from the gap lengths
   first = 1:(nrow(cR)-1)
   second = 2:nrow(cR)
-  dx = noneg(cR$x1[second] - cR$x2[first]) + 10000
+  
+  #this is prior from distance between segments. Overly conservative for large segments.
+  #dx = noneg(cR$x1[second] - cR$x2[first]) + 10000
+  
+  #this is distance between center of segments. Might be too liberal for small-to-large segments
+  #also wont have as much power to favour large gaps in genes like centromeres.
+  #dx = noneg((cR$x1[second]+cR$x2[second])/2 - (cR$x1[first]+cR$x2[first])/2) + 10000
+  
+  #this is a measure of the resolution of the breakpoint.
+  #smallest distance of the edge of one segment to the center of the other.
+  #should give a low prior to a small segment on either side, large prior to two large segments
+  #and should (somewhat) favour centromeres as breakpoints
+  dx = pmin(cR$x1[second] - (cR$x1[first]+cR$x2[first])/2,
+            (cR$x1[second]+cR$x2[second])/2 - cR$x2[first]) + 10000
+  
   prior = exp(-dx*CNVregionsPerBP())
 
   #find the probabilities of getting measure values if the SNP frequencies are equal
@@ -1241,15 +1258,377 @@ shortenCalls = function(calls) {
 
 #function that checks for large regions with fewer than expected het SNPs
 #This can be a sign of clonal LOH that is hard to find without matched normals
-checkForMissedLOH = function(clusters, cRs, eFreqs, cpus=1) {
-  #check global rate of SNPs, if not enough, don't even bother trying
+checkForMissedLOH = function(cancerVariants, genome, binsize=3e6, cpus=1) {
+  #count number of het and hom variants, binned across the genome
+  hr = getHetRatio(cancerVariants, genome=genome, binsize=binsize, plot=F)
+  
+  hr = identifyTooLowHetRatio(hr, genome=genome, binsize=binsize)
+  
+  protectedHets = selectedProtectedHets(cancerVariants, hr, genome)
+
+  #check global rate of het vs hom SNPs, if not enough, don't even bother trying
+  
+  #cluster by chromosome
 
   #check for large enough regions, larger than 10MBs seems reasonable
   #also require enough covered area in the region (sum x2-x1)
 
-  #test if the number of SNPs is way below expected
+  #test if the fraction of het/hom SNPs is way below expected
+  #also want the total number of hets to be below expected
 
-  #for those regions, set f = 0, but ferr depending on how strong the signal is.
+  #for those regions, switch some of the hom variants to het status to closer match expected fraction.
   
-  return(clusters)
+  return(protectedHets)
 }
+
+
+#examples to test on. Only run in development, remove when done.
+if ( FALSE ) {
+	###########################################
+	#exome cell line with 100% clonal LOH.
+	###########################################
+	
+	
+	###########################################################################
+	#high (but maybe not 100%) purity exome with LOH (maybe dutch AMLs?)
+	#AML.074 (AA chr21, rerun/R), AML.111 (AA chr13, chr1p, rerun/R_erasmusnormals)
+	###########################################################################
+	load('~/gdc/phs001027/rerun/R_erasmusNormals/AML.111/allVariants.Rdata')
+	cancerVariants = allVariants$variants$variants$AML.111.Dx.WES
+	#these called using the matched normal, remove variants below 5% that may not
+	#have been called form cancer only.
+	cancerVariants = cancerVariants[cancerVariants$var > 0.05*cancerVariants$cov,]
+	catLog = cat
+	cpus = 5
+	genome = 'hg19'
+	binsize=3e6
+	#run first part of gethetsfromcancervariants
+	hr = getHetRatio(cancerVariants, genome=genome, binsize=binsize, plot=T)
+	hr = identifyTooLowHetRatio(hr, genome=genome, binsize=binsize)
+	protectedHets = selectedProtectedHets(cancerVariants, hr, genome=genome, binsize=binsize)
+	
+	use = selectGermlineHetsFromCancer(cancerVariants, 'female', c(), genome)
+	
+	################################################################
+	#RNA from cell line with 100% clonal LOH. (jianans data?)
+	################################################################
+	
+	
+	###############################
+	#RNA from pure samples (anything from TCGA?)
+	###############################
+	
+	#multiple smaller LOH regions, much harder to catch without adding noise.
+	load('~/gdc/phs001027/rerun_nmn/R/AML.104/allVariants.Rdata')
+	cancerVariants = allVariants$variants$variants$AML.104.Dx.WES
+	catLog = cat
+	cpus = 5
+	genome = 'hg19'
+	binsize=2e6
+	#run first part of gethetsfromcancervariants
+	hr = superFreq:::getHetRatio(cancerVariants, genome=genome, binsize=binsize, plot=T)
+	hr = superFreq:::identifyTooLowHetRatio(hr, genome=genome, binsize=binsize)
+
+	#also high coverage segments at ends of chrs.
+	load('~/gdc/phs001027/rerun_nmn/R/AML.104/clusters.Rdata')
+	load('~/gdc/phs001027/rerun_nmn/R/AML.104/captureRegions.Rdata')
+	cr = clusters$AML.104.Dx.WES$CR
+	eFreqs = clusters$AML.104.Dx.WES$eFreqs
+	
+	cancerCluster = superFreq:::mergeChromosomes(cr, eFreqs, genome=genome, cpus=cpus)
+	
+	chrs = xToChr(cr$x1, genome=genome)
+	chr = '7'
+	breakpoints = pmax(nrow(cr) - length(unique(chrs)), 1)
+	MHTcut = 1/breakpoints
+	ret = superFreq:::mergeRegions(cr[chrs == chr,], minScore=MHTcut)
+
+	#run debug mode
+	#ret = superFreq:::mergeRegions(cr[chrs == chr,], minScore=MHTcut, debug=T)
+
+	#some residual regional GC bias at high GC
+	load('~/gdc/phs001027/rerun_nmn/R/AML.104/fit.Rdata')
+	fit = fit$fit
+	fitC = regionalGCcorrect(fit, captureRegions, genome=genome, plotDirectory=plotDirectory)
+	w = fit$coefficients[,1]/fit$t[,1]
+	chrOI = '7'
+	chr7 = fit$chr == chrOI
+	pos = xToPos(fit$x, genome)
+	chr7early = chr7 & pos < 3.5e6 #roughly the CNA call
+	chr7highGC = chr7 & fit$regionalGC > 8.7
+	chr7sig = chr7 & fit$t[,1] > 4
+	plotColourScatter(fit$regionalGC, fit$coefficients[,1], xlim=c(7,9.5), cex=pmin(2,0.3/w), ylim=c(-5,5))
+	lo = loess(cov~dn, data=data.frame(cov=fit$coefficients[,1], dn=fit$regionalGC),weights=1/w^2, span=0.3, degrees=1, trace.hat='approximate', family='symmetric')
+	lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
+	plotColourScatter(fit$regionalGC[chr7early], fit$coefficients[chr7early,1], add=T, cex=pmin(2,0.3/w[chr7early])*1.5, col='red')
+	print(sum(1/w^2*lo$residuals^2)/sum(1/w^2))
+	
+	correctedLFC = fit$coefficients[,1] - predict(lo, fit$regionalGC)
+	plotColourScatter(fit$regionalGC, correctedLFC, xlim=c(7,9.5), cex=pmin(2,0.3/w), ylim=c(-5,5))
+	segments(0,0,10,0, lwd=5, col=mcri('orange'))
+	plotColourScatter(fit$regionalGC[chr7early], correctedLFC[chr7early], add=T, cex=pmin(2,0.3/w[chr7early])*1.5, col='red')
+
+	plot(1, type='n', xlim=c(0,160e6), ylim=c(-2,2))
+	segments(0,0,1e9,0, col='grey', lwd=3)
+	segments(pos[chr7], fit$coefficients[chr7,1], pos[chr7], correctedLFC[chr7], lwd=pmin(2,0.3/w[chr7])/3, col=mcri('grey'))
+	plotColourScatter(pos[chr7], fit$coefficients[chr7,1], cex=pmin(2,0.3/w[chr7]), add=T)
+	plotColourScatter(pos[chr7], correctedLFC[chr7], cex=pmin(2,0.3/w[chr7]), add=T, col='defaultRed')
+
+	
+	plotColourScatter(pos[chr7], fit$regionalGC[chr7], cex=pmin(2,0.3/w))
+	plotColourScatter(pos[chr7early], fit$regionalGC[chr7early], cex=pmin(2,0.3/w)*1.5, col='red', add=T)
+	
+	plotColourScatter(pos[chr7], fit$Amean[chr7], cex=pmin(2,0.3/w))
+	
+	#regional GC bias
+	plotColourScatter(superFreq:::multiBlur(captureRegions$dn, 5, 5), fit$fit$coefficients[,1], xlim=c(6.6,10), cex=pmin(1.5,0.3/w), ylim=c(-5,5))
+	plotColourScatter(superFreq:::multiBlur(captureRegions$dn, 5, 5)[chr7early], fit$exonFit$coefficients[chr7early,1], add=T, cex=pmin(1.5,0.3/w)*1.5, col='red')
+	lo = loess(cov~dn, data=data.frame(cov=fit$exonFit$coefficients[,1], dn=superFreq:::multiBlur(captureRegions$dn, 5, 5)),weights=1/w^2, span=0.3, degrees=1, trace.hat='approximate', family='symmetric')
+	lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
+	correctedLFC = fit$exonFit$coefficients[,1] - predict(lo, superFreq:::multiBlur(captureRegions$dn, 5, 5))
+	
+	plotColourScatter(superFreq:::multiBlur(captureRegions$dn, 5, 5), correctedLFC, xlim=c(6.6,10), cex=pmin(1.5,0.3/w), ylim=c(-5,5))
+	plotColourScatter(superFreq:::multiBlur(captureRegions$dn, 5, 5)[chr7early], correctedLFC[chr7early], add=T, cex=pmin(1.5,0.3/w)*1.5, col='red')
+	
+	
+	
+	#uveal test case
+	load('~/gdc/superFreq/testCNVuveal/R/clusters.Rdata')
+	cr = clusters$cancer$CR
+	eFreqs = clusters$cancer$eFreqs
+	
+	cancerCluster = superFreq:::mergeChromosomes(cr, eFreqs, genome='hg38', cpus=cpus)
+	
+	chrs = xToChr(cr$x1, genome='hg38')
+	chr = '19'
+	breakpoints = pmax(nrow(cr) - length(unique(chrs)), 1)
+	MHTcut = 1/breakpoints
+	ret = superFreq:::mergeRegions(cr[chrs == chr,], minScore=MHTcut, debug=T)
+	
+	chr19loss = fit$fit$x < 2679e6 & fit$fit$x > 2674.5e6
+	
+	load('~/gdc/superFreq/testCNVuveal/R/fit.Rdata')
+	w = fit$fit$coefficients[,1]/fit$fit$t[,1]
+	chr='19';plotColourScatter(fit$fit$x[fit$fit$chr==chr], fit$fit$coefficients[fit$fit$chr==chr,1], ylim=c(-2,2), cex=pmin(2,0.3/w[fit$fit$chr==chr]));plotColourScatter(fit$fit$x[fit$fit$chr==chr], fit$fit$regionalGC[fit$fit$chr==chr]-8, add=T, col='red', cex=pmin(2,0.3/w[fit$fit$chr==chr]))
+
+	w = fit$fit$coefficients[,2]/fit$fit$t[,2]
+	chr='19';plotColourScatter(fit$fit$x[fit$fit$chr==chr], fit$fit$coefficients[fit$fit$chr==chr,2], ylim=c(-2,2), cex=pmin(2,0.3/w[fit$fit$chr==chr]));plotColourScatter(fit$fit$x[fit$fit$chr==chr], fit$fit$regionalGC[fit$fit$chr==chr]-8, add=T, col='red', cex=pmin(2,0.3/w[fit$fit$chr==chr]))
+	
+	chr19loss = fit$fit$x < 2679e6 & fit$fit$x > 2674.5e6
+	plotColourScatter(fit$fit$regionalGC, fit$fit$coefficients[,2], ylim=c(-2,2), cex=pmin(2,0.3/w))
+	plotColourScatter(fit$fit$regionalGC[chr19loss], fit$fit$coefficients[chr19loss,2], cex=pmin(2,0.3/w[chr19loss]), col='red', add=T)
+
+	plotColourScatter(fit$fit$regionalGC, fit$fit$Amean, cex=pmin(2,0.3/w))
+	plotColourScatter(fit$fit$regionalGC[chr19loss], fit$fit$Amean[chr19loss], cex=pmin(2,0.3/w[chr19loss]), col='red', add=T)
+	
+	chr='19';plotColourScatter(fit$fit$x[fit$fit$chr==chr], 1/fit$fit$s2.post[fit$fit$chr==chr])
+	plotColourScatter(fit$fit$Amean, w, ylim=c(0,2));plotColourScatter(fit$fit$Amean[chr19loss], w[chr19loss],add=T, col='red', cex=2)
+	
+	#look at reference normals
+	load('~/gdc/superFreq/testCNVuveal/normals/R/normalFCsExon.Rdata')
+	ncounts = superFreq:::libNorm(normalFCsExon$counts)
+	load('~/gdc/superFreq/testCNVuveal/R/fCsExon.Rdata')
+	load('~/gdc/superFreq/testCNVuveal/R/captureRegions.Rdata')
+    counts = superFreq:::libNorm(fCsExon$counts)
+    countx = chrToX(fCsExon$annotation$Chr, fCsExon$annotation$Start, genome='hg38')
+    
+    chr19loss2 = countx < 2679e6 & countx > 2674.5e6
+    chr192 = fCsExon$annotation$Chr == '19'
+	i=0
+	#repeat this command to cycle through samples
+	i=i+1;print(i);plotColourScatter(captureRegions$dn, log2((2+ncounts[,i])/(2+rowMeans(ncounts[,-i]))),ylim=c(-1,1), xlim=c(6.5, 10.5), cex=log2(end(captureRegions)-start(captureRegions))/8);plotColourScatter(captureRegions$dn[chr19loss2], log2((2+ncounts[,i])/(2+rowMeans(ncounts[,-i])))[chr19loss2],col='red', add=T, cex=2)
+	
+	i=0
+	i=i+1;print(i);plotColourScatter(countx[chr192], captureRegions$dn[chr192]);plotColourScatter(countx[chr19loss2], captureRegions$dn[chr19loss2],col='red', add=T, cex=2)
+	
+	#look for correlations between genes across the reference normals
+	
+}
+
+#this function take a fit object across genes, and corrects fit$coefficients for regional GC content.
+#correction is done with a loess, and the function returns the fit object with corrected coefficients.
+regionalGCcorrect = function(fit, captureRegions, genome, plotDirectory, regionRange=1e6, plot=T) {
+	catLog('Calculating regional binding strength...')
+	chrs = as.character(seqnames(captureRegions))
+	mids = (start(captureRegions)+end(captureRegions))/2
+	ws = end(captureRegions)-start(captureRegions)
+	dns = captureRegions$dn
+	#-1 dns are regions with lots on N bases. set weight to essentially zero and token dn.
+	ws[dns < 0] =  1
+	dns[dns < 0] = mean(dns)
+	regionalGC = lapply(unique(fit$chr), function(chr) {
+		capturePos = mids[chrs==chr]
+		captureWs = ws[chrs==chr]
+		captureDns = dns[chrs==chr]
+		ret = sapply(xToPos(fit$x[fit$chr==chr], genome=genome), function(mid) {
+			hits = abs(capturePos-mid) < regionRange
+			return(sum(captureDns[hits]*captureWs[hits])/sum(captureWs[hits]))
+		})
+		return(ret)
+	})
+	regionalGC = unlist(regionalGC)
+	fit$regionalGC = regionalGC
+	#plot regional GC
+	regionalPlotDir = paste0(plotDirectory, '/diagnostics/regionalBS')
+	superFreq:::ensureDirectoryExists(regionalPlotDir)
+	plotFile = paste0(regionalPlotDir, '/regionalBS.pdf')
+	pdf(plotFile, width=20, height=10)
+	ylim = c(min(fit$regionalGC),max(fit$regionalGC))
+	plotColourScatter(fit$x, fit$regionalGC, ylim=ylim,
+	                  xlab='genomic position', ylab='regional binding strength', main='genomewide')
+	superFreq:::addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
+	for ( chr in names(chrLengths(genome)) ) {
+		use = fit$chr == chr
+		if ( !any(use) ) next
+		plotColourScatter(xToPos(fit$x[use], genome), fit$regionalGC[use], ylim=ylim, cex=1.5,
+	                      xlab='genomic position', ylab='regional binding strength', main=paste0('chr', chr))
+
+	}
+	dev.off()
+	catLog('done.\nNow correct LFC based on regional binding strength by sample: ', sep='')
+	
+	plotFile = paste0(regionalPlotDir, '/regionalBScorrection.pdf')
+	pdf(plotFile, width=20, height=10)
+	for ( sampleName in colnames(fit$coefficients) ) {
+		w = fit$coefficients[,sampleName]/fit$t[,sampleName]
+		plotColourScatter(fit$regionalGC, fit$coefficients[,sampleName], cex=pmin(2,0.3/w), ylim=c(-5,5), xlab='regional binding strength', ylab='LFC', main=sampleName)
+		lo = loess(cov~dn, data=data.frame(cov=fit$coefficients[,sampleName], dn=fit$regionalGC),weights=1/w^2, span=0.3, degrees=1, trace.hat='approximate', family='symmetric')
+		lines((500:1500)/100, predict(lo, (500:1500)/100), lwd=5, col=mcri('orange'))
+		corrections = predict(lo, fit$regionalGC)
+		fit$coefficients[,sampleName] = fit$coefficients[,sampleName] - corrections
+		fit$t[,sampleName] = fit$coefficients[,sampleName]/w
+		catLog(sampleName, ' (max correction ', signif(max(abs(corrections-mean(corrections))), 2), '), ', sep='')
+	}
+	dev.off()
+	catLog('done.\n')
+	
+	return(fit)
+}
+
+selectedProtectedHets = function(q, hr, genome, binsize=3e6) {
+	hr$addHets = round(hr$addHets)
+	if ( sum(hr$addHets) == 0 ) return(c())
+	qBAF = extractqBAF(q)
+	isHom = qBAF$var > 0.95*qBAF$cov
+	breaks = unique(sort(c(0:ceiling(sum(chrLengths(genome))/binsize), cumsum(chrLengths(genome))/binsize)))
+	changeToHetList = lapply(which(hr$addHets > 0), function(bin) {
+		xmin = breaks[bin]*binsize
+		xmax = breaks[bin+1]*binsize
+		homs = qBAF$x > xmin & qBAF$x < xmax & isHom
+		qHom = qBAF[homs,]
+		#from the available homozygous variants, pick lowest VAF, and close to median coverage
+		changeToHet = rownames(qHom)[order(qHom$var/qHom$cov,
+									 abs(qHom$cov-median(qBAF$cov)))][1:hr$addHets[bin]]
+		return(changeToHet)
+	})
+	protectedHets = unlist(changeToHetList)
+	return(protectedHets)
+}
+
+getHetRatio = function(q, genome, binsize=3e6, plot=F) {
+	qBAF = extractqBAF(q)
+	isHom = qBAF$var > 0.95*qBAF$cov
+	breaks = unique(sort(c(0:ceiling(sum(chrLengths(genome))/binsize), cumsum(chrLengths(genome))/binsize)))
+	homs = hist(qBAF$x[isHom]/binsize, breaks=breaks,plot=F)
+	hets = hist(qBAF$x[!isHom]/binsize, breaks=breaks,plot=F)
+	ret = data.frame('hom'=homs$counts, 'het'=hets$counts, 'mid'=homs$mids*binsize)
+	if ( plot ) plotHR(ret, genome=genome)
+	return(ret)
+}
+extractqBAF = function(q) {
+	return(q[q$flag %in% c('', 'Svr') & q$exac & q$exacFilter == 'PASS' & q$exacAF > 0.01 & q$cov > 20 & q$var > 0.05*q$cov,])
+}
+
+plotHR = function(hr, genome, trend=F, add=F, col='black', drawMean=T, binBlur=5) {
+	meanHR = sum(hr$het)/sum(hr$hom+hr$het)
+	xmax = sum(chrLengths(genome))
+	if ( !add ) {
+		plot(0, type='n', ylim=c(0,1), xlim=c(0, xmax), xlab='genomic position', ylab='fraction SNPs het')
+		superFreq:::addChromosomeLines(genome=genome, col=mcri('green'))
+	}
+	if ( drawMean ) segments(0, meanHR, xmax, meanHR, lwd=3, col='grey')
+
+	chrL = chrLengths(genome)
+	if ( trend ) {
+		for ( chr in names(chrL) ) {
+			use = hr$mid < cumsum(chrL)[chr] & hr$mid > cumsum(chrL)[chr] - chrL[chr]
+			if ( sum(use) < 5 ) next
+			hom = superFreq:::multiBlur(hr$hom[use], 1, binBlur)
+			het = superFreq:::multiBlur(hr$het[use], 1, binBlur)
+			lines(hr$mid[use], het/(het+hom), lwd=1, col=mcri('orange'))		
+		}
+	}
+	points(hr$mid, hr$het/(hr$het+hr$hom), pch=16, cex=sqrt(hr$hom/10), col=col)
+}
+
+multiBlur = function(x, range, repeats) {
+  if ( repeats == 0 ) return(x)
+  for ( i in 1:repeats )
+    x = blurN(x, range)
+
+  return(x)
+}
+blurN = function(vec, M) {
+  N = length(vec)
+  vec = c(rev(vec), vec, rev(vec))
+  ret = 1:N
+    for(i in 1:N) {
+    ret[i] = sum(vec[N + (i-M):(i+M)])/(2*M+1)
+  }
+  return(ret)
+}
+
+identifyTooLowHetRatio = function(hr, genome, binsize=3e6, binBlur=5) {
+	#genomwide rates
+	autosomal = !(xToChr(hr$mid, genome) %in% c('X', 'Y', 'M'))
+	meanHetsPerBin = binsize*sum(hr$het[autosomal])/max(hr$mid[autosomal])
+	meanHetFrac = sum(hr$het[autosomal])/sum((hr$hom+hr$het)[autosomal])
+	
+	#if het rates to low genomewide, then we dont have power to detect regions
+	#where it's too low. Then just return without adjustments.
+	hr$addHets = 0
+	if ( meanHetsPerBin < 1 ) {
+		return(hr)
+	}
+	
+	#find bins that are suspiciously low on hets, both in absolute rate and wrt homs.
+	#also needs enough homs to provide power
+	chrL = chrLengths(genome)
+	chrL = chrL[!(names(chrL) %in% c('X', 'Y', 'M'))]
+	for ( chr in names(chrL) ) {
+		use = hr$mid < cumsum(chrL)[chr] & hr$mid > cumsum(chrL)[chr] - chrL[chr]
+		if ( sum(use) < 5 ) next
+		hom = multiBlur(hr$hom[use], 1, binBlur)
+		het = multiBlur(hr$het[use], 1, binBlur)
+		correctRatioP = pbinom(round(het), round(het+hom), meanHetFrac)
+		correctHetCountP = ppois(het, meanHetsPerBin)
+		#significantly few hets
+		tooFewHets = correctRatioP < 0.01 & correctHetCountP < 0.01 & het < 0.3*meanHetFrac*(het+hom)
+		#few hets, but maybe not significantly
+		fewHets = het < 0.5*meanHetFrac*(het+hom) & het < meanHetsPerBin*0.5
+		
+		#bins with fewHets with neighbouring bins with tooFewhets are also tooFew. Recur.
+		N = length(hom)
+		while( TRUE ) {
+			spread = fewHets & !tooFewHets & (tooFewHets[c(2:N,N)] | tooFewHets[c(1,1:(N-1))])
+			if ( !any(spread) ) break
+			tooFewHets[spread] = T
+		}
+		#if too few hets, request relabelling some of the homs into hets.
+		#relabel enough to bring it to half the global mean rate.
+		#should be enough power to call LOH downstream, but will limit damage of FPs.
+		hr$addHets[use] = tooFewHets*((hr$het+hr$hom)[use]*meanHetFrac/2 - hr$het[use])
+	}
+	return(hr)
+}
+
+
+
+
+
+
+
+
+
+
+

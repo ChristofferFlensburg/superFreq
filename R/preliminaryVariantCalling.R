@@ -16,7 +16,7 @@ performPreliminaryVariantCallingOnMissingVCFs = function(metaData, reference, cp
   catLog('Samtools shouldve been check earlier, so assuming that exists.\n')
   
   #use the one-liner from the superFreq README
-  systemCalls = paste0('samtools mpileup -d 1000 -q 15 -Q 15 -A -f ', reference, ' ',  metaData$BAM[missing], ' | varscan mpileup2cns - --variants --strand-filter 0 --p-value 0.01 --min-var-freq 0.02 --output-vcf 1 > ', metaData$VCF[missing])
+  systemCalls = paste0('samtools mpileup -d 1000 -q 15 -Q 15 -A -f ', reference, ' ',  metaData$BAM[missing], ' | varscan mpileup2cns - --variants --strand-filter 0 --p-value 0.5 --min-var-freq 0.02 --output-vcf 1 > ', metaData$VCF[missing])
   ret = mclapply(systemCalls, function(call) {
     catLog(call, '\n\n')
     ret = system(call)

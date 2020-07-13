@@ -4,8 +4,7 @@
 \alias{getMoreVEPinfo}
 \title{Import more information about the variants}
 \usage{
-getMoreVEPinfo(variants, plotDirectory, genome = "hg19",
-  cosmicDirectory = "")
+getMoreVEPinfo(variants, plotDirectory, genome = "hg19", cosmicDirectory = "")
 }
 \arguments{
 \item{variants}{variants: The variants}

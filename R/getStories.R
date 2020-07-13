@@ -181,6 +181,7 @@ getStories = function(variants, cnvs, timeSeries, normals, genome, cloneDistance
   }
 
   #flag variants that ended up in the germline clone
+  #If rareGermline is switched off, instead set somaticP to 0.
   catLog('\nMarking SNV that behave like germline SNPs..')
   variants$variants = lapply(variants$variants, function(q) {
     q$germline = rep(NA, nrow(q))
@@ -209,6 +210,30 @@ getStories = function(variants, cnvs, timeSeries, normals, genome, cloneDistance
   save('allVariants', file=allVariantSaveFile)
   catLog('done!\n')
 
+  #remove all variants in the germline clone from the clonal tracking.
+  #This is isn't done earlier so that the somaticP can be switched off first in above chunk.
+  if ( !rareGermline ) {
+  	catLog('Removing potential germline variants from the output...')
+  	stories = lapply(stories, function(story) {
+  		#extract and remove all germline mutations from the consistent analysis
+  		#keep only the first mutation that is the artificial "germline" mutation used as bait.
+  		story$consistentClusters$storyList$germline = 'germline'
+  		story$allConsistent = story$allConsistent[
+  		           !(rownames(story$allConsistent) %in% story$germlineVariants),]
+  		story$anchorStories$anchorSNVs = story$anchorStories$anchorSNVs[
+  		           !(rownames(story$anchorStories$anchorSNVs) %in% story$germlineVariants),]
+  		story$anchorStories$anchorCNAs = story$anchorStories$anchorCNAs[
+  		           !(rownames(story$anchorStories$anchorCNAs) %in% story$germlineVariants),]
+  		story$germlineVariants = 'germline'
+  		#repeat for dodgy analysis
+  		dodgyGLmuts = story$clusters$storyList$germline
+  		dodgyGLmuts = dodgyGLmuts[dodgyGLmuts != 'germline']
+  		story$clusters$storyList$germline = 'germline'
+		story$all = story$all[!(rownames(story$all) %in% dodgyGLmuts),]
+		return(story)
+  	})
+    catLog('done!\n')
+  }
 
   #return clustered and raw stories
   stories = list('stories'=stories, 'variants'=variants, 'normalVariants'=allVariants$normalVariants)
@@ -228,7 +253,7 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T, germlineVariants=c(
     ret = data.frame(x1=numeric(), x2=numeric(), call=character(), stories=emptyMx, errors=emptyMx, stringsAsFactors=F)
     return(ret)
   }
-  somaticQs = findSNPclonalities(somaticQs, cnvs)
+  somaticQs = superFreq:::findSNPclonalities(somaticQs, cnvs)
   clonality = matrix(sapply(somaticQs, function(q) q$clonality), ncol=length(somaticQs))
   clonalityError = matrix(sapply(somaticQs, function(q) q$clonalityError), ncol=length(somaticQs))
   ret = data.frame(x1=somaticQs[[1]]$x, x2=somaticQs[[1]]$x, call=rownames(somaticQs[[1]]), row.names=rownames(somaticQs[[1]]), stringsAsFactors=F)
@@ -305,23 +330,23 @@ findSNPclonalities = function(somaticQs, cnvs) {
     fBmax = nB*cloneMax/((nA+nB)*cloneMax + 2*(1-cloneMax))
     fNmax = (1-cloneMin)/((nA+nB)*cloneMin + 2*(1-cloneMin))
     fNmin = (1-cloneMax)/((nA+nB)*cloneMax + 2*(1-cloneMax))
-
+    
     #calculate p-values for the SNV living on the different alleles.
-    f = refUnbias(q$var/q$cov)
+    f = superFreq:::refUnbias(q$var/q$cov)
     f[q$cov==0] = 0
     closestFA = ifelse(f < fAmin, fAmin, ifelse(f > fAmax, fAmax, f))
     closestFB = ifelse(f < fBmin, fBmin, ifelse(f > fBmax, fBmax, f))
     closestFN = ifelse(f < fNmax, f, fNmax)
-    pA = pBinom(q$cov, q$var, closestFA)
-    pB = pBinom(q$cov, q$var, closestFB)
-    pN = pBinom(q$cov, q$var, closestFN)
+    pA = superFreq:::pBinom(q$cov, q$var, closestFA)
+    pB = superFreq:::pBinom(q$cov, q$var, closestFB)
+    pN = superFreq:::pBinom(q$cov, q$var, closestFN)
 
     clonalityA = pmin(1, ifelse(nA==0 & f==0, 0, 2*f/(nA+f*(2-nA-nB))))
     clonalityB = pmin(1, ifelse(nB==0 & f==0, 0, 2*f/(nB+f*(2-nA-nB))))
     clonalityN = pmin(1, 1 - (1 - f*2)/(f*(nA+nB-2)+1))
 
     #frequency error estimate: add up the poissonian width with the RIB as independent normal error sources.
-    fErr = sqrt(frequencyError(q$var, q$cov, p0=0.10)^2 + q$RIB^2)
+    fErr = sqrt(superFreq:::frequencyError(q$var, q$cov, p0=0.10)^2 + q$RIB^2)
     fErr[q$cov==0] = 1
     #propagate to clonality
     clonalityHighA = 2/(2+nA/(f+fErr)-nA-nB)
@@ -346,6 +371,19 @@ findSNPclonalities = function(somaticQs, cnvs) {
     consistentA = pA > 0.05 & clonalityLowA <= cloneMax
     consistentB = pB > 0.05 & clonalityLowB <= cloneMax
     consistentN = pN > 0.05 & clonalityLowN <= 1-cloneMin
+    
+    #if no allele fits with the point mutation and CNA present in mostly the same cells
+    #then check for SNV present in subclone of CNAs with a single allele
+    #inconsistent = !consistentA & !consistentB & !consistentN
+    #if ( any(inconsistent) ) {
+	#	consistentSubA = f < fAmax & nA == 1
+	#	consistentSubB = f < fBmax & nB == 1
+	#	consistentSubN = f < fNmax
+	#	consistentA[inconsistent] = consistentSubA[inconsistent]
+	#	consistentB[inconsistent] = consistentSubB[inconsistent]
+	#	consistentN[inconsistent] = consistentSubN[inconsistent]
+    #}
+    
     homeAllele =
       ifelse(q$CNV %in% c('AB', 'AB?', 'AB??', 'CL'),
              'N',
@@ -371,14 +409,14 @@ findSNPclonalities = function(somaticQs, cnvs) {
     #if so, make sure that the clonality error reaches 100%.
     SNPfA = (q$CNVclonality*nA + 1-q$CNVclonality)/(2*(1-q$CNVclonality) + q$CNVclonality*(nA+nB))
     SNPfB = (q$CNVclonality*nB + 1-q$CNVclonality)/(2*(1-q$CNVclonality) + q$CNVclonality*(nA+nB))
-    canBeSNPA = pBinom(q$cov, q$var, SNPfA)
-    canBeSNPB = pBinom(q$cov, q$var, SNPfB)
+    canBeSNPA = superFreq:::pBinom(q$cov, q$var, SNPfA)
+    canBeSNPB = superFreq:::pBinom(q$cov, q$var, SNPfB)
     canBeSNP = canBeSNPA > 0.1 | canBeSNPB > 0.1
     clonalityError[canBeSNP] = pmax(clonalityError[canBeSNP], (1-clonality)[canBeSNP])
 
 
     q$homeAllele = homeAllele
-    q$clonality = noneg(clonality)
+    q$clonality = superFreq:::noneg(clonality)
     q$clonalityError = abs(clonalityError)
     return(q)
     })

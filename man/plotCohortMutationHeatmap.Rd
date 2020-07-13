@@ -4,9 +4,15 @@
 \alias{plotCohortMutationHeatmap}
 \title{plots mutations in samples in Genes of Interest}
 \usage{
-plotCohortMutationHeatmap(GoI, Rdirectory, metaDataFile,
-  excludeIndividuals = c(), excludeSamples = c(), GoIakas = c(),
-  cpus = 1)
+plotCohortMutationHeatmap(
+  GoI,
+  Rdirectory,
+  metaDataFile,
+  excludeIndividuals = c(),
+  excludeSamples = c(),
+  GoIakas = c(),
+  cpus = 1
+)
 }
 \arguments{
 \item{GoI}{character vector. Genes of interest for the analysis}

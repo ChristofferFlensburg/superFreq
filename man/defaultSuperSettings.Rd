@@ -4,8 +4,12 @@
 \alias{defaultSuperSettings}
 \title{Returns default settings}
 \usage{
-defaultSuperSettings(genome = "", BQoffset = "", vepCall = "",
-  exacPopulation = "")
+defaultSuperSettings(
+  genome = "",
+  BQoffset = "",
+  vepCall = "",
+  exacPopulation = ""
+)
 }
 \description{
 Returns default settings

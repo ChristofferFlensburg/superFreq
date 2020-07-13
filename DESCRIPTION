@@ -18,4 +18,4 @@ Depends:
     R (>= 3.2.1), WriteXLS (>= 4.0), BiocGenerics (>= 0.26), GenomicRanges (>= 1.32.7), IRanges (>= 2.14.12), S4Vectors (>= 0.18.3), biomaRt (>= 2.36.1), Rsamtools (>= 1.32.3), R.oo (>= 1.22), Rsubread (>= 1.30.9), limma (>= 3.36.5), parallel, MutationalPatterns (>= 1.6.1), BSgenome.Mmusculus.UCSC.mm10 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg19 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg38 (>= 1.4.1)
 License: MIT
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.0
