@@ -4,9 +4,18 @@
 \alias{makeHeatmap}
 \title{plots a heatmap}
 \usage{
-makeHeatmap(mx, nCol = 200, col = "default", maxVal = "default",
-  minVal = "default", scale = "none", label = "",
-  DEsaturation = log2(10), reverseGradient = F, ...)
+makeHeatmap(
+  mx,
+  nCol = 200,
+  col = "default",
+  maxVal = "default",
+  minVal = "default",
+  scale = "none",
+  label = "",
+  DEsaturation = log2(10),
+  reverseGradient = F,
+  ...
+)
 }
 \arguments{
 \item{mx}{numeric. The matrix to be plotted.}
