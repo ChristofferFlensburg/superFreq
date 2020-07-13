@@ -83,8 +83,8 @@ Rscript runSuperFreq.R
 ```
 Scroll down to the cohort section for analysing a larger number of individuals on an HPC.
 
-# A note on version dependencies
-SuperFreq version 1.3.2 is tested and works on R v.3.6.0 and samtools 1.9. There is a known conflict between superFreq 1.3.2 and earlier with samtools 1.10+, due to change in column order of samtools mpileup. This will be addressed in upcoming superFreq 1.4.0, that will also be compatible with R 4.0.0 and corresponding bioconductor release.
+# A note on version of superFreq, R, bioconductor and samtools
+SuperFreq version 1.3.2 (there's a release) is tested and works on R v.3.6.0 and samtools 1.9. There is a known conflict between superFreq 1.3.2 and earlier with samtools 1.10, due to change in column order of samtools mpileup. This is adress in 1.4.0, that should be compatible with R 4.0.0 and corresponding bioconductor release, as well as all 1.X version of samtools.
 
 ![example multisample heatmap](readmeImages/multisample.png)
 
