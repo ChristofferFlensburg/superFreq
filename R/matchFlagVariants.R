@@ -359,7 +359,7 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
 
   names = names(variants$variants)
   #pair up cancer normals
-  correspondingNormal = findCorrespondingNormal(names, individuals, normals)
+  correspondingNormal = superFreq:::findCorrespondingNormal(names, individuals, normals)
   #for normal samples, never use other matched normals for this, but instead always call rare germline variants.
   correspondingNormal[normals] = NA
   CNs = which(!is.na(correspondingNormal))
@@ -448,8 +448,8 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
       #first rough filter on too high VAF in matched normal.
       #this is to not have the impact of MHC depend too much on number of germline non-reference positions.
       referenceNormal = qn$var <= pmax(0.1*qn$cov, 0.5*sqrt(qn$cov))
-      referenceNormalFactor = 1-pmin(1, noneg(qn$var/pmax(1, 0.1*qn$cov, 0.5*sqrt(qn$cov)) - 1))
-      pNormalHet = pBinom(qn$cov[referenceNormal], qn$var[referenceNormal], 0.3)
+      referenceNormalFactor = 1-pmin(1, superFreq:::noneg(qn$var/pmax(1, 0.1*qn$cov, 0.5*sqrt(qn$cov)) - 1))
+      pNormalHet = superFreq:::pBinom(qn$cov[referenceNormal], qn$var[referenceNormal], 0.3)
       fdrNormalHet = p.adjust(pNormalHet, method='fdr')
       referenceNormal[referenceNormal] = pNormalHet < 0.05
       #check that there is a significant difference in the somatic vs matched normal if anything is seen in the normal
@@ -457,9 +457,9 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
         fisher.test(matrix(c(q$ref[i], q$var[i], qn$ref[i], qn$var[i]), nrow=2), alternative='less')$p.value,
         mc.cores=cpus))
       fdrSameF = p.adjust(psameF, method='fdr')
-      referenceNormal[referenceNormal] = (psameF < 0.05 & (q$var/q$cov > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*noneg(1 - 20*psameF)
+      referenceNormal[referenceNormal] = (psameF < 0.05 & (q$var/q$cov > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*superFreq:::noneg(1 - 20*psameF)
       notInNormal = referenceNormal*referenceNormalFactor
-      normalOK = ifelse(qn$cov == 0, 0.5, noneg(1 - 5*qn$var/qn$cov)) #penalty for non-zero normal frequency
+      normalOK = ifelse(qn$cov == 0, 0.5, superFreq:::noneg(1 - 5*qn$var/qn$cov)) #penalty for non-zero normal frequency
 
       #if we have matched normal, we are sure the variants arent rare SNPs
       pPolymorphic = 0*pPolymorphic
@@ -476,6 +476,18 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
     
     somaticP = (1-pPolymorphic)*(1-pNormalFreq)*normalOK*pSampleOK*(1-pZero)*
                notInNormal*lowFrequencyPenalty*lowCoveragePenalty*(1-censor)
+    if ( any(is.na(somaticP)) ) {
+    	warning(sum(is.na(somaticP)),' NA somaticPs.')
+    	catLog('\nWARNING: ', sum(is.na(somaticP)),' NA somaticPs. Setting to 0 and continuing. Details on first NA:\n', sep='')
+    	na = which(is.na(somaticP))[1]
+    	catLog('pNormalFreq = ', pNormalFreq[na], '\n', sep='')
+    	catLog('normalOK = ', normalOK[na], '\n', sep='')
+    	catLog('pSampleOK = ', pSampleOK[na], '\n', sep='')
+    	catLog('pZero = ', pZero[na], '\n', sep='')
+    	catLog('notInNormal = ', notInNormal[na], '\n', sep='')
+    	catLog('lowFrequencyPenalty = ', lowFrequencyPenalty[na], '\n', sep='')
+    	catLog('lowCoveragePenalty = ', lowCoveragePenalty[na], '\n\n', sep='')
+    }
  
     variants$variants[[name]]$somaticP = 0
     variants$variants[[name]]$somaticP[use] = somaticP

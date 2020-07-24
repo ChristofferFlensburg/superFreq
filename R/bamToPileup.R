@@ -2,7 +2,7 @@
 
 
 #' Gets pileup from bam over positions.
-bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33, samtoolsVersion=9) {
+bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33, samtoolsVersion='samtools 1.9') {
 
   #read in mpileups, split by chromosome if needed.
   chrs = unique(positions$chr)
@@ -85,7 +85,7 @@ bamToPileup = function(bam, fasta, positions, index, Rdirectory, BQoffset=33, sa
     indel = grepl('[+-]', base)
     
     mqColumn = 7
-    if ( !is.na(samtoolsVersion) & samtoolsVersion > 9 ) mqColumn = 8
+    if ( !is.na(samtoolsVersion) & samtoolsVersion == 'samtools 1.10' ) mqColumn = 8
 
     baseQuality = charToInt(strsplit(parts[6], split='')[[1]]) - BQoffset
     mapQuality = charToInt(strsplit(parts[mqColumn], split='')[[1]]) - BQoffset

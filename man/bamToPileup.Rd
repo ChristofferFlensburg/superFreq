@@ -11,7 +11,7 @@ bamToPileup(
   index,
   Rdirectory,
   BQoffset = 33,
-  samtoolsVersion = 9
+  samtoolsVersion = "samtools 1.9"
 )
 }
 \description{

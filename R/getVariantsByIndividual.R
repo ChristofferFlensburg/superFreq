@@ -1068,18 +1068,7 @@ bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', batchSize
 
 newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33, genome='hg19', batchSize=1000, cpus=1) {
   
-  samVerString = system('samtools --version', intern=T)[1]
-  samtoolsVersion = NA
-  if ( grepl('^samtools 1\\.', samVerString) )
-  	samtoolsVersion = as.numeric(gsub('^samtools 1\\.', '', samVerString))
-  if ( is.na(samtoolsVersion) ) {
-  	catLog('WARNING: Couldnt identify samtools version.\n')
-  	warning('Couldnt identify samtools version.')	
-  }
-if ( samtoolsVersion > 10 ) {
-  	catLog('WARNING: Samtools version later than 1.10, this hasnt been tested.\n')
-  	warning('Samtools version later than 1.10, this hasnt been tested.')	
-  }
+  samtoolsVersion = system('samtools --version', intern=T)[1]
 
   variants = lapply(bamFiles, function(file) {
     catLog(as.character(Sys.time()), '\n')
