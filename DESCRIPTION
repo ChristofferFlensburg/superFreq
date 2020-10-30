@@ -1,6 +1,6 @@
 Package: superFreq
 Title: Calls and tracks CNAs, SNVs and clones over multiple cancer exomes.
-Version: 1.4.1
+Version: 1.4.2
 Authors@R: person("Christoffer", "Flensburg", email = "flensburg.c@wehi.edu.au", role = c("aut", "cre"))
 Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
     all information across samples and mutation types. The inputs are the bam-files
@@ -15,7 +15,7 @@ Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing
     the cancer samples and for quality control.
 biocViews:
 Depends:
-    R (>= 3.2.1), WriteXLS (>= 4.0), BiocGenerics (>= 0.26), GenomicRanges (>= 1.32.7), IRanges (>= 2.14.12), S4Vectors (>= 0.18.3), biomaRt (>= 2.36.1), Rsamtools (>= 1.32.3), R.oo (>= 1.22), Rsubread (>= 1.30.9), limma (>= 3.36.5), parallel, MutationalPatterns (>= 1.6.1), BSgenome.Mmusculus.UCSC.mm10 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg19 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg38 (>= 1.4.1)
+    R (>= 4.0.0), WriteXLS (>= 4.0), BiocGenerics (>= 0.26), GenomicRanges (>= 1.32.7), IRanges (>= 2.14.12), S4Vectors (>= 0.18.3), biomaRt (>= 2.36.1), Rsamtools (>= 1.32.3), R.oo (>= 1.22), Rsubread (>= 1.30.9), limma (>= 3.36.5), parallel, MutationalPatterns (>= 1.6.1), BSgenome.Mmusculus.UCSC.mm10 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg19 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg38 (>= 1.4.1)
 License: MIT
 LazyData: true
 RoxygenNote: 7.1.0

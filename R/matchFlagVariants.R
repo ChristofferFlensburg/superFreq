@@ -469,13 +469,14 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
         pmax(0.8, p.adjust(q$pmq, method='fdr'))*
           pmax(0.8, p.adjust(q$psr, method='fdr'))
     pZero = p.adjust(dbinom(q$var, q$cov, q$RIB), method='fdr')   #the base quality cut on 30 correpsonds to 0.001 wrong base calls.
-    lowFrequencyPenalty = ifelse(q$cov > 0, pmin(1, 10*q$var/q$cov), 0) #penalty below 10% frequency
+    lowFrequencyPenalty = ifelse(q$cov > 0, pmin(1, 20*q$var/q$cov), 0) #penalty below 5% frequency
     lowCoveragePenalty = pmin(1, q$cov/10) #penalty below 10 reads coverage
+    fewVariantReadsPenalty = pmin(1, q$var/6) #penalty below 6 variant reads
 
     censor = as.numeric(!rareGermline & normals[name])
     
     somaticP = (1-pPolymorphic)*(1-pNormalFreq)*normalOK*pSampleOK*(1-pZero)*
-               notInNormal*lowFrequencyPenalty*lowCoveragePenalty*(1-censor)
+               notInNormal*lowFrequencyPenalty*lowCoveragePenalty*fewVariantReadsPenalty*(1-censor)
     if ( any(is.na(somaticP)) ) {
     	warning(sum(is.na(somaticP)),' NA somaticPs.')
     	catLog('\nWARNING: ', sum(is.na(somaticP)),' NA somaticPs. Setting to 0 and continuing. Details on first NA:\n', sep='')
@@ -486,7 +487,8 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
     	catLog('pZero = ', pZero[na], '\n', sep='')
     	catLog('notInNormal = ', notInNormal[na], '\n', sep='')
     	catLog('lowFrequencyPenalty = ', lowFrequencyPenalty[na], '\n', sep='')
-    	catLog('lowCoveragePenalty = ', lowCoveragePenalty[na], '\n\n', sep='')
+    	catLog('lowCoveragePenalty = ', lowCoveragePenalty[na], '\n', sep='')
+    	catLog('fewVariantReadsPenalty = ', fewVariantReadsPenalty[na], '\n\n', sep='')
     }
  
     variants$variants[[name]]$somaticP = 0

@@ -5,8 +5,11 @@ outputData = function(clusters, stories, plotDirectory, genome='hg19', resourceD
     ensureDirectoryExists(dataDir)
     
     #copy numbers segments. bed with extra column for gene list.
-    load(paste0(resourceDirectory, '/COSMIC/cosmicCounts.Rdata'))
-	cosmicGenes = names(cosmicCounts$geneCounts)
+    cosmicGenes = c()
+    if ( genome %in% c('hg19', 'hg38') ) {
+    	load(paste0(resourceDirectory, '/COSMIC/cosmicCounts.Rdata'))
+		cosmicGenes = names(cosmicCounts$geneCounts)
+	}
     lapply(names(clusters), function(sample) {
         file = paste0(dataDir, '/CNAsegments_', sample, '.tsv')
         #if ( file.exists(file) ) return()

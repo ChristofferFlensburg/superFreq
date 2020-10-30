@@ -232,8 +232,8 @@ vcfToPositions = function(files, genome='hg19') {
     start = as.numeric(as.character(raw[,2])),
     end = as.numeric(as.character(raw[,2])),
     x = chrToX(chrs, as.numeric(as.character(raw[,2])), genome=genome),
-    reference = substr(as.character(raw[,refCol]), 1, 1),
-    variant = variant, stringsAsFactors=F)
+    reference = toupper(substr(as.character(raw[,refCol]), 1, 1)),
+    variant = toupper(variant), stringsAsFactors=F)
 
   if ( any(ret$variant == ret$reference) )
     ret[ret$variant == ret$reference,]$variant = '-1'
@@ -735,9 +735,11 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
   
   #check for mapQ 0 or 1, if too many, flag as repeat region.
   #then remove those reads.
+  lowMqReads = 0
   if ( any(pileup$mapq < 2) ) {
     if ( sum(pileup$mapq < 2)/nrow(pileup) > 0.5 )
       flag = paste0(flag, 'Rep')
+    lowMqReads = sum(pileup$mapq < 2)
     pileup = pileup[pileup$mapq > 1,]
     ref = pileup$call == reference
     var = pileup$call == variant
@@ -806,6 +808,8 @@ QCsnp = function(pileup, reference, x, variant='', defaultVariant='') {
 
   if (varN == 1) flag = paste0(flag, 'Svr')
   #if (refN == 1) flag = paste0(flag, 'Srr')
+  
+  if ( lowMqReads > varN/2 & !grepl(flag, 'Rep') ) paste0(flag, 'Rep')
   
   ret = data.frame('x'=x, 'reference'=reference, 'variant'=variant, 'cov'=cov, 'ref'=refN, 'var'=varN,
     'pbq'=pbq, 'pmq'=pmq, 'psr'=psr, 'RIB'=RIB, 'flag'=flag, stringsAsFactors=F)
