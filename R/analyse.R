@@ -1248,29 +1248,6 @@ propagateForceRedo = function(forceRedo) {
 }
 
 
-#' shruggie
-#'
-#' @details ¯\_(ツ)_/¯
-#'
-#' @export
-#'
-#' @examples
-#' cat("Sample quality is too low to tell if your favourite gene is mutated or not.", shrug(), '\n')
-shrug = function() return("¯\\_(ツ)_/¯")
-
-
-#' table flip
-#'
-#' @details (╯°□°)╯ ︵ ┻━┻
-#'
-#' @export
-#'
-#' @examples
-#' cat("*** this analysis!!", tableFlip(), '\n')
-tableFlip = function() return("(╯°□°)╯ ︵ ┻━┻")
-
-
-
 checkSystem = function(vepCall, testVEP=F) {
   #check that samtools is callable, and version 1+ otherwise warning
   catLog('Testing samtools...\n')
