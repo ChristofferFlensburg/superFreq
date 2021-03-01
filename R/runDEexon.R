@@ -27,7 +27,7 @@
 #' @importFrom BiocGenerics strand start end
 #' @importFrom Rsubread featureCounts
 #' @importFrom limma makeContrasts voom lmFit eBayes contrasts.fit
-#' @importFrom parallel mclapply
+#' @importFrom parallel mclapply 
 #'
 runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdirectory, plotDirectory, normalRdirectory,
   settings=list(), genome='hg19', cpus=1, mode='exome',
@@ -41,7 +41,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
     catLog('Loaded saved differential coverage results\n')
     return(fit)
   }
-
+	#countReadPairs
   catLog('Preparing capture regions for featureCounts..')
   captureAnnotation = try(captureRegionToAnnotation(captureRegions))
   if ( class('captureAnnotation') == 'try-error' ) stop('Error in captureRegionToAnnotation.')
@@ -51,8 +51,13 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   fCsSaveFile = paste0(Rdirectory, '/fCsExon.Rdata')
   if ( !file.exists(fCsSaveFile) | forceRedoCount ) {
     catLog('Counting reads over capture regions.\n')
-    fCsExon = try(featureCounts(bamFiles, annot.ext=captureAnnotation, useMetaFeatures=F,
-      allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
+    if ( packageVersion('Rsubread') < "2.4.2" ) #syntax for paired ends changed at v 2.4.2 (or earlier?)
+		fCsExon = try(featureCounts(bamFiles, annot.ext=captureAnnotation, useMetaFeatures=F,
+		  allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
+	else
+		fCsExon = try(featureCounts(bamFiles, annot.ext=captureAnnotation, useMetaFeatures=F,
+		  allowMultiOverlap=T, isPairedEnd=TRUE, countReadPairs=(mode != 'genome'), minMQS=10, nthreads=cpus))
+
     if ( class(fCsExon) != 'list' ) {
       catLog('Error in featureCounts.\nInput was\nbamFiles:', bamFiles,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')
@@ -77,8 +82,12 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   normalFCsSaveFile = paste0(normalRdirectory, '/normalFCsExon.Rdata')
   if ( !file.exists(normalFCsSaveFile) | forceRedoNormalCount ) {
     catLog('Counting normal reads over capture regions.\n')
-    normalFCsExon = try(featureCounts(externalNormalBams, annot.ext=captureAnnotation, useMetaFeatures=F,
-      allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
+    if ( packageVersion('Rsubread') < "2.4.2" ) #syntax for paired ends changed at v 2.4.2 (or earlier?)
+		normalFCsExon = try(featureCounts(externalNormalBams, annot.ext=captureAnnotation, useMetaFeatures=F,
+		  allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
+	else
+		normalFCsExon = try(featureCounts(externalNormalBams, annot.ext=captureAnnotation, useMetaFeatures=F,
+		  allowMultiOverlap=T, isPairedEnd=TRUE, countReadPairs=(mode != 'genome'), minMQS=10, nthreads=cpus))
     if ( class(normalFCsExon) != 'list' ) {
       catLog('Error in featureCounts.\nInput was\nexternalNormalBams:', externalNormalBams,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')

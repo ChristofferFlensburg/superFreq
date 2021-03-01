@@ -359,7 +359,10 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('\n\n\n', as.character(Sys.time()),
          '\n######################################################################\n')
   catLog('Running superFreq version', superVersion(), '\n')
-
+  catLog('SessionInfo():\n\n')
+  sessionInf = capture.output(sessionInfo())
+  catLog(sessionInf, sep='\n')
+  catLog('\n')
 
   neededInput = c('metaDataFile', 'vcfFiles', 'normalDirectory', 'captureRegionsFile', 'dbSNPdirectory')
   if ( byIndividual ) neededInput = c('metaDataFile', 'normalDirectory', 'captureRegionsFile', 'dbSNPdirectory')
@@ -560,7 +563,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   }
   bamIndexFiles = paste0(bamFiles, '.bai')
   bamIndexFiles2 = gsub('.bam$', '.bai', bamFiles)
-  if ( any(!(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2))) ) {
+  if ( any(!(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2) | grepl('.cram$', bamFiles))) ) {
     missingIndex = !(file.exists(bamIndexFiles) | file.exists(bamIndexFiles2))
     catLog('Could not find bam index files for:' , bamFiles[missingIndex], '.\n')
     stop('Could not find bam index files for:' , bamFiles[missingIndex])
@@ -1248,29 +1251,6 @@ propagateForceRedo = function(forceRedo) {
 }
 
 
-#' shruggie
-#'
-#' @details ¯\_(ツ)_/¯
-#'
-#' @export
-#'
-#' @examples
-#' cat("Sample quality is too low to tell if your favourite gene is mutated or not.", shrug(), '\n')
-shrug = function() return("¯\\_(ツ)_/¯")
-
-
-#' table flip
-#'
-#' @details (╯°□°)╯ ︵ ┻━┻
-#'
-#' @export
-#'
-#' @examples
-#' cat("*** this analysis!!", tableFlip(), '\n')
-tableFlip = function() return("(╯°□°)╯ ︵ ┻━┻")
-
-
-
 checkSystem = function(vepCall, testVEP=F) {
   #check that samtools is callable, and version 1+ otherwise warning
   catLog('Testing samtools...\n')
@@ -1342,6 +1322,14 @@ findBamWithBai = function(bamPath) {
   baiPath1 = paste0(bamPath, '.bai')
   baiPath2 = gsub('.bam$', '.bai', bamPath)
   if ( grepl('\\.bam$', bamPath) & any(file.exists(c(baiPath1, baiPath2))) ) return(bamPath)
+  
+  absCraiPath1 = paste0(absBamPath, '.crai')
+  absCraiPath2 = gsub('.bam$', '.bai', absBamPath)
+  if ( grepl('\\.cram$', absBamPath) & any(file.exists(c(absCraiPath1, absCraiPath2))) ) return(absBamPath)
 
-  stop('Couldnt find an index file for the bam file ', bamPath, ', physically located at ', absBamPath, '. The file (link or absolute) needs to end in .bam and have a corresponding index file called .bam.bai, or .bai. Some versions of dependencies prefer the index file at the absolute location, so if in doubt, place them there.')
+  craiPath1 = paste0(bamPath, '.crai')
+  craiPath2 = gsub('.cram$', '.crai', bamPath)
+  if ( grepl('\\.bam$', bamPath) & any(file.exists(c(craiPath1, craiPath2))) ) return(bamPath)
+
+  stop('Couldnt find an index file for the bam file ', bamPath, ', physically located at ', absBamPath, '. The file (link or absolute) needs to end in .bam (or .cram) and have a corresponding index file called .bam.bai (.cram.crai), or .bai (.crai). Some versions of dependencies prefer the index file at the absolute location, so if in doubt, place them there.')
 }
