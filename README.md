@@ -131,6 +131,24 @@ Runtime and memory usage are for a cancer-normal pair with typical read depths. 
 
 Runtime and memory usage also scales with the number of preliminary variant calls in the input VCF, so another way to decrease resourse usage is to restrict parameters in the varscan call above (such as increasing minimum VAF up to 5%, at the cost of potentially losing low VAF variants).
 
+# Tips to decrease memory use
+SuperFreq can use a lot of memory, in particular when running genomes. This is in part due to copy-on-write when parallelising fails when garbage collection is triggered, as the garbage collectors touches all objects and triggers copy-on-write.
+
+The memory scales roughly:
+
+- linearly with cpus
+- linearly with the total number of unique positions in the vcf input
+- linearly with number of samples, from the individual plus the reference normal samples
+
+So options to limit memory use are:
+
+- Decreasing cpus
+
+- Limit number of reference normals. Genomes are typically much cleaner and less variable than exomes, so fewer references are fine. I think 3 is plenty unless there are batch effects or QC issues, and running on the minimum allowed of 2 works fine for our test data. For exomes, going down to 5 should be fine in most cases, or down to 3 if you have clean data without too much batch effects.
+
+- Pre-filter the input VCF files. Variants supported by 2 or fewer reads are unlikely to be very interesting for example, and might remove a lot of noise variants without having them read into R memory. Or whatever settings are available from the preliminary caller.
+
+
 # Cohort analysis (on HPC)
 When analysing more than a few individuals, the fastest way to get the analysis through is to parallelise across individuals, potentially across separate jobs if in an HPC environment. There are many ways to do this, but the key is the `participant` setting in the `superFreq()` call, which restricts the analysis to only one individual in the meta data, and allows you to submit parallel `superFreq()` calls for different individuals. We are on a torquelord system, and submit jobs through a bash file that takes individual and number of threads to analyse as input.
 
