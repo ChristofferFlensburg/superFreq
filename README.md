@@ -1,7 +1,8 @@
 # External resources
 
-preprint: https://www.biorxiv.org/content/early/2018/07/30/380097
 Plos Computational Biology: https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007603
+
+Preprint on RNA-Seq CNAs: https://www.biorxiv.org/content/10.1101/2020.05.31.126888v1
 
 Seminar about superFreq: https://www.youtube.com/watch?v=2RrQirJ7IAk
 
