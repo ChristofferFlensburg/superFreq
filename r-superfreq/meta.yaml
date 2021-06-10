@@ -1,0 +1,105 @@
+{% set version = '1.3.2' %}
+
+{% set posix = 'm2-' if win else '' %}
+{% set native = 'm2w64-' if win else '' %}
+
+package:
+  name: r-superfreq
+  version: {{ version|replace("-", "_") }}
+
+source:
+  path: ../
+
+build:
+  merge_build_host: True  # [win]
+  # If this is a new build for the same version, increment the build number.
+  number: 0
+
+  # This is required to make R link correctly on Linux.
+  rpaths:
+    - lib/R/lib/
+    - lib/
+
+requirements:
+  build:
+    - {{posix}}filesystem        # [win]
+    - {{posix}}git
+    - {{posix}}zip               # [win]
+
+  host:
+    - r-base
+    - r-r.oo >=1.22
+    - r-writexls >=4.0
+    - bioconductor-bsgenome.hsapiens.ucsc.hg19 >=1.4.0
+    - bioconductor-bsgenome.hsapiens.ucsc.hg38 >=1.4.1
+    - bioconductor-bsgenome.mmusculus.ucsc.mm10 >=1.4.0
+    - bioconductor-biocgenerics >=0.26
+    - bioconductor-genomicranges >=1.32.7
+    - bioconductor-iranges >=2.14.12
+    - bioconductor-mutationalpatterns >=1.6.1
+    - bioconductor-rsamtools >=1.32.3
+    - bioconductor-rsubread >=1.30.9
+    - bioconductor-s4vectors >=0.18.3
+    - bioconductor-biomart >=2.36.1
+    - bioconductor-limma >=3.36.5
+
+  run:
+    - r-base
+    - r-r.oo >=1.22
+    - r-writexls >=4.0
+    - bioconductor-bsgenome.hsapiens.ucsc.hg19 >=1.4.0
+    - bioconductor-bsgenome.hsapiens.ucsc.hg38 >=1.4.1
+    - bioconductor-bsgenome.mmusculus.ucsc.mm10 >=1.4.0
+    - bioconductor-biocgenerics >=0.26
+    - bioconductor-genomicranges >=1.32.7
+    - bioconductor-iranges >=2.14.12
+    - bioconductor-mutationalpatterns >=1.6.1
+    - bioconductor-rsamtools >=1.32.3
+    - bioconductor-rsubread >=1.30.9
+    - bioconductor-s4vectors >=0.18.3
+    - bioconductor-biomart >=2.36.1
+    - bioconductor-limma >=3.36.5
+
+test:
+  commands:
+    # You can put additional test commands to be run here.
+    - $R -e "library('superFreq')"           # [not win]
+    - "\"%R%\" -e \"library('superFreq')\""  # [win]
+
+  # You can also put a file called run_test.py, run_test.sh, or run_test.bat
+  # in the recipe that will be run at test time.
+
+  # requires:
+    # Put any additional test requirements here.
+
+about:
+  home: https://github.com/ChristofferFlensburg/superFreq
+  license: MIT
+  summary: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing all information
+    across samples and mutation types. The inputs are the bam-files and a preliminary
+    SNV calling in .vcf format. SuperFreq filters and annotates the SNVs, calls CNAs
+    and tracks clones over samples from the same individual. A matched normal improves
+    results, but is not necessary. SuperFreq requireas at least two (preferably 5-10
+    or more) reference normal samples that do not have to be related to the studied
+    cancer samples, but must be from the same sequencing platform and capture. These
+    are used to improve results through variance of read depth and requrring false SNVs
+    amongst other things. SuperFreq produces ample output in terms of plots and spread
+    sheets, both for identifying properties of the cancer samples and for quality control.
+  license_family: MIT
+
+# The original CRAN metadata for this package was:
+
+# Package: superFreq
+# Title: Calls and tracks CNAs, SNVs and clones over multiple cancer exomes.
+# Version: 1.3.2
+# Authors@R: person("Christoffer", "Flensburg", email = "flensburg.c@wehi.edu.au", role = c("aut", "cre"))
+# Description: SuperFreq analyses SNVs and CNAs of multiple cancer exomes, sharing all information across samples and mutation types. The inputs are the bam-files and a preliminary SNV calling in .vcf format. SuperFreq filters and annotates the SNVs, calls CNAs and tracks clones over samples from the same individual. A matched normal improves results, but is not necessary. SuperFreq requireas at least two (preferably 5-10 or more) reference normal samples that do not have to be related to the studied cancer samples, but must be from the same sequencing platform and capture. These are used to improve results through variance of read depth and requrring false SNVs amongst other things. SuperFreq produces ample output in terms of plots and spread sheets, both for identifying properties of the cancer samples and for quality control.
+# biocViews:
+# Depends: R (>= 3.2.1), WriteXLS (>= 4.0), BiocGenerics (>= 0.26), GenomicRanges (>= 1.32.7), IRanges (>= 2.14.12), S4Vectors (>= 0.18.3), biomaRt (>= 2.36.1), Rsamtools (>= 1.32.3), R.oo (>= 1.22), Rsubread (>= 1.30.9), limma (>= 3.36.5), parallel, MutationalPatterns (>= 1.6.1), BSgenome.Mmusculus.UCSC.mm10 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg19 (>= 1.4.0), BSgenome.Hsapiens.UCSC.hg38 (>= 1.4.1)
+# License: MIT
+# LazyData: true
+# RoxygenNote: 6.1.1
+
+# See
+# https://docs.conda.io/projects/conda-build for
+# more information about meta.yaml
