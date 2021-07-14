@@ -34,7 +34,9 @@ superFreq(
   exacPopulation = "all",
   cosmicSalvageRate = 0.001,
   annotationMethod = "VariantAnnotation",
-  ploidyPriors = NULL
+  ploidyPriors = NULL,
+  isPairedEnd = TRUE,
+  countReadPairs = TRUE
 )
 }
 \arguments{
@@ -185,6 +187,10 @@ installation of VEP. VariantAnnotation is contained in R and is significantly fa
 Default 'VariantAnnotation'.}
 
 \item{ploidyPriors}{named numeric vector. Prior belief or knowledge that strongly biases the analysis to pick a ploidy close to the supplied prior. Names of the vector must match the samples you want to affect, but doesnt have to include all analysed samples. Entries not matching sample names are ignored. Note that this is sample-wide ploidy, including any normal contamination, so for example a 0.5 purity samples where the cancer has a AABB genotype genomewide will have a sample-wide ploidy of 3. If this is for a fix-the-analysis second run, it might be informative to look at the fitness curves in plotDirectory, diagnostics, ploidy of the first run to find the secondary local minimum that might be the ploidy you want to be used. Default NULL is a flat prior on ploidy, although the prior preference for less exotic copy numbers implicetely biases the analysis towards ploidies close to 2.}
+
+\item{isPairedEnd}{logical. Whether the data is actually paired end or not. featureCounts will throw an error if not accurate. Default TRUE.}
+
+\item{countReadPairs}{logical. Whether to count read pairs. Doing so requires featureCounts to re-sort the file which is slow for large files. This parameter is overriden for mode='genome' and is read pairs are never counted, btu can be used to further speed up exome and RNA runs. Default TRUE.}
 }
 \description{
 Wrapper to run default superFreq analysis

@@ -31,7 +31,7 @@
 #'
 runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdirectory, plotDirectory, normalRdirectory,
   settings=list(), genome='hg19', cpus=1, mode='exome',
-  forceRedoFit=F, forceRedoCount=F, forceRedoNormalCount=F) {
+  forceRedoFit=F, forceRedoCount=F, forceRedoNormalCount=F, isPairedEnd=TRUE, countReadPairs=TRUE) {
   catLog('Starting differential coverage analysis by sample.\n')
 
   fitSaveFile = paste0(Rdirectory, '/fit.Rdata')
@@ -56,7 +56,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
 		  allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
 	else
 		fCsExon = try(featureCounts(bamFiles, annot.ext=captureAnnotation, useMetaFeatures=F,
-		  allowMultiOverlap=T, isPairedEnd=TRUE, countReadPairs=(mode != 'genome'), minMQS=10, nthreads=cpus))
+		  allowMultiOverlap=T, isPairedEnd=isPairedEnd, countReadPairs=(isPairedEnd & countReadPairs & mode != 'genome'), minMQS=10, nthreads=cpus))
 
     if ( class(fCsExon) != 'list' ) {
       catLog('Error in featureCounts.\nInput was\nbamFiles:', bamFiles,
@@ -87,7 +87,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
 		  allowMultiOverlap=T, isPairedEnd= (mode != 'genome'), minMQS=10, nthreads=cpus))
 	else
 		normalFCsExon = try(featureCounts(externalNormalBams, annot.ext=captureAnnotation, useMetaFeatures=F,
-		  allowMultiOverlap=T, isPairedEnd=TRUE, countReadPairs=(mode != 'genome'), minMQS=10, nthreads=cpus))
+		  allowMultiOverlap=T, isPairedEnd=isPairedEnd, countReadPairs=(isPairedEnd & countReadPairs & mode != 'genome'), minMQS=10, nthreads=cpus))
     if ( class(normalFCsExon) != 'list' ) {
       catLog('Error in featureCounts.\nInput was\nexternalNormalBams:', externalNormalBams,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')

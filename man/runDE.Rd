@@ -18,7 +18,9 @@ runDE(
   mode = "exome",
   forceRedoFit = F,
   forceRedoCount = F,
-  forceRedoNormalCount = F
+  forceRedoNormalCount = F,
+  isPairedEnd = TRUE,
+  countReadPairs = TRUE
 )
 }
 \arguments{

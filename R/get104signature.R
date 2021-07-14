@@ -35,6 +35,24 @@ getIndelSignature = function(q, somaticPcut=0.5) {
   return(indelMx)
 }
 
+getRownamesFor96signatures = function() {
+  bases_left = bases_right = c("A", "C", "G", "T")
+  base_subs <- c("[C>A]", "[C>G]", "[C>T]", "[T>A]", "[T>C]", "[T>G]")
+  full_context_poss <- vector("list", length(base_subs))
+  for (i in seq_along(base_subs)) {
+	  sub_context <- base_subs[[i]]
+	  for (j in seq_len(1)) {
+		  combi_tb <- tidyr::crossing(bases_left, sub_context, 
+			  bases_right)
+		  sub_context <- paste0(combi_tb$bases_left, combi_tb$sub_context, 
+			  bases_right)
+	  }
+	  full_context_poss[[i]] <- sub_context
+  }
+  subs = unlist(full_context_poss)
+  return(subs)
+}
+
 
 #get the 96 signature through mutationalPatterns
 get96signature = function(q, Rdirectory, genome, somaticPcut=0.5) {
@@ -50,12 +68,14 @@ get96signature = function(q, Rdirectory, genome, somaticPcut=0.5) {
 
   noMuts = F
   if ( nrow(qSom) == 0 ) {
-    noMuts = T
-    qSom = q[1,]
+  	ret = matrix(0,nrow=96, ncol=1)
+  	colnames(ret) = 'temp'
+  	rownames(ret) = getRownamesFor96signatures()
+  	return(ret)
   }
     
   superFreq:::writeToVCF(qSom, vcfFile, genome=genome)
-  vcf = read_vcfs_as_granges(vcfFile, 'temp', genome = ref_genome)
+  vcf = read_vcfs_as_granges(vcfFile, 'temp', genome = ref_genome, group='all', type='all')
     
   if ( !all(seqlevels(vcf[[1]]) %in% seqlevels(get(ref_genome))) )
     vcf = lapply(vcf, function(x) rename_chrom(x))
@@ -79,9 +99,10 @@ genomeToMPgenome = function(genome) {
 }
 
 #plot the 104 profile
-plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colnames(mut_matrix), ' (', sum(mut_matrix), ' mutations)'), ...) {
-  if ( class(mut_matrix) %in% c('numeric', 'integer') & length(mut_matrix) == 104 ) mut_matrix = matrix(mut_matrix, ncol=1)
+plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colnames(mut_matrix), ' (', sum(mut_matrix), ' mutations)'), absolute=F, ...) {
+  if ( any(class(mut_matrix) %in% c('numeric', 'integer')) & length(mut_matrix) == 104 ) mut_matrix = matrix(mut_matrix, ncol=1)
   norm_mut_matrix = apply(mut_matrix, 2, function(x) x/pmax(1,sum(x)))
+  if ( absolute ) norm_mut_matrix = mut_matrix
   context = c(MutationalPatterns:::TRIPLETS_96, 'ins1', 'ins2', 'ins4', 'ins7', 'del1', 'del2', 'del4', 'del7')
   substitution = c(rep(MutationalPatterns:::SUBSTITUTIONS, each = 16), rep('indel',8))
   substring(context[1:96], 2, 2) = "."

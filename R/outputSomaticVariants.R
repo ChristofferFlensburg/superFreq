@@ -22,8 +22,8 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       vcfFile = paste0(vcfDir, '/', sample, '.vcf')
       if ( !onlyForVEP ) writeToVCF(q, vcfFile, genome=genome)
 
-      start=xToPos(q$x, genome)
-      end = xToPos(q$x, genome)
+      start = as.integer(xToPos(q$x, genome))
+      end = as.integer(xToPos(q$x, genome))
       variant = q$variant
       reference = q$reference
 
@@ -152,7 +152,7 @@ writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F, addSomaticP=F) {
     '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
     '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO')
   chrom = xToChr(q$x, genome)
-  pos = xToPos(q$x, genome)
+  pos = as.integer(xToPos(q$x, genome))
   ID = rownames(q)
   ref = reference
   alt = variant

@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.4.2')
+superVersion = function() return('1.4.3')
 
 
 #' Wrapper to run default superFreq analysis
@@ -133,6 +133,8 @@ superVersion = function() return('1.4.2')
 #'                        installation of VEP. VariantAnnotation is contained in R and is significantly faster.
 #'                        Default 'VariantAnnotation'.
 #' @param ploidyPriors named numeric vector. Prior belief or knowledge that strongly biases the analysis to pick a ploidy close to the supplied prior. Names of the vector must match the samples you want to affect, but doesnt have to include all analysed samples. Entries not matching sample names are ignored. Note that this is sample-wide ploidy, including any normal contamination, so for example a 0.5 purity samples where the cancer has a AABB genotype genomewide will have a sample-wide ploidy of 3. If this is for a fix-the-analysis second run, it might be informative to look at the fitness curves in plotDirectory, diagnostics, ploidy of the first run to find the secondary local minimum that might be the ploidy you want to be used. Default NULL is a flat prior on ploidy, although the prior preference for less exotic copy numbers implicetely biases the analysis towards ploidies close to 2.
+#' @param isPairedEnd logical. Whether the data is actually paired end or not. featureCounts will throw an error if not accurate. Default TRUE.
+#' @param countReadPairs logical. Whether to count read pairs. Doing so requires featureCounts to re-sort the file which is slow for large files. This parameter is overriden for mode='genome' and is read pairs are never counted, btu can be used to further speed up exome and RNA runs. Default TRUE.
 #'
 #' @details This function runs a full SNV, CNV and clonality analysis of the input exome data. Output it sent to the plotDirectory, where diagnostics as well as analysis results are placed. At 12 cpus, the pipeline typically runs overnight on an individual with not too many samples. Large numbers of samples or somatic mutations can increase runtime further. Read more on the manual on https://github.com/ChristofferFlensburg/superFreq/blob/master/manual.pdf about how to set up the run and interpret the output.
 #'          
@@ -160,7 +162,8 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
                      resourceDirectory='superFreqResources', mode='exome', splitRun=T, participants='all',
                      manualStoryMerge=F, vepCall='vep', correctReferenceBias=T, filterOffTarget=T,
                      rareGermline=T, exacPopulation='all', cosmicSalvageRate=1e-3,
-                     annotationMethod='VariantAnnotation', ploidyPriors=NULL) {
+                     annotationMethod='VariantAnnotation', ploidyPriors=NULL,
+                     isPairedEnd=TRUE, countReadPairs=TRUE) {
 
   if ( dbSNPdirectory != '' ) warning("dbSNPdirectory is deprecated. Use superFreqResources instead.")
   if ( cosmicDirectory != '' ) warning("cosmicDirectory is deprecated. Use superFreqResources instead.")
@@ -203,7 +206,8 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
                 correctReferenceBias=correctReferenceBias, vepCall=vepCall,
                 filterOffTarget=filterOffTarget, rareGermline=rareGermline, exacPopulation=exacPopulation,
                 cosmicSalvageRate=cosmicSalvageRate, annotationMethod=annotationMethod,
-                ploidyPriors=ploidyPriors, participants=participant)
+                ploidyPriors=ploidyPriors, participants=participant,
+                isPairedEnd=isPairedEnd, countReadPairs=countReadPairs)
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
@@ -247,7 +251,8 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
   analyse(inputFiles=inputFiles, outputDirectories=outputDirectories, settings=settings, forceRedo=forceRedo,
           runtimeSettings=runtimeSettings, parameters=parameters, byIndividual=T, manualStoryMerge=manualStoryMerge,
           correctReferenceBias=correctReferenceBias, vepCall=vepCall, resourceDirectory=resourceDirectory, mode=mode,
-          filterOffTarget=filterOffTarget, rareGermline=rareGermline, annotationMethod=annotationMethod, ploidyPriors=ploidyPriors)
+          filterOffTarget=filterOffTarget, rareGermline=rareGermline, annotationMethod=annotationMethod, ploidyPriors=ploidyPriors,
+          isPairedEnd=isPairedEnd, countReadPairs=countReadPairs)
 
 }
 
@@ -327,7 +332,7 @@ splitMetaData = function(metaDataFile, Rdirectory, plotDirectory) {
 analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSettings,
   parameters=defaultSuperParameters(), byIndividual=T, manualStoryMerge=F, correctReferenceBias=T,
   vepCall='vep', resourceDirectory=resourceDirectory, mode='exome', filterOffTarget=T, rareGermline=T,
-  annotationMethod='VariantAnnotation', ploidyPriors=NULL) {
+  annotationMethod='VariantAnnotation', ploidyPriors=NULL, isPairedEnd=TRUE, countReadPairs=TRUE) {
   options(stringsAsFactors = F)
   options(scipen = 10)
 
@@ -589,11 +594,14 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   gcSummary = colSums(gc(reset=T))[c(2,6)]
   catLog(as.character(Sys.time()), '\n')
   catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
+  freeMem = as.numeric(system("awk '/MemFree/ {print $2}' /proc/meminfo", intern=TRUE))
+  catLog('Free memory (Mb): ', freeMem/1e6, '\n', sep='')
+
   
   #compare coverage of samples to the pool of normals, using limma-voom.
   fit = runDE(bamFiles, sampleNames, externalNormalCoverageBams, captureRegions, Rdirectory, plotDirectory, genome=genome,
     normalCoverageRdirectory, settings=settings, cpus=cpus, forceRedoFit=forceRedoFit, forceRedoCount=forceRedoCount,
-    forceRedoNormalCount=forceRedoNormalCount, mode=mode)
+    forceRedoNormalCount=forceRedoNormalCount, mode=mode, isPairedEnd=isPairedEnd, countReadPairs=countReadPairs)
 
   gcSummary = colSums(gc(reset=T))[c(2,6)]
   catLog(as.character(Sys.time()), '\n')

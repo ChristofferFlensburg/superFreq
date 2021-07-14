@@ -47,11 +47,12 @@ The meta data file should be a tab separated file with headings.\n')
     paste0(dirname(sampleMetaDataFile), '/', metaData$BAM),
     metaData$BAM))
 
-  #resolve vcf path
+  #resolve vcf path, the file may not exist (and VCF will be generated), but containing directory must exist
   relativePath = !grepl('^[~/]', metaData$VCF)
-  metaData$VCF = normalizePath(ifelse(relativePath,
-    paste0(dirname(sampleMetaDataFile), '/', metaData$VCF),
-    metaData$VCF))
+  hybridPath = ifelse(relativePath, paste0(dirname(sampleMetaDataFile), '/', metaData$VCF), metaData$VCF)
+  #this makes an absolute path to the vcf even if the file doesnt exist
+  #only throws warning if containing dir doesnt exist
+  metaData$VCF = paste0(normalizePath(dirname(hybridPath)), '/', basename(hybridPath))
 
   rownames(metaData) = metaData$NAME
   return(metaData)

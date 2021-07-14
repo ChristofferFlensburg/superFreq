@@ -20,7 +20,9 @@ analyse(
   filterOffTarget = T,
   rareGermline = T,
   annotationMethod = "VariantAnnotation",
-  ploidyPriors = NULL
+  ploidyPriors = NULL,
+  isPairedEnd = TRUE,
+  countReadPairs = TRUE
 )
 }
 \arguments{
