@@ -195,7 +195,11 @@ runSummaryPostAnalysis(metaDataFile='metaData.tsv',
 
 The output will be in `/path/to/plots/cohortWide`. Some of the output is focused on a shortlist of Genes of Interest (GoI) that can be given as argument (`runSummaryPostAnalysis(..., GoI=c('TP53', 'KRAS', 'NRAS'))`), or it will otherwise be set from frequently altered genes in the samples, filtered against COSMIC and ClinVar.
 
-Varikondo developed at https://github.com/annaquaglieri16/varikondo is an R package that provides interactive visualisation of output from superFreq and other variant callers over a subset of Genes of Interest.
+Varikondo developed at https://github.com/annaquaglieri16/varikondo is an R package by Anna Quaglieri that provides interactive visualisation of output from superFreq and other variant callers over a subset of Genes of Interest.
+
+# Cohort analysis (on the cloud)
+Eduardo Maury produced tools to run superFreq on the cloud here: https://github.com/emauryg/superFreq_cloud
+`runSummaryPostAnalysis()` as shown above is a good option for cohort-level follow up analysis.
 
 # Acknowledgements
 We wish to thanks all the organisations sharing data and resources openly, which allows preprocessing and redistribution. This allows superFreq to depend on only a single connection (which is the WEHI servers atm) and a minimum amount of data downloaded. So this limits the risk of 'server X could not be found' type of errors, and it limits the download size of the preprocessed data to hundreds of MBs, rather than hundreds of GBs for the unprocessed original data. It also saves time for everyone by removing user parsing of external resources from the analysis.
