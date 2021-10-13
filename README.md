@@ -202,7 +202,7 @@ Eduardo Maury produced tools to run superFreq on the cloud here: https://github.
 `runSummaryPostAnalysis()` as shown above is a good option for cohort-level follow up analysis.
 
 # Conda
-
+Paul Salachan set up a conda install for superFreq!
 ~~~~bash
 cd r-superfreq
 conda build -c bioconda -c conda-forge --debug .
