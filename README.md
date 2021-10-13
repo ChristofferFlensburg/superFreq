@@ -201,6 +201,14 @@ Varikondo developed at https://github.com/annaquaglieri16/varikondo is an R pack
 Eduardo Maury produced tools to run superFreq on the cloud here: https://github.com/emauryg/superFreq_cloud
 `runSummaryPostAnalysis()` as shown above is a good option for cohort-level follow up analysis.
 
+# Conda
+
+~~~~bash
+cd r-superfreq
+conda build -c bioconda -c conda-forge --debug .
+conda install -c bioconda -c conda-forge --use-local r-superfreq
+~~~~
+
 # Acknowledgements
 We wish to thanks all the organisations sharing data and resources openly, which allows preprocessing and redistribution. This allows superFreq to depend on only a single connection (which is the WEHI servers atm) and a minimum amount of data downloaded. So this limits the risk of 'server X could not be found' type of errors, and it limits the download size of the preprocessed data to hundreds of MBs, rather than hundreds of GBs for the unprocessed original data. It also saves time for everyone by removing user parsing of external resources from the analysis.
 - dbSNP
