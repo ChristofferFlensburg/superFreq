@@ -11,6 +11,8 @@ superCohort(
   genome,
   cpus = 1,
   resourceDirectory = "superFreqResources",
+  excludeIndividuals = c(),
+  excludeSamples = c(),
   ...
 )
 }

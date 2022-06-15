@@ -1070,7 +1070,7 @@ bamToVariants = function(bamFiles, positions, BQoffset, genome='hg19', batchSize
 
 
 
-newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33, genome='hg19', batchSize=1000, cpus=1) {
+newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33, genome='hg19', batchSize=1000, cpus=1, stopAtNoReads=TRUE) {
   
   samtoolsVersion = system('samtools --version', intern=T)[1]
 
@@ -1130,7 +1130,7 @@ newBamToVariants = function(bamFiles, positions, fasta, Rdirectory, BQoffset=33,
     catLog('Single variant read flags:', length(grep('Svr', ret$flag)), '\n')
     catLog('Minor variant flags:', length(grep('Mv', ret$flag)), '\n')
     catLog('Stutter flags:', length(grep('St', ret$flag)), '\n')
-    if ( nrow(ret) > 0 & sum(ret$cov) == 0 ) {
+    if ( nrow(ret) > 0 & sum(ret$cov) == 0 & stopAtNoReads ) {
       catLog('Found no reads over any positions in the VCF. This is typically a sign of failing to read from the bam (', file, '), bam index or fasta (', fasta, '). Or it can be an issue with samtools not being properly available. Cant recover, stopping here.\n', sep='')
       stop('Found no reads over any positions in the VCF. This is typically a sign of failing to read from the bam (', file, '), bam index or fasta (', fasta, '). Or it can be an issue with samtools not being properly available.')
     }

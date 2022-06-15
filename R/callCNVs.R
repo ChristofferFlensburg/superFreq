@@ -322,7 +322,11 @@ unifyCaptureRegions = function(eFreqs, fit, cpus=1) {
 
   #relWidth = sqrt(fit$df.total[1]/(fit$df.total[1]-2))
 
-  cR = data.frame(x1=fit$x1, x2=fit$x2, M=fit$coefficients[,1], width=fit$coefficients[,1]/fit$t[,1], df=fit$df.total,
+  width = fit$coefficients[,1]/fit$t[,1]
+  #handle division by zero by giving it a very large width
+  #this will give a very low weight downstream and will effectively remove it from analysis
+  width[fit$t == 0] = 10
+  cR = data.frame(x1=fit$x1, x2=fit$x2, M=fit$coefficients[,1], width=width, df=fit$df.total,
     uniFreq[,1:2], Nsnps=Nsnps, pHet=pHet, pAlt=pAlt, odsHet=odsHet)
   return(cR)
 }

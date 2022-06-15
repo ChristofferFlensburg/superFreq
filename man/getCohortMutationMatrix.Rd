@@ -11,7 +11,8 @@ getCohortMutationMatrix(
   excludeIndividuals = c(),
   excludeSamples = c(),
   GoIakas = c(),
-  cpus = 1
+  cpus = 1,
+  includeGermlineLike = T
 )
 }
 \arguments{

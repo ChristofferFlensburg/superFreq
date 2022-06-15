@@ -401,7 +401,9 @@ makeCNAbatchHeatmap = function(Rdirectory, plotDirectory, metaDataFile, genome, 
   cohortDir = paste0(plotDirectory, '/cohortWide')
   superFreq:::ensureDirectoryExists(cohortDir)
   plotFile = paste0(cohortDir, '/CNAsummary.pdf')
-  pdf(plotFile, width=15, height=10)
+  md = importSampleMetaData(metaDataFile)
+  md = md[!(md$INDIVIDUAL %in% excludeIndividuals) & !(md$NAME %in% excludeSamples),]
+  pdf(plotFile, width=15, height=max(7, nrow(md)/5))
   superFreq:::plotCNAbatchHeatmap(Rdirectory=Rdirectory, metaDataFile=metaDataFile, genome=genome,
                                   excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   dev.off()

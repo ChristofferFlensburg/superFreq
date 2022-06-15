@@ -265,7 +265,7 @@ findGoI = function(Rdirectory, metaDataFile, cosmicCensus=T, clinvarPathogenic=T
 #'
 #' @export
 #'
-getCohortMutationMatrix = function(GoI, Rdirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c(), cpus=1) {
+getCohortMutationMatrix = function(GoI, Rdirectory, metaDataFile, excludeIndividuals=c(), excludeSamples=c(), GoIakas=c(), cpus=1, includeGermlineLike=T) {
   clusterList = superFreq:::loadClusterList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
                                 excludeSamples=excludeSamples, cpus=cpus)
   sampleList = lapply(clusterList, names)
@@ -274,16 +274,16 @@ getCohortMutationMatrix = function(GoI, Rdirectory, metaDataFile, excludeIndivid
   
 
   #get CNA calls and clonality
-  cnaMx = getCohortCNAmatrix(GoI, clusterList, sampleList)
+  cnaMx = superFreq:::getCohortCNAmatrix(GoI, clusterList, sampleList)
 
   #add dots for point mutations
-  snvMx = getCohortSNVmatrix(GoI, qsList, sampleList, colMx=colMx)
+  snvMx = getCohortSNVmatrix(GoI, qsList, sampleList, colMx=colMx, includeGermlineLike=includeGermlineLike)
 
   return(list(cnaMx=cnaMx, snvMx=snvMx))
 }
 
 #helper function
-getCohortSNVmatrix = function(GoI, qsList, sampleList, colMx) {
+getCohortSNVmatrix = function(GoI, qsList, sampleList, colMx, includeGermlineLike=includeGermlineLike) {
 
   biallelicMx = matrix(FALSE, ncol=length(unlist(sampleList)), nrow=length(GoI))
   mostSevereMx = matrix('', ncol=length(unlist(sampleList)), nrow=length(GoI))
@@ -295,6 +295,7 @@ getCohortSNVmatrix = function(GoI, qsList, sampleList, colMx) {
     for ( sample in samples ) {
       q = qsList[[ind]][[sample]]
       q = q[q$somaticP > 0.5 & q$severity < 11 & q$inGene %in% GoI & q$var > 0.15*q$cov,]
+	  if ( !includeGermlineLike ) q = q[!q$germline | is.na(q$germline),]
       for ( gene in GoI ) {
         qg = q[q$inGene == gene,]
         if  ( nrow(qg) == 0 ) next
