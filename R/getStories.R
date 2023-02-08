@@ -922,7 +922,7 @@ mergeStories = function(clusteredStories, filteredStories, germlineVariants=c())
     })
   })
   #if either as only one row, make it a 1-row or 1-column matrix.
-  if ( class(distance) != 'matrix' )
+  if (any(class(distance) != 'matrix'))
     distance = matrix(distance, nrow = nrow(filteredStories))
   closestDistance = apply(distance, 1, min)
   toMerge = which(closestDistance <= 1)
