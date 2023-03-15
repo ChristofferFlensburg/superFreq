@@ -269,7 +269,7 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T, germlineVariants=c(
       allowed = rownames(ret) %in% germlineVariants
       presentInNormal = ret$stories[,normal,drop=F] > ret$errors[,normal,drop=F] | ret$stories[,normal,drop=F] > 0.2
       presentInNormal = apply(presentInNormal, 1, any)
-      if ( class(presentInNormal) == 'matrix' ) presentInNormal = apply(presentInNormal, 1, any)
+      if ( inherits(presentInNormal, 'matrix') ) presentInNormal = apply(presentInNormal, 1, any)
       ret = ret[!presentInNormal | allowed,,drop=F]
       catLog('Filtered ', sum(presentInNormal & !allowed), ' present in normal stories.\n', sep='')
     }
@@ -285,7 +285,7 @@ findSNPstories = function(somaticQs, cnvs, normal, filter=T, germlineVariants=c(
   if ( any(normal) & nrow(ret) > 0 ) {
     presentInNormal = ret$stories[,normal,drop=F] > ret$errors[,normal,drop=F] | ret$stories[,normal,drop=F] > 0.2
     presentInNormal = apply(presentInNormal, 1, any)
-    if ( class(presentInNormal) == 'matrix' ) presentInNormal = apply(presentInNormal, 1, any)
+    if ( inherits(presentInNormal, 'matrix') ) presentInNormal = apply(presentInNormal, 1, any)
     ret = ret[!presentInNormal,,drop=F]
     catLog('Filtered ', sum(allSmall), ' small, ', sum(uncertain), ' uncertain, ', sum(indel), ' indel and ', sum(presentInNormal), ' present in normal stories.\n', sep='')
   }
@@ -922,7 +922,7 @@ mergeStories = function(clusteredStories, filteredStories, germlineVariants=c())
     })
   })
   #if either as only one row, make it a 1-row or 1-column matrix.
-  if ( class(distance) != 'matrix' )
+  if ( !inherits(distance, 'matrix') )
     distance = matrix(distance, nrow = nrow(filteredStories))
   closestDistance = apply(distance, 1, min)
   toMerge = which(closestDistance <= 1)

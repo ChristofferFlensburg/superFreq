@@ -27,7 +27,7 @@ callCNVs = function(variants, fitS, SNPs, samples, individuals, normals, Rdirect
   clusters = lapply(samples, function(sample) {
     catLog('\nCalling CNVs for ', sample, '.\n', sep='')
     ploidyPrior = NULL
-    if ( class(ploidyPriors) == 'numeric' & sample %in% names(ploidyPriors) ) {
+    if ( inherits(ploidyPriors, 'numeric') & sample %in% names(ploidyPriors) ) {
       ploidyPrior = ploidyPriors[sample]
       catLog('Using prior bias towards ploidy of ', ploidyPrior, '.\n', sep='')
     }
@@ -61,7 +61,7 @@ callCNVs = function(variants, fitS, SNPs, samples, individuals, normals, Rdirect
 callCancerNormalCNVs = function(cancerVariants, normalVariants, fit, plotDirectory, name, individuals, SNPs, genome='hg19', cpus=1, correctReferenceBias=T, mode='exome', ploidyPrior=NULL) {
 
   #select good germline het variants from normals:
-  if ( class(normalVariants) == 'logical')
+  if ( inherits(normalVariants, 'logical') )
     use = selectGermlineHetsFromCancer(cancerVariants, fit$sex, SNPs, genome, cpus=cpus)
   else
     use = selectGermlineHets(normalVariants, fit$sex, SNPs, genome, cpus=cpus)

@@ -230,25 +230,25 @@ newFlagFromNormals = function(variants, normalVariants, genome, RNA=F, cpus=1, c
   varN = do.call(cbind, lapply(normalVariants$variants, function(q) q$var))
   covN = do.call(cbind, lapply(normalVariants$variants, function(q) q$cov))
   flags = do.call(cbind, lapply(normalVariants$variants, function(q) q$flag))
-  unflagged = rowsums(flags == '') == ncol(flags)
+  unflagged = superFreq:::rowsums(flags == '') == ncol(flags)
   db = normalVariants$variants[[1]]$db
-  f = rowsums(varN)/rowsums(covN)
-  f[rowsums(covN) == 0] = 0
+  f = superFreq:::rowsums(varN)/superFreq:::rowsums(covN)
+  f[superFreq:::rowsums(covN) == 0] = 0
   fs = varN/covN
   fs[covN == 0] = 0  
-  psN = matrix(pBinom(as.integer(covN), as.integer(varN), rep(f, ncol(covN))), ncol=ncol(covN))
-  pSameF = apply(psN, 1, fisherTest)[2,]
-  non0 = f > 0.03 & rowsums(varN) > 1
+  psN = matrix(superFreq:::pBinom(as.integer(covN), as.integer(varN), rep(f, ncol(covN))), ncol=ncol(covN))
+  pSameF = apply(psN, 1, superFreq:::fisherTest)[2,]
+  non0 = f > 0.03 & superFreq:::rowsums(varN) > 1
   isLow = fs < 0.1
   isHigh = fs > 0.95
-  isHalf = matrix(pBinom(as.integer(covN), as.integer(varN), rep(refBias(0.5), nrow(covN)*ncol(covN))), ncol=ncol(covN)) > 0.01
-  consistent = rowsums(isLow | isHigh | isHalf) == ncol(fs)   #are all samples 0, 0.5 or 1?
+  isHalf = matrix(superFreq:::pBinom(as.integer(covN), as.integer(varN), rep(superFreq:::refBias(0.5), nrow(covN)*ncol(covN))), ncol=ncol(covN)) > 0.01
+  consistent = superFreq:::rowsums(isLow | isHigh | isHalf) == ncol(fs)   #are all samples 0, 0.5 or 1?
   normalNoise = (!db & non0 & pSameF > 0.01) | (db & non0 & pSameF > 0.01 & !consistent)
   catLog('Flagged', sum(normalNoise), 'out of', nrow(fs),
          'variants that are recurrently and consistently noisy in normals.\n')
 
   present = fs > 0.2 & covN >= 10
-  variableNormal = (!normalNoise & rowsums(present) > 0 & !db) | (!normalNoise & rowsums(present) > 0 & !consistent & db)
+  variableNormal = (!normalNoise & superFreq:::rowsums(present) > 0 & !db) | (!normalNoise & superFreq:::rowsums(present) > 0 & !consistent & db)
   catLog('Flagged another', sum(variableNormal), 'out of', nrow(fs),
          'variants that are not db, but significantly present in at least one normal sample.\n')
 
@@ -564,7 +564,7 @@ setVariantLoss = function(variants, maxLoops = 99, verbose=T, correctReferenceBi
   }
   
   #if called with several samples, take average
-  if ( class(variants) == 'list' ) {
+  if ( inherits(variants, 'list') ) {
     vL = mean(unlist(lapply(variants, function(var) setVariantLoss(var, maxLoops=maxLoops, verbose=F, correctReferenceBias=correctReferenceBias))))
     assign('.variantLoss', vL, envir = .GlobalEnv)
     if ( verbose ) catLog('Average variant loss is', vL, '\n')

@@ -44,7 +44,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
 	#countReadPairs
   catLog('Preparing capture regions for featureCounts..')
   captureAnnotation = try(captureRegionToAnnotation(captureRegions))
-  if ( class('captureAnnotation') == 'try-error' ) stop('Error in captureRegionToAnnotation.')
+  if ( inherits('captureAnnotation', 'try-error') ) stop('Error in captureRegionToAnnotation.')
   if ( !('GeneID' %in% colnames(captureAnnotation)) ) stop('captureAnnotation does not have a GeneID.')
   catLog('done.\n')
   
@@ -58,7 +58,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
 		fCsExon = try(featureCounts(bamFiles, annot.ext=captureAnnotation, useMetaFeatures=F,
 		  allowMultiOverlap=T, isPairedEnd=isPairedEnd, countReadPairs=(isPairedEnd & countReadPairs & mode != 'genome'), minMQS=10, nthreads=cpus))
 
-    if ( class(fCsExon) != 'list' ) {
+    if ( !inherits(fCsExon, 'list') ) {
       catLog('Error in featureCounts.\nInput was\nbamFiles:', bamFiles,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')
       stop('Error in featureCounts.')
@@ -88,7 +88,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
 	else
 		normalFCsExon = try(featureCounts(externalNormalBams, annot.ext=captureAnnotation, useMetaFeatures=F,
 		  allowMultiOverlap=T, isPairedEnd=isPairedEnd, countReadPairs=(isPairedEnd & countReadPairs & mode != 'genome'), minMQS=10, nthreads=cpus))
-    if ( class(normalFCsExon) != 'list' ) {
+    if ( !inherits(normalFCsExon, 'list') ) {
       catLog('Error in featureCounts.\nInput was\nexternalNormalBams:', externalNormalBams,
              '\ncaptureAnnotation[1:10,]:', as.matrix(captureAnnotation[1:10,]), '\n')
       stop('Error in featureCounts of normals.')

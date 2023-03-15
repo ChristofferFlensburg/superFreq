@@ -71,7 +71,7 @@ getVariant = function(metaData, samples, fillInMissing=F, cpus=1) {
         }
         else variants = allVariants$variants
       })
-    if ( class(a) == 'try-error' ) {
+    if ( inherits(a, 'try-error') ) {
       warning('Failed to laod and merge variants from ', Rdir, '. Caught error message: ', a)
 
     }
@@ -100,7 +100,7 @@ getNormalVariant = function(metaData, variants, fillInMissing=F, cpus=1) {
     normalVariants$SNPs = normalVariants$SNPs[normalVariants$SNPs$x %in% neededX,]
 
     ret$variants = c(ret$variants, normalVariants$variants)
-    if ( class(ret$SNPs) == 'character' ) ret$SNPs = normalVariants$SNPs
+    if ( inherits(ret$SNPs, 'character') ) ret$SNPs = normalVariants$SNPs
     else {
       ret$SNPs = rbind(ret$SNPs, normalVariants$SNPs)
       ret$SNPs = ret$SNPs[!duplicated(ret$SNPs),]

@@ -110,25 +110,27 @@ plotMeanCNVtoFile = function(metaData, project, meanCNV, cosmicDirectory='', plo
 }
 
 #plots the mutation reates over the genome.
-plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, outputData=T, plotMutations=T, reset=T, addLegend=T, chr.col=mcri('green', 0.3), label.cex=1, chr.cex=1, chr.stagger=0, chr.staggerFrom=1, ...) {
+plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNames=T, meanCNV2=NA, genome='hg19', filterIG=T, filterTR=T, filterHLA=T, dontCountRepeatedSNVs=F, plotSex=T, plotY=T, outputData=T, plotMutations=T, reset=T, addLegend=T, chr.col=mcri('green', 0.3), label.cex=1, chr.cex=1, chr.stagger=0, chr.staggerFrom=1, maxFrequency=NULL, ...) {
   samples = names(meanCNV$cnvs)
   individuals = metaData$samples[samples,]$INDIVIDUAL
   uInd = unique(individuals)
   indSamples = lapply(uInd, function(ind) which(individuals == ind))
 
   cL = chrLengths(genome=genome)
-  if ( !plotSex ) cL = cL[!(names(cL) %in% c('X', 'Y'))]
+  excludeChrs = c()
+  if ( !plotY ) excludeChrs = c('Y', 'M')
+  if ( !plotSex )  excludeChrs = c('X','Y', 'M')
+  if ( length(excludeChrs) > 0 ) cL = cL[!(names(cL) %in% excludeChrs)]
   CR = meanCNV$cnvs[[1]]$CR
-  if ( !plotSex ) CR = CR[!(xToChr(CR$x1, genome=genome) %in% c('X', 'Y')),]
   
   maxCNV = max(meanCNV$cnvRates$gain, meanCNV$cnvRates$loss, meanCNV$cnvRates$loh)
   maxLOH = max(meanCNV$cnvRates$loh)
-  if ( !plotSex ) {
-    use = !(xToChr(CR$x1, genome=genome) %in% c('X', 'Y'))
+  if ( length(excludeChrs) > 0 ) {
+    use = !(xToChr(CR$x1, genome=genome) %in% excludeChrs)
     maxCNV = max(meanCNV$cnvRates$gain[use], meanCNV$cnvRates$loss[use], meanCNV$cnvRates$loh[use])
     maxLOH = max(meanCNV$cnvRates$loh[use])
   }
-  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+  if ( !inherits(meanCNV2, 'logical') && !is.na(meanCNV2) ) {
     maxCNV = max(maxCNV, meanCNV2$cnvRates$gain, meanCNV2$cnvRates$loss, meanCNV2$cnvRates$loh)
     maxLOH = max(maxLOH, meanCNV2$cnvRates$loh)
   }
@@ -137,15 +139,20 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
   if ( !plotMutations ) spaceForSNVs = maxCNV*0.02
   spaceForLoh = pmin(maxLOH, maxCNV)/maxCNV
   
+  if ( is.null(maxFrequency) ) maxFrequencyCNV = maxCNV+0.05
+  else maxFrequencyCNV = maxFrequency
   indTicks = (1:length(uInd))/length(uInd)
-  indTicks = indTicks[indTicks <= maxCNV+0.05]
+  indTicks = indTicks[indTicks <= maxFrequencyCNV]
   heavy = rep(T, length(indTicks))
   while ( sum(heavy) > 10 ) heavy[heavy] = rep(c(F,T), length.out = sum(heavy))
+  heavy[length(heavy)] = TRUE
   cnvScale = 1/max(indTicks)
   yTicks = indTicks*cnvScale
 
+  if ( is.null(maxFrequency) ) maxFrequencyLOH = maxLOH+0.05
+  else maxFrequencyLOH = maxFrequency
   indTicksLOH = (1:length(uInd))/length(uInd)
-  indTicksLOH = indTicksLOH[indTicksLOH <= maxLOH+0.05]
+  indTicksLOH = indTicksLOH[indTicksLOH <= maxFrequencyLOH]
   heavyLOH = rep(T, length(indTicksLOH))
   while ( sum(heavyLOH) > 10*spaceForLoh ) heavyLOH[heavyLOH] = rep(c(F,T), length.out = sum(heavyLOH))
   cnvScaleLOH = 1/max(indTicksLOH)
@@ -157,6 +164,7 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
   ymax = max(yTicks)
   ymin = min(yTicks)
 
+  if ( length(excludeChrs) > 0 ) CR = CR[!(xToChr(CR$x1, genome=genome) %in% excludeChrs),]
   xs = sort(c((CR$x1+CR$x2)/2, 0, cumsum(cL)))
   names(xs) = xs
   xsOri = c((CR$x1+CR$x2)/2)
@@ -173,7 +181,8 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
     vec = c(vec, newValues)[order(c(seq_along(vec), newIs))]
     meanCNV$cnvRates[[cnv]] = vec
   }
-  xs = sort(c((CR$x1+CR$x2)/2, rep(c(0, cumsum(cL)),2)))
+  #xs = sort(c((CR$x1+CR$x2)/2, rep(c(0, cumsum(cL)),2)))
+  xs = sort(c((CR$x1+CR$x2)/2, c(0, rep(cumsum(cL),2))))
   Nx = length(xs)
   
   #set up plot
@@ -194,7 +203,8 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
     
     #mark chromosome boundaries
     superFreq:::addChromosomeLines(c(ymin, ymax*1.05), col=chr.col, lwd=1.5, genome=genome,
-                                   onlyNumbers=!plotSex, cex=chr.cex, stagger=chr.stagger, staggerFrom=chr.staggerFrom)
+                                   onlyNumbers=!plotSex, cex=chr.cex, stagger=chr.stagger, staggerFrom=chr.staggerFrom,
+                                   excludeChromosomes=excludeChrs)
   }
 
   #polygons for gain/amplification/loss/complete loss
@@ -236,7 +246,7 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
     maxDL = max(meanCNV$doubleLossRates$doubleLossRate)
     
     maxSNV = max(maxMut, maxDL)
-    if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+    if ( !inherits(meanCNV2, 'logical') && !is.na(meanCNV2) ) {
       maxSNV = max(maxSNV, meanCNV2$snvRates$mutationRate, meanCNV2$doubleLossRates$doubleLossRate)
     }
     
@@ -667,7 +677,7 @@ plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWei
   if ( is.na(cancerGenes[1]) ) {
     score = cohortGeneScore(metaData, meanCNV, priorCnvWeight=priorCnvWeight, filterIG=filterIG, dontCountRepeatedSNVs=dontCountRepeatedSNVs)
     score[names(score)=='?'] = 0
-    if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+    if ( !inherits(meanCNV2, 'logical') && !is.na(meanCNV2) ) {
       score2 = cohortGeneScore(metaData, meanCNV2, priorCnvWeight=priorCnvWeight, filterIG=filterIG, genome=genome, dontCountRepeatedSNVs=dontCountRepeatedSNVs)
       score = abs(score-score2)
     }
@@ -733,7 +743,7 @@ plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWei
   xmax = max(x+0.5)
   ymax = max(y+0.5)
 
-  if ( class(meanCNV2) != 'logical' && !is.na(meanCNV2) ) {
+  if ( !inherits(meanCNV2, 'logical') && !is.na(meanCNV2) ) {
     individuals2 = sampleToIndividual(metaData, names(meanCNV2$cnvs))
     maxX2 = ncol(meanCNV2$cnvRates$gainMx) + length(unique(individuals2))/3
     if ( add ) x = x + maxX2 + 1

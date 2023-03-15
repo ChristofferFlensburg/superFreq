@@ -155,6 +155,9 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
       q = addCOSMICannotation(q, genome=genome, resourceDirectory=resourceDirectory)
     if ( genome %in% c('mm10') )
       q = superFreq:::addCCGDannotation(q, CCGDsummary)
+    if ( genome %in% c('mm10') )
+      q = superFreq:::addCOSMICmouseHomologs(q, resourceDirectory)
+      
 
     #add clinvar annotation
     if ( genome %in% c('hg19', 'hg38') )
@@ -321,14 +324,14 @@ annotationColumns = function(genome) {
   if ( genome %in% c('hg19', 'hg38') )
     return(c('severity', 'type', 'isCosmicCensus', 'AApos', 'AAbefore', 'AAafter', 'cosmicVariantRank', 'cosmicVariantFrequency', 'cosmicGeneRank', 'cosmicGeneFrequency', 'ClinVar_ClinicalSignificance', 'ClinVar_OriginSimple', 'ClinVar_ReviewStatus', 'ClinVar_VariationID'))
   if ( genome %in% c('mm10') )
-    return(c('severity', 'type', 'AApos', 'AAbefore', 'AAafter', 'isCCGD', 'CCGDstudies', 'CCGDcancerTypes', 'CCGDcosmic', 'CCGDcgc', 'CCGDranks'))
+    return(c('severity', 'type', 'AApos', 'AAbefore', 'AAafter', 'isCCGD', 'CCGDstudies', 'CCGDcancerTypes', 'CCGDcosmic', 'CCGDcgc', 'CCGDranks', 'isCosmicCensus'))
 }
 
 
 addVAnullAnnotation = function(q, genome) {
   q$severity = rep(100, nrow(q))
   q$type = rep('', nrow(q))
-  if ( genome %in% c('hg19', 'hg38') ) q$isCosmicCensus = rep(F, nrow(q))
+  q$isCosmicCensus = rep(F, nrow(q))
   q$AApos = rep('', nrow(q))
   q$AAbefore = rep('', nrow(q))
   q$AAafter = rep('', nrow(q))
@@ -395,6 +398,8 @@ preprocessCCGD = function(resourceDirectory) {
   CCGDdata = read.table(paste0(resourceDirectory, '/COSMIC/CCGD_export.csv'), sep=',', header=T, stringsAsFactors=F)
   censusGenes = unique(CCGDdata$Mouse.Symbol)
   
+
+  
   CCGDsummary = sapply(censusGenes, function(gene) {
     subData = CCGDdata[CCGDdata$Mouse.Symbol == gene,]
     studies = subData$Studies[1]
@@ -450,6 +455,13 @@ addCCGDannotation = function(q, CCGDsummary) {
   q$CCGDranks = CCGDranks
   
   return(q)
+}
+
+addCOSMICmouseHomologs = function(q, resourceDirectory) {
+	mm10genes = read.table(paste0(resourceDirectory, '/COSMIC/MGIBatchReport_20220629_032731_filtered.txt'), sep='\t', fill=T, quote='', header=T)
+    homologCensusGenes = unique(mm10genes$Symbol)
+	q$isCosmicCensus = q$inGene %in% homologCensusGenes
+	return(q)
 }
 
 

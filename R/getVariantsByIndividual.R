@@ -1,4 +1,3 @@
-
 #' Quality controls the variants in the vcfs, using the bams.
 #'
 #' @import BiocGenerics
@@ -1156,3 +1155,4 @@ deleteDebugFiles = function(Rdirectory, delete=F) {
     cat('option \'delete\' is set to false. If you want to carry out the deletion, call with \'delete\' set to TRUE.\n')
   if ( delete ) unlink(debugFiles)
 }
+

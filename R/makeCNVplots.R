@@ -288,9 +288,11 @@ plotCR = function(cR, showClonality=T, errorBars=T, chr='all', genome='hg19', al
 }
 
 #helper function that adds vertical chromsome lines to a plot on the genomic x coordinate.
-addChromosomeLines = function(ylim = c(0, 1), col = 'red', cex=1, genome='hg19', onlyNumbers=F, stagger=0, staggerFrom=1, ...) {
+addChromosomeLines = function(ylim = c(0, 1), col = 'red', cex=1, genome='hg19', onlyNumbers=F,
+							  stagger=0, staggerFrom=1, excludeChromosomes=c(), ...) {
   chrL = chrLengths(genome=genome)
   if ( onlyNumbers ) chrL = chrL[grepl('[0-9]', names(chrL))]
+  chrL = chrL[!(names(chrL) %in% excludeChromosomes)]
   lim = c(0, cumsum(chrL))
   segments(lim, ylim[1], lim, ylim[2], col=col, cex=cex, ...)
   ys = rep(ylim[2], length(chrL))

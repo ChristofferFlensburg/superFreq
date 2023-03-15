@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.4.3')
+superVersion = function() return('1.4.4')
 
 
 #' Wrapper to run default superFreq analysis
@@ -243,7 +243,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
     superFreq:::downloadSuperFreqAnnotation(annotationDirectory, genome=genome)
     superFreq:::downloadSuperFreqSignatures(signaturesDirectory)
   })
-  if ( class(worked) == 'try-error' ) {
+  if ( inherits(worked, 'try-error') ) {
     catLog("\nError in resource download, exiting. This might be due to connection issues, or due to the WEHI servers being offline. Make sure the machine has internet connection, or try re-using reosurces from a previous run, or download manually from the mirror at https://figshare.com/articles/superFreqResources_tar_gz/9202289.\n")
     stop('Error in resource download, exiting. This might be due to connection issues, or due to the WEHI servers being offline. Make sure the machine has internet connection, or try re-using reosurces from a previous run, or download manually from the mirror at https://figshare.com/articles/superFreqResources_tar_gz/9202289.')
   }
@@ -344,7 +344,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
     stop('outputDirectories need all entries: Rdirectory, plotDirectory.')
   Rdirectory = normalizePath(outputDirectories$Rdirectory)
   if ( !exists('Rdirectory') ) stop('Need to set Rdirectory.')
-  if ( class(Rdirectory) != 'character' ) stop('Rdirectory needs to be of class character.')
+  if ( !inherits(Rdirectory, 'character') ) stop('Rdirectory needs have class character.')
   
   if ( !file.exists(Rdirectory) ) {
     dirSuccess = dir.create(Rdirectory)
@@ -354,7 +354,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
 
   #set up logfile and log start of run.
   outputToTerminalAsWell = runtimeSettings$outputToTerminalAsWell
-  if ( is.null(outputToTerminalAsWell) | class(outputToTerminalAsWell) != 'logical' ) outputToTerminalAsWell=F
+  if ( is.null(outputToTerminalAsWell) | !inherits(outputToTerminalAsWell, 'logical') ) outputToTerminalAsWell=F
   ensureDirectoryExists(Rdirectory, verbose=F)
   logFile = paste0(normalizePath(Rdirectory), '/runtimeTracking.log')
   assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
@@ -413,25 +413,25 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   
   #sanity check input to the R script.
   if ( !exists('sampleMetaDataFile') ) stop('Need to set sampleMetaDataFile.')
-  if ( class(sampleMetaDataFile) != 'character' ) stop('sampleMetaDataFile needs to be of class character.')
+  if ( !inherits(sampleMetaDataFile, 'character') ) stop('sampleMetaDataFile needs to be of class character.')
   if ( !file.exists(sampleMetaDataFile) ) stop('sampleMetaDataFile ', sampleMetaDataFile, ' not found.')
 
   if ( !byIndividual ) {
     if ( !exists('vcfFiles') ) stop('Need to set vcfFiles!')
-    if ( class(vcfFiles) != 'character' ) stop('vcfFiles needs to be of class character.')
+    if ( !inherits(vcfFiles, 'character') ) stop('vcfFiles needs to be of class character.')
     for ( vcfFile in vcfFiles ) if ( !file.exists(vcfFile) ) stop('vcfFile ', vcfFile, ' not found.')
   }
   
   if ( !exists('normalDirectory') ) stop('Need to set normalDirectory!')
-  if ( class(normalDirectory) != 'character' ) stop('normalDirectory needs to be of class character.')
+  if ( !inherits(normalDirectory, 'character') ) stop('normalDirectory needs to be of class character.')
   if ( !file.exists(normalDirectory) ) stop('normalDirectory ', normalDirectory, ' not found.')
 
     if ( !exists('normalCoverageDirectory') ) stop('Need to set normalCoverageDirectory!')
-  if ( class(normalCoverageDirectory) != 'character' ) stop('normalCoverageDirectory needs to be of class character.')
+  if ( !inherits(normalCoverageDirectory, 'character') ) stop('normalCoverageDirectory needs to be of class character.')
   if ( !file.exists(normalCoverageDirectory) ) stop('normalCoverageDirectory ', normalCoverageDirectory, ' not found.')
     
   if ( !exists('plotDirectory') ) stop('Need to set plotDirectory.')
-  if ( class(plotDirectory) != 'character' ) stop('plotDirectory needs to be of class character.')
+  if ( !inherits(plotDirectory, 'character') ) stop('plotDirectory needs to be of class character.')
   if ( !file.exists(plotDirectory) ) {
     dirSuccess = dir.create(plotDirectory)
     if ( !dirSuccess ) stop('Failed to create the plotDirectory ', plotDirectory,
@@ -462,23 +462,23 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
 
   if ( !(genome %in% c('hg19', 'hg38', 'mm10')) ) stop('Only genomes that are supported atm are hg19, hg38 and mm10, sorry.\nNew genomes can be added though, please contact the authors.\n')
 
-  if ( class(parameters) != 'list' ) stop('parameters need to be of class list. Dont provide this to analyse() for default settings, otherwise a named list with the parameters.')
+  if ( !inherits(parameters, 'list') ) stop('parameters need to be of class list. Dont provide this to analyse() for default settings, otherwise a named list with the parameters.')
   catLog('\nParameters for this run are:\n')
-  if ( 'maxCov' %in% names(parameters) &  class(parameters$maxCov) != 'numeric' ) stop('parameter maxCov needs to be numeric.')
+  if ( 'maxCov' %in% names(parameters) &  !inherits(parameters$maxCov, 'numeric') ) stop('parameter maxCov needs to be numeric.')
   if ( 'maxCov' %in% names(parameters) )   assign('.maxCov', parameters$maxCov, envir = .GlobalEnv)
   else assign('.maxCov', 150, envir = .GlobalEnv)
   catLog('   maxCov:              ', get('.maxCov', envir = .GlobalEnv), '\n', sep='')
-  if ( 'systematicVariance' %in% names(parameters) &  class(parameters$systematicVariance) != 'numeric' ) stop('parameter systematicVariance needs to be numeric.')
+  if ( 'systematicVariance' %in% names(parameters) &  !inherits(parameters$systematicVariance, 'numeric') ) stop('parameter systematicVariance needs to be numeric.')
   if ( 'systematicVariance' %in% names(parameters) ) assign('.systematicVariance', parameters$systematicVariance, envir = .GlobalEnv)
   else assign('.systematicVariance', 0.02, envir = .GlobalEnv)
   catLog('   systematicVariance:  ', get('.systematicVariance', envir = .GlobalEnv), '\n', sep='')
 
-  if ( 'cloneDistanceCut' %in% names(parameters) &  class(parameters$cloneDistanceCut) != 'numeric' ) stop('parameter cloneDistanceCut needs to be numeric.')
+  if ( 'cloneDistanceCut' %in% names(parameters) &  !inherits(parameters$cloneDistanceCut, 'numeric') ) stop('parameter cloneDistanceCut needs to be numeric.')
   if ( 'cloneDistanceCut' %in% names(parameters) ) assign('.cloneDistanceCut', parameters$cloneDistanceCut, envir = .GlobalEnv)
   else assign('.cloneDistanceCut', -qnorm(0.01), envir = .GlobalEnv)
   catLog('   cloneDistanceCut:  ', get('.cloneDistanceCut', envir = .GlobalEnv), '\n', sep='')
 
-  if ( 'cosmicSalvageRate' %in% names(parameters) &  class(parameters$cosmicSalvageRate) != 'numeric' ) stop('parameter cosmicSalvageRate needs to be numeric.')
+  if ( 'cosmicSalvageRate' %in% names(parameters) &  !inherits(parameters$cosmicSalvageRate, 'numeric') ) stop('parameter cosmicSalvageRate needs to be numeric.')
   catLog('   cosmicSalvageRate:  ', parameters$cosmicSalvageRate, '\n', sep='')
 
 

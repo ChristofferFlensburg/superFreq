@@ -56,7 +56,7 @@ cohortAnalyseBatch = function(metaDataFile, outputDirectories, cpus=1, onlyDNA=T
     a = projectMeanCNV(metaData, project, cpus=cpus, onlyDNA=onlyDNA, clonalityCut=clonalityCut, includeNormal=includeNormal,
       forceRedoMean=forceRedoMean, forceRedoVariants=forceRedoVariants, cosmicDirectory=cosmicDirectory, cnvWeight=cnvWeight,
       forceRedoMatrixPlot=forceRedoMatrixPlot, forceRedoMeanPlot=forceRedoMeanPlot, genome=genome, ignoreCNAonly=ignoreCNAonly)
-    if ( class(a) == 'try-error' ) {
+    if ( inherits(a, 'try-error') ) {
       catLog('Failed project mean CNV for project ', project, ' with error message: ', a, '\n', sep='')
       warning('Failed project mean CNV for project ', project, ' with error message: ', a)
     }
@@ -391,17 +391,22 @@ checkRelatedness = function(Rdirectory, plotDirectory, metaDataFile, excludeIndi
 }
 #calculates hwo related the sampels are based on germline SNPs, and makes a heatmap.
 #purpose is to catch mislabeled samples assigned to the wrong individual
-checkRelatednessCrossBatch = function(Rdirectories, plotFile, metaDataFiles, excludeIndividuals=c(), excludeSamples=c(), cpus=1) {
+checkRelatednessCrossBatch = function(Rdirectories, plotFile, metaDataFiles, excludeIndividuals=c(),
+                                      excludeSamples=c(), cpus=1, sortBySampleName=FALSE) {
   if ( length(Rdirectories) != length(metaDataFiles) ) stop('Length of Rdirectories (', length(Rdirectories),
                                                             ') does not match length of metaDataFiles (', length(metaDataFiles), ')')
                                                             
-  qsL = lapply(1:length(length(Rdirectories)), function(i) {
+  qsL = lapply(1:length(Rdirectories), function(i) {
 	  qsList = superFreq:::loadQsList(Rdirectory=Rdirectories[i], metaDataFile=metaDataFiles[i],
                                   excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
 	  qs = do.call(c, qsList)
+	  names(qs) = unlist(lapply(qsList, names))
   	  return(qs)
   })
   qs = do.call(c, qsL)
+  names(qs) = unlist(lapply(qsL, names))
+  
+  if ( sortBySampleName ) qs = qs[order(names(qs))]
   
   cat('Calculating relatedness matrix')
   samples = names(qs)
@@ -412,18 +417,23 @@ checkRelatednessCrossBatch = function(Rdirectories, plotFile, metaDataFiles, exc
       q2 = qs[[sample2]]
       
       het1 = rownames(q1)[q1$db & !is.na(q1$dbMAF) & q1$dbMAF > 0.01 & q1$flag == '' &
-        q1$var < 0.9*q1$cov & q1$var > 0.2*q1$cov & q1$cov > 20]
+                          q1$var < 0.9*q1$cov & q1$var > 0.2*q1$cov & q1$cov > 20]
       het1loose = rownames(q1)[q1$var < 0.95*q1$cov & q1$var > 0.1*q1$cov & q1$cov > 5]
+      hom1 = rownames(q1)[q1$db & !is.na(q1$dbMAF) & q1$dbMAF > 0.01 & q1$flag == '' &
+                          q1$var > 0.98*q1$cov & q1$cov > 20]
       het2 = rownames(q2)[q2$db & !is.na(q2$dbMAF) &  q2$dbMAF > 0.01 & q2$flag == '' &
-        q2$var < 0.9*q2$cov & q2$var > 0.2*q2$cov & q2$cov > 20]
+                          q2$var < 0.9*q2$cov & q2$var > 0.2*q2$cov & q2$cov > 20]
       het2loose = rownames(q2)[q2$var < 0.95*q2$cov & q2$var > 0.1*q2$cov & q2$cov > 5]
+      hom2 = rownames(q2)[q2$db & !is.na(q2$dbMAF) &  q2$dbMAF > 0.01 & q2$flag == '' &
+                          q2$var > 0.98*q2$cov & q2$cov > 20]
       
       agreeHet = (sum(het1 %in% het2loose) + sum(het2 %in% het1loose))/2
-      hetScore = agreeHet/((length(het1) + length(het2))/2)
+      mismatchHetHom = sum(het1 %in% hom2) + sum(het2 %in% hom1)
+      matchScore = agreeHet/(agreeHet + 10*mismatchHetHom)
       
-      return(hetScore)
+      return(matchScore)
     })
-  }, mc.cores=5, mc.preschedule=F)
+  }, mc.cores=cpus, mc.preschedule=F)
   names(relatednessList) = samples
   relatednessMx = do.call(rbind, relatednessList)
   cat('done.\n')
@@ -516,7 +526,7 @@ runSummaryPostAnalysis = function(Rdirectory, plotDirectory, metaDataFile, genom
   if ( is.na(GoI[1]) ) {
     catLog('Finding frequently mutated genes as Genes of Interest...')
     GoI = superFreq:::findGoI(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals,
-                              excludeSamples=excludeSamples, cpus=cpus)
+                              excludeSamples=excludeSamples, cpus=cpus, genome=genome)
     catLog('done.\n')
     catLog('GoI are:', GoI, '\n')
   }

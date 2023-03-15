@@ -6,7 +6,7 @@
 
 isSaneMetaData = function(metaData) {
   #has all the right classes everywhere
-  if ( class(metaData) != 'list' ) return('metaData not a list!')
+  if ( !inherits(metaData, 'list') ) return('metaData not a list!')
 
   if ( !('samples' %in% names(metaData)) ) return('No entry in metadata called \'samples\'!')
   if ( !('normalSamples' %in% names(metaData)) ) return('No entry in metadata called \'normalSamples\'!')
@@ -15,8 +15,8 @@ isSaneMetaData = function(metaData) {
   if ( !('paths' %in% names(metaData)) ) return('No entry in metadata called \'paths\'!')
 
   #information about each sample, and a separate list for the pool of normals
-  if ( class(metaData$samples) != 'data.frame' ) return('metaData$samples is not a data.frame!')
-  if ( class(metaData$normalSamples) != 'data.frame' ) return('metaData$normalSamples is not a data.frame!')
+  if ( !inherits(metaData$samples, 'data.frame') ) return('metaData$samples is not a data.frame!')
+  if ( !inherits(metaData$normalSamples, 'data.frame') ) return('metaData$normalSamples is not a data.frame!')
 
   sampleClass = c(
     'BAM'='character',
@@ -33,17 +33,17 @@ isSaneMetaData = function(metaData) {
   for ( name in names(sampleClass) ) {
     if ( !(toupper(name) %in% names(metaData$samples)) )
       return(paste0('No column in metaData$samples called ', name ,'!'))
-    if ( class(metaData$samples[[name]]) != sampleClass[name] )
+    if ( !inherits(metaData$samples[[name]], sampleClass[name]) )
       return(paste0('metaData$samples$', name,' is not of class ', sampleClass[name],'!'))
 
     if ( !(name %in% names(metaData$normalSamples)) )
       return(paste0('No column in metaData$normalSamples called ', name ,'!'))
-    if ( class(metaData$normalSamples[[name]]) != sampleClass[name] )
+    if ( !inherits(metaData$normalSamples[[name]], sampleClass[name]) )
       return(paste0('metaData$normalSamples$', name,' is not of class ', sampleClass[name],'!'))
   }
 
   #information about each individual, mainly where to save R data and where to plot.
-  if ( class(metaData$individuals) != 'data.frame' ) return('metaData$individuals is not a data.frame!')
+  if ( !inherits(metaData$individuals, 'data.frame') ) return('metaData$individuals is not a data.frame!')
   sampleClass = c(
     'individual'='character',
     'Rdirectory'='character',
@@ -52,12 +52,12 @@ isSaneMetaData = function(metaData) {
   for ( name in names(sampleClass) ) {
     if ( !(name %in% names(metaData$individuals)) )
       return(paste0('No column in metaData$individuals called ', name ,'!'))
-    if ( class(metaData$individuals[[name]]) != sampleClass[name] )
+    if ( !inherits(metaData$individuals[[name]], sampleClass[name]) )
       return(paste0('metaData$individuals$', name,' is not of class ', sampleClass[name],'!'))
   }
 
   #information about each project, mainly where to save R data and where to plot.
-  if ( class(metaData$project) != 'data.frame' ) return('metaData$project is not a data.frame!')
+  if ( !inherits(metaData$project, 'data.frame') ) return('metaData$project is not a data.frame!')
   sampleClass = c(
     'project'='character',
     'Rdirectory'='character',
@@ -66,12 +66,12 @@ isSaneMetaData = function(metaData) {
   for ( name in names(sampleClass) ) {
     if ( !(name %in% names(metaData$project)) )
       return(paste0('No column in metaData$project called ', name ,'!'))
-    if ( class(metaData$project[[name]]) != sampleClass[name] )
+    if ( !inherits(metaData$project[[name]], sampleClass[name]) )
       return(paste0('metaData$project$', name,' is not of class ', sampleClass[name],'!'))
   }
 
   #information about each project, mainly where to save R data and where to plot.
-  if ( class(metaData$paths) != 'list' ) return('metaData$paths is not a list!')
+  if ( !inherits(metaData$paths, 'list') ) return('metaData$paths is not a list!')
   sampleClass = c(
     'sources'='character',
     'dataDirectory'='character')
@@ -79,7 +79,7 @@ isSaneMetaData = function(metaData) {
   for ( name in names(sampleClass) ) {
     if ( !(name %in% names(metaData$paths)) )
       return(paste0('No column in metaData$paths called ', name ,'!'))
-    if ( class(metaData$paths[[name]]) != sampleClass[name] )
+    if ( !inherits(metaData$paths[[name]], sampleClass[name]) )
       return(paste0('metaData$paths$', name,' is not of class ', sampleClass[name],'!'))
   }
 

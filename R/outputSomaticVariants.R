@@ -27,7 +27,7 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
       variant = q$variant
       reference = q$reference
 
-      refvarstartendList = convertVariantsToVCF(list(reference, variant, start, end))
+      refvarstartendList = superFreq:::convertVariantsToVCF(list(reference, variant, start, end))
       reference = refvarstartendList[[1]]
       variant = refvarstartendList[[2]]
       start = refvarstartendList[[3]]
@@ -67,6 +67,17 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
         catLog('adding more VariantAnnotation info..')
         somatic = cbind(somatic, q[,annotationColumns(genome=genome)])
       }
+      #add VAFs and RD from other samples
+      if ( length(variants$variants) > 1 ) {
+      	otherSamples = names(variants$variants)[names(variants$variants) != sample]
+      	for ( otherS in otherSamples ) {
+      		q2 = variants$variants[[otherS]][rownames(q),]
+      		vafs = cbind(q2$var/q2$cov, q2$cov, q2$var)
+			colnames(vafs) = paste0(otherS, c('_VAF', '_RD', '_var'))
+      		somatic = cbind(somatic, vafs)
+      	}
+      }
+      
       if ( 'severity' %in% names(q) )  ord = order(q$severity + 10*ifelse(is.na(q$germline), 0, q$germline))
       else ord = order(10*q$germline)
       somatic = somatic[ord,]
@@ -78,13 +89,19 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
     if ( !onlyForVEP ) catLog('writing to xls...')
     if ( !onlyForVEP ) WriteXLS('XLsomatics', outfile)
 
-    if ( !onlyForVEP ) catLog('Writing to .csv...')
-    for ( sample in names(somatics) ) {
-      somatics[[sample]]$sample = rep(sample, nrow(somatics[[sample]]))
-    }
-    allSomatics = do.call(rbind, somatics)
-    if ( !onlyForVEP ) write.csv(allSomatics, gsub('.xls$', '.csv', outfile))
-    if ( !onlyForVEP ) catLog('done!\n')
+	#this outputs all variants (beyond 65k) to a single .csv.
+	#purpose was to simplify downstream analysis without hving to parse
+	#a multi-tab .xls that may not even have all variants.
+	#however, this file is rarely used afaik
+	#and for some reason it often causes aout-of-memory crashes.
+	#hence removed. Use .vcfs below for automated downstream analysis, or Rdata.
+    #if ( !onlyForVEP ) catLog('Writing to .csv...')
+    #for ( sample in names(somatics) ) {
+    #  somatics[[sample]]$sample = rep(sample, nrow(somatics[[sample]]))
+    #}
+    #allSomatics = do.call(rbind, somatics)
+    #if ( !onlyForVEP ) write.csv(allSomatics, gsub('.xls$', '.csv', outfile))
+    #if ( !onlyForVEP ) catLog('done!\n')
 
     catLog('Outputting to directory ', vcfDir, '..')
     for ( name in names(somatics) ) {

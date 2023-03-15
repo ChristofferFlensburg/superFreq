@@ -222,7 +222,7 @@ renameGoIs = function(genes, GoIakas) {
 }
 
 
-findGoI = function(Rdirectory, metaDataFile, cosmicCensus=T, clinvarPathogenic=T, clinvarAny=F, excludeIndividuals=c(), excludeSamples=c(), maxNumberOfGenes=50, cpus=1) {
+findGoI = function(Rdirectory, metaDataFile, cosmicCensus=T, clinvarPathogenic=T, clinvarAny=F, excludeIndividuals=c(), excludeSamples=c(), maxNumberOfGenes=50, cpus=1, genome='hg19') {
   qsList = superFreq:::loadQsList(Rdirectory=Rdirectory, metaDataFile=metaDataFile, excludeIndividuals=excludeIndividuals, excludeSamples=excludeSamples, cpus=cpus)
   qs = do.call(c, qsList)
   GoIlist = lapply(qs, function(q) {
@@ -237,6 +237,9 @@ findGoI = function(Rdirectory, metaDataFile, cosmicCensus=T, clinvarPathogenic=T
     use =
       isSomatic & isCoding & isntSubclonal &
       ((isCosmicCensus&cosmicCensus) | (isClinvarPathogenic&clinvarPathogenic) | (isClinvarAny&clinvarAny))
+    if ( genome == 'mm10' )
+    	use = isSomatic & isCoding & isntSubclonal & (isCosmicCensus | !cosmicCensus)
+
     return(unique(q$inGene[use]))
     })
   GoI = unique(unlist(GoIlist))

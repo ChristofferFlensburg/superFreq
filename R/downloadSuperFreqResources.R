@@ -67,17 +67,24 @@ downloadSuperFreqCOSMIC = function(directory='superFreqCOSMIC', genome='hg19') {
     urls =
       paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
              c('COSMIC/allCosmicCounts_hg19.Rdata', 'COSMIC/cosmicCounts.Rdata', 'ClinVar/clinvar19.Rdata'))
-    if ( genome == 'hg38' )
+    filenames = basename(urls)
+    if ( genome == 'hg38' ) {
         urls =
             paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
                    c('COSMIC/allCosmicCounts_hg38.Rdata', 'COSMIC/cosmicCounts.Rdata', 'ClinVar/clinvar38.Rdata'))
-    if ( genome == 'mm10' )
+       filenames = basename(urls)
+ 
+    }
+    if ( genome == 'mm10' ) {
       urls =
-        paste0('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/',
-               c('COSMIC/CCGD_export.csv'))
-    for ( url in urls ) {
-      destFile = paste0(directory, '/', basename(url))
-      if ( !file.exists(destFile) ) downloadFile(url, destfile = destFile)
+        c('http://gitlab.wehi.edu.au/flensburg.c/superFreq/raw/master/COSMIC/CCGD_export.csv',
+          'https://figshare.com/ndownloader/files/36269079')
+      filenames = c('CCGD_export.csv', 'MGIBatchReport_20220629_032731_filtered.txt')
+    }
+    for ( i in 1:length(urls) ) {
+      url = urls[i]
+      destFile = paste0(directory, '/', filenames[i])
+      if ( !file.exists(destFile) ) superFreq:::downloadFile(url, destfile = destFile)
     }
   
 }

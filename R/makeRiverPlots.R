@@ -557,7 +557,7 @@ heatmapStories = function(stories, storyList, variants, col=NA, genome='hg19', a
 
   if ( nrow(clonalityMx) < 1000 ) {
     worked = try(makeHeatmap(clonalityMx, RowSideColors=sideCol, label='clonality'))
-    if ( class(worked) == 'try-error' ) {
+    if ( !inherits(worked, 'try-error') ) {
       catLog('Error in the heatmap. Trying without row/column clustering.\n')
       makeHeatmap(clonalityMx, RowSideColors=sideCol, Colv=NA, Rowv=NA)
     }

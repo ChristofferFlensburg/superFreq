@@ -129,7 +129,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
       clusterOrder =
         try(makeHeatmap(fs[doColour,,drop=F], cexCol=1, labRow=gene[doColour], Rowv=Rowv, nCol=nCol, col=heatCol,
                         RowSideColors = RSC, margins=c(8,15), main=main, label='frequency', ...))
-      if ( class(clusterOrder) == 'try-error' ) {
+      if ( inherits(clusterOrder, 'try-error') ) {
         Rowv = NA
         catLog('too many variants, not clustering...')
         clusterOrder =

@@ -80,7 +80,7 @@ runVEP = function(variants, plotDir, cpus=1, genome='hg19', vepCall='vep', force
     }
     VEPfile = paste0(dir, '/', name, '.VEP.txt')
     VEPdata = try(read.table(VEPfile, fill=T, header=F, colClasses='character'), silent=T)
-    if ( class(VEPdata) == 'try-error' ) {
+    if ( inherits(VEPdata, 'try-error') ) {
       catLog('failed to read VEP file ', VEPfile,'.\n')
       variants$variants[[name]]$type = rep('notChecked', nrow(variants$variants[[name]]))
       variants$variants[[name]]$severity = rep(100, nrow(variants$variants[[name]]))
@@ -281,9 +281,9 @@ postAnalyseVEP = function(outputDirectories, inputFiles=NA, metaData=NA, genome=
   variants = data$allVariants$variants
   if ( !('allVariants' %in% names(data)) & 'variants' %in% names(data) )
     variants = data$variants
-  if ( class(metaData) == 'data.frame' )
+  if ( inherits(metaData, 'data.frame') )
     sampleMetaData = metaData
-  else if ( class(inputFiles) == 'list' )
+  else if ( inherits(inputFiles, 'list') )
     sampleMetaData = importSampleMetaData(inputFiles$metaDataFile)
   else
     stop('Neither inputFiles nor metaData was defined.')
@@ -345,7 +345,7 @@ getMoreVEPinfo = function(variants, plotDirectory, genome='hg19', cosmicDirector
     else {
       VEPfile = paste0(dir, '/', name, '.VEP.txt')
       VEPdata = try(read.table(VEPfile, fill=T, header=F, colClasses='character'), silent=T)
-      if ( class(VEPdata) == 'try-error' )
+      if ( inherits(VEPdata, 'try-error') )
         catLog('failed to read VEP file ', VEPfile,'.\n')
       
       ID = as.numeric(as.factor(VEPdata$V1))

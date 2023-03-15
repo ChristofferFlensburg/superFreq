@@ -111,7 +111,7 @@ plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colname
   df2 = cbind(df, as.data.frame(norm_mut_matrix))
   df3 = reshape2::melt(df2, id.vars = c("substitution", "context"))
   value = NULL
-  if ( ymax==0 ) ymax = max(df3$value, 0.01)
+  if ( ymax==0 ) ymax = max(df3$value, 0.01)*1.05
   cols = superFreq:::mcri(c('red', 'green', 'magenta', 'blue', 'cyan', 'orange', 'violet'))
   a=barplot(df3$value, space = c(0.4,ifelse(df3$substitution[1:103] == df3$substitution[2:104], 0.4, 2)),
           col=cols[as.numeric(as.factor(df3$substitution))], ylim=c(-ymax*0.2,ymax), main=main, ...)
@@ -134,6 +134,9 @@ plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colname
 
   if ( legend )
     legend('topleft', names(baseToCol), pch=15, col=baseToCol, pt.cex=2, cex=0.8)
+    
+  rownames(a) = context
+  invisible(list(x=a, y=df3$value, ymax=ymax))
 }
 
 
