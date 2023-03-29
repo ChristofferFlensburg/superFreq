@@ -4,7 +4,7 @@
 \alias{get104profile}
 \title{returns the 104 signature from a superFreq q variant object}
 \usage{
-get104profile(q, Rdirectory, genome, somaticPcut = 0.5)
+get104profile(q, genome, somaticPcut = 0.5)
 }
 \description{
 returns the 104 signature from a superFreq q variant object

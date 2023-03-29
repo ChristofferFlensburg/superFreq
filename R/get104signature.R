@@ -7,8 +7,8 @@
 #' @importFrom BSgenome.Hsapiens.UCSC.hg19 BSgenome.Hsapiens.UCSC.hg19
 #' @importFrom BSgenome.Hsapiens.UCSC.hg38 BSgenome.Hsapiens.UCSC.hg38
 #' @importFrom BSgenome.Mmusculus.UCSC.mm10 BSgenome.Mmusculus.UCSC.mm10
-get104profile = function(q, Rdirectory, genome, somaticPcut = 0.5) {
-  mx96 = get96signature(q=q, Rdirectory=Rdirectory, genome=genome, somaticPcut=somaticPcut)
+get104profile = function(q, genome, somaticPcut = 0.5) {
+  mx96 = get96signature(q=q, genome=genome, somaticPcut=somaticPcut)
   mxIndel = getIndelSignature(q, somaticPcut=somaticPcut)
   mx104 = rbind(mx96, mxIndel)
   return(mx104)
@@ -55,38 +55,81 @@ getRownamesFor96signatures = function() {
 
 
 #get the 96 signature through mutationalPatterns
-get96signature = function(q, Rdirectory, genome, somaticPcut=0.5) {
-
-  if ( !dir.exists(Rdirectory) ) {
-    stop('R directory doesnt exist for get96signature.')
-  }
-  
+get96signature = function(q, genome, somaticPcut=0.5) {
   ref_genome = genomeToMPgenome(genome)
-  
-  vcfFile = paste0(Rdirectory, '/temp_', runif(1, 0, 1e10), '.vcf')
   qSom = q[q$somaticP > somaticPcut & q$variant %in% c('A', 'T', 'C', 'G'),]
 
-  noMuts = F
   if ( nrow(qSom) == 0 ) {
   	ret = matrix(0,nrow=96, ncol=1)
   	colnames(ret) = 'temp'
   	rownames(ret) = getRownamesFor96signatures()
   	return(ret)
   }
-    
-  superFreq:::writeToVCF(qSom, vcfFile, genome=genome)
-  vcf = read_vcfs_as_granges(vcfFile, 'temp', genome = ref_genome, group='all', type='all')
-    
-  if ( !all(seqlevels(vcf[[1]]) %in% seqlevels(get(ref_genome))) )
-    vcf = lapply(vcf, function(x) rename_chrom(x))
   
-  mx = mut_matrix(vcf_list = vcf, ref_genome = ref_genome)
-  if ( noMuts ) mx = mx*0
-
-  unlink(vcfFile)
-  
+  grl = qsToGRL(list('temp'=qSom), genome=genome)
+  mx = mut_matrix(vcf_list = grl, ref_genome = ref_genome)  
   return(mx)
 }
+
+#converts a superFreq q data frame of variants to a GRanges made for MutationalPatterns
+qToGR = function(q, genome) {
+	#replace the legacy superFreq indel notation with what MutationalPAtterns expects
+	q = superFreq:::updateDeletions(q, genome=genome)
+	q = superFreq:::updateInsertions(q, genome=genome)
+	chr = paste0('chr', xToChr(q$x, genome=genome))
+	pos = xToPos(q$x, genome=genome)
+
+	#QUAL from somaticP here is used with the usal phred conversion, pretending that somaticP is a probability
+	gr = GRanges(seqnames=chr,
+				 ranges=IRanges(start=pos, end=pos+nchar(q$reference)-1),
+				 strand='*',
+				 REF=q$reference,
+				 ALT=q$variant,
+				 QUAL = pmin(60, -log10(1 - q$somaticP) * 10),
+				 FILTER = gsub("^$", "PASS", superFreq:::expandFlags(q$flag)),
+				 INFO = paste0("DP=", q$cov, ";AF=", ifelse(q$cov > 0, q$var/q$cov, 0))
+)	 
+	
+	chrL = chrLengths(genome)[gsub('chr', '', seqnames(seqinfo(gr)))]
+	names(chrL) = seqnames(seqinfo(gr))
+	seqlengths(seqinfo(gr)) = chrL
+	
+	GenomeInfoDb::genome(gr) = genome
+
+	return(gr)
+}
+#converts a superFreq qs variants list to a GRanges list.
+qsToGRL = function(qs, genome) {
+	grl = lapply(qs, function(q) superFreq:::qToGR(q, genome=genome))
+	return(grl)
+	
+}
+
+#changes the legacy superFreq format for indels (such as "-3" for a 3bp deletion)
+#to more up to date formats, where the reference entry has the deleted bases.
+updateDeletions = function(q, genome) {
+	dels = grep('-', q$variant)
+	if ( length(dels) == 0 ) return(q)
+	delSize = as.numeric(gsub('-', '', q$variant[dels]))
+	delX = q$x[dels]
+	ref_genome = superFreq:::genomeToMPgenome(genome)
+	deletedSequence = as.character(getSeq(get(ref_genome), paste0('chr', xToChr(delX, genome)),
+                         xToPos(delX, genome), xToPos(delX, genome)+delSize))
+
+	q$x[dels] = q$x[dels]
+	q$reference[dels] = deletedSequence
+	q$variant[dels] = substr(deletedSequence, 1, 1)
+    
+    return(q)
+}
+updateInsertions = function(q, genome) {
+	inss = grep('\\+', q$variant)
+	if ( length(inss) == 0 ) return(q)
+	q$variant[inss] = paste0(q$reference[inss], gsub('\\+', '', q$variant[inss]))
+    
+    return(q)
+}
+
 
 #translates the superFreq assembly names to the BSgenome assembly names
 genomeToMPgenome = function(genome) {
@@ -141,12 +184,12 @@ plot_104_profile = function (mut_matrix, ymax = 0, legend=T, main=paste0(colname
 
 
 #plot the 104 profiles by sample
-plot104profilesBySample = function(qs, Rdirectory, plotDirectory, genome, somaticPcut=0.5) {
+plot104profilesBySample = function(qs, plotDirectory, genome, somaticPcut=0.5) {
   patternDirectory = paste0(plotDirectory, '/mutationalPatterns')
   superFreq:::ensureDirectoryExists(patternDirectory)
   pdf(paste0(patternDirectory, '/bySample.pdf'), width=10, height=6)
   mxList = lapply(names(qs), function(sample) {
-    mx104 = get104profile(q=qs[[sample]], Rdirectory=Rdirectory, genome=genome, somaticPcut=somaticPcut)
+    mx104 = get104profile(q=qs[[sample]], genome=genome, somaticPcut=somaticPcut)
     superFreq:::plot_104_profile(mx104, main=paste0(sample, ' (', sum(mx104), ' mutations)'))
     return(mx104)
   })
@@ -157,7 +200,7 @@ plot104profilesBySample = function(qs, Rdirectory, plotDirectory, genome, somati
 }
 
 #plot the 104 profiles by clone
-plot104profilesByClone = function(storyList, qs, Rdirectory, plotDirectory, genome) {
+plot104profilesByClone = function(storyList, qs, plotDirectory, genome) {
   patternDirectory = paste0(plotDirectory, '/mutationalPatterns')
   superFreq:::ensureDirectoryExists(patternDirectory)
   q = qs[[1]]
@@ -166,7 +209,7 @@ plot104profilesByClone = function(storyList, qs, Rdirectory, plotDirectory, geno
     mutations = storyList[[clone]]
     mutations = mutations[mutations %in% rownames(q)]
     if ( length(mutations) == 0 ) return()
-    mx104 = superFreq:::get104profile(q=q[mutations,], Rdirectory=Rdirectory, genome=genome, somaticPcut=-1)
+    mx104 = superFreq:::get104profile(q=q[mutations,], genome=genome, somaticPcut=-1)
     colnames(mx104) = clone
     superFreq:::plot_104_profile(mx104, main=paste0('clone ', clone, ' (', sum(mx104), ' mutations)'))
     return(mx104)
@@ -191,7 +234,7 @@ loadAndPlotProfiles = function(Rdirectory, plotDirectory, genome) {
   stories = stories$stories
   load(variantFile)
   variants = allVariants$variants
-  plotProfiles(Rdirectory=Rdirectory, plotDirectory=plotDirectory, stories=stories,
+  plotProfiles(plotDirectory=plotDirectory, stories=stories,
                variants=variants, genome=genome)
 }
 
@@ -202,9 +245,9 @@ plotProfiles = function(Rdirectory, plotDirectory, stories, variants, genome, fo
     storyList = stories[[1]]$consistentClusters$storyList
     qs = variants$variants
     catLog('by sample..')
-    sampleMx = plot104profilesBySample(qs=qs, Rdirectory=Rdirectory, plotDirectory=plotDirectory, genome=genome, somaticPcut=0.5)
+    sampleMx = plot104profilesBySample(qs=qs, plotDirectory=plotDirectory, genome=genome, somaticPcut=0.5)
     catLog('by clone..')
-    cloneMx = plot104profilesByClone(storyList=storyList, qs=qs, Rdirectory=Rdirectory, plotDirectory=plotDirectory, genome=genome)
+    cloneMx = plot104profilesByClone(storyList=storyList, qs=qs, plotDirectory=plotDirectory, genome=genome)
     profiles = list(sampleMx=sampleMx, cloneMx=cloneMx)
     catLog('saving results..')
     save(profiles, file=saveFile)
