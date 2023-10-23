@@ -95,7 +95,7 @@ setupCohortPlot = function(GoI, sampleList, GoIakas=c()) {
   main = 'mutation matrix'
   
   #empty plot
-  plot(0, type='n', xaxt='n', xlim=c(-0.15, 1)*(xScale+0.5), ylim=c(0, 1.3)*yScale, frame=F, yaxt='n', xlab='', ylab='', main=main)
+  plot(0, type='n', xaxt='n', xlim=c(-0.15, 1)*(xScale+0.7), ylim=c(0, 1.3)*yScale, frame=F, yaxt='n', xlab='', ylab='', main=main)
 
   #grid
   segments(0:xScale + 0.5, 0.5, 0:xScale + 0.5, yScale*1.15, lwd=0.5, col='grey')
@@ -116,7 +116,7 @@ setupCohortPlot = function(GoI, sampleList, GoIakas=c()) {
   }
 
   #topbar
-  text(xTicks, yScale+1, superFreq:::renameGoIs(GoI, GoIakas), adj=c(0, 0.5), srt=90, cex=0.8, font=2, col=textCol)
+  text(xTicks, yScale+0.7, superFreq:::renameGoIs(GoI, GoIakas), adj=c(0, 0.5), srt=90, cex=0.8, font=2, col=textCol)
 
   #legend
   legend('topleft', c('ampli', 'gain', 'LOH', 'loss', 'SNV', 'biall', 'trunc'), bg='white', pch=c(15, 15, 15, 15, 16, 16, 17), col=mcri(c('darkred', 'red', 'green', 'blue', 'black', 'black', 'black')), pt.cex=c(2,2,2,2,1,1.4,1.2), pt.lwd=c(1,1,1,1,1,1,2))
@@ -192,10 +192,10 @@ addPointMutations = function(GoI, qsList, sampleList, colMx) {
     names(sys) = samples
     for ( sample in samples ) {
       q = qsList[[ind]][[sample]]
-      q = q[q$somaticP > 0.5 & q$severity < 11 & q$inGene %in% GoI & q$var > 0.15*q$cov,]
+      q = q[q$somaticP > 0.5 & q$severity < 11 & q$consensusGene %in% GoI & q$var > 0.15*q$cov,]
       y = sys[sample]
       for ( gene in GoI ) {
-        qg = q[q$inGene == gene,]
+        qg = q[q$consensusGene == gene,]
         if  ( nrow(qg) == 0 ) next
         cex=1
         if ( nrow(qg) > 1 ) cex=2
@@ -240,7 +240,7 @@ findGoI = function(Rdirectory, metaDataFile, cosmicCensus=T, clinvarPathogenic=T
     if ( genome == 'mm10' )
     	use = isSomatic & isCoding & isntSubclonal & (isCosmicCensus | !cosmicCensus)
 
-    return(unique(q$inGene[use]))
+    return(unique(q$consensusGene[use]))
     })
   GoI = unique(unlist(GoIlist))
   hits = sapply(GoI, function(gene) {
@@ -297,10 +297,10 @@ getCohortSNVmatrix = function(GoI, qsList, sampleList, colMx, includeGermlineLik
     samples = sampleList[[ind]]
     for ( sample in samples ) {
       q = qsList[[ind]][[sample]]
-      q = q[q$somaticP > 0.5 & q$severity < 11 & q$inGene %in% GoI & q$var > 0.15*q$cov,]
+      q = q[q$somaticP > 0.5 & q$severity < 11 & q$consensusGene %in% GoI & q$var > 0.15*q$cov,]
 	  if ( !includeGermlineLike ) q = q[!q$germline | is.na(q$germline),]
       for ( gene in GoI ) {
-        qg = q[q$inGene == gene,]
+        qg = q[q$consensusGene == gene,]
         if  ( nrow(qg) == 0 ) next
         if ( nrow(qg) > 1 ) biallelicMx[gene, sample] = TRUE
         else biallelicMx[gene, sample] = qg$var > qg$cov*0.6 & pbinom(qg$var, qg$cov, 0.5, lower.tail=F) < 0.05

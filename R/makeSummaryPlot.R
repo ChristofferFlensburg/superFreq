@@ -89,7 +89,7 @@ plotSummary = function(variants, cnvs, normals, individuals, timePoints, genome=
         (is.na(q$severity) | q$severity < 11)
         q = q[use,]
         points(q$x, rep(iToY[n]-0.75, sum(use)), pch=19, cex=1.2*sqrt(q$var/q$cov), col=rgb(0,0,0,pmin(1,sqrt(q$cov/100))))
-        genes[[names(cnvs)[n]]] = unique(variants$SNPs[as.character(q$x),]$inGene)
+        genes[[names(cnvs)[n]]] = unique(variants$SNPs[as.character(q$x),]$consensusGene)
         next
       }
       #set up information common for all indiviuals
@@ -128,7 +128,7 @@ plotSummary = function(variants, cnvs, normals, individuals, timePoints, genome=
         n = which(individuals == ind)[col]
         points(q$x[ord], rep(iToY[n]-0.75, sum(use))[ord], pch=19, cex=1.2*sqrt(q$var/q$cov)[ord], col=cols[ord])
         
-        genes[[names(cnvs)[n]]] = unique(variants$SNPs[as.character(q$x),]$inGene)
+        genes[[names(cnvs)[n]]] = unique(variants$SNPs[as.character(q$x),]$consensusGene)
       }
     }
 
@@ -153,14 +153,14 @@ plotSummary = function(variants, cnvs, normals, individuals, timePoints, genome=
         (is.na(q$severity) | q$severity < 11)
         
         is = which(variants$SNPs$x %in% q$x) 
-        use[use] = variants$SNPs[is,][as.character(q$x[use]),]$inGene %in% print
+        use[use] = variants$SNPs[is,][as.character(q$x[use]),]$consensusGene %in% print
         if ( sum(use) == 0 ) next
         q = q[use,]
         n = which(names(cnvs) == name)
         segments(q$x, rep(iToY[n]-0.6, sum(use)), q$x, rep(iToY[n]-0.9, sum(use)), lwd=0.5)
       }
       
-      geneX = sapply(print, function(gene) mean(variants$SNPs$x[variants$SNPs$inGene == gene]))
+      geneX = sapply(print, function(gene) mean(variants$SNPs$x[variants$SNPs$consensusGene == gene]))
       x = sort(geneX)
       #textX = seq(from=xmin, to=xmax, along.with=print)
       textX = -spreadPositions(-x, (xmax-xmin)/50)

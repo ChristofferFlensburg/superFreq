@@ -88,6 +88,9 @@ outputSomaticVariants = function(variants, genome, plotDirectory, cpus=cpus, for
     names(XLsomatics) = make.unique(substring(names(XLsomatics), 1, 29))
     if ( !onlyForVEP ) catLog('writing to xls...')
     if ( !onlyForVEP ) WriteXLS('XLsomatics', outfile)
+    
+    #probably want to swap this to .xlsx instead, for zip compression and much higher caps on row and column numbers
+    #look into library("xlsx") for example?
 
 	#this outputs all variants (beyond 65k) to a single .csv.
 	#purpose was to simplify downstream analysis without hving to parse
@@ -164,7 +167,7 @@ writeToVCF = function(q, vcfFile, genome='hg19', snvOnly=F, addSomaticP=F) {
     '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tCOVERAGE\tVARIANTREADS\tVAF')
   if ( addSomaticP )
   preambula = c('##fileformat=VCFv4.0',
-    '##reference=', genome,
+    paste0('##reference=', genome),
     '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">',
     '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
     '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO')

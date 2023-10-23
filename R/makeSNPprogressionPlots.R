@@ -89,7 +89,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     p = ifelse(severity <= 11, 0, 1)
   }
 
-  gene = qs[[1]]$inGene
+  gene = qs[[1]]$consensusGene
   if ( db ) gene = xToChr(qs[[1]]$x, genome=genome)
   
   catLog('colours..')
@@ -169,7 +169,7 @@ qualityProgression = function(qs, SNPs, normal, db=T, nondb=T, excelFile='', mai
     if ( excelFile != '' ) {
       catLog('Output plotted variants to', excelFile, '...')    
       multiSampleData = data.frame(
-        'gene'=gsub('.+:', '', qs[[1]]$inGene[doColour]),
+        'gene'=gsub('.+:', '', qs[[1]]$consensusGene[doColour]),
         'chr'=xToChr(qs[[1]]$x[doColour],genome=genome),
         'start'=xToPos(qs[[1]]$x[doColour],genome=genome),
         'end'=xToPos(qs[[1]]$x[doColour],genome=genome),

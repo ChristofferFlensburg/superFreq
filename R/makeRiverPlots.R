@@ -143,7 +143,7 @@ storyToLabel = function(stories, variants, genome, maxLength=30, mergeCNAs=F, an
 
   q = variants$variants[[1]]
   q = q[q$x %in% x1[isSNP],]  
-  gene = q[call,]$inGene[isSNP]
+  gene = q[call,]$consensusGene[isSNP]
   if ( 'severity' %in% names(variants$variants[[1]]) & any(isSNP) ) {
     severityMx = sapply(variants$variants, function(q) ifelse(is.na(q[call[isSNP],]$severity), 100, q[call[isSNP],]$severity))
     if ( sum(isSNP) == 1 ) severityMx = matrix(severityMx, nrow=sum(isSNP))

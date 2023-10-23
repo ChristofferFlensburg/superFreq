@@ -16,12 +16,6 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
       q1 = variants$variants[[pair[1]]][!boring,]
       q2 = variants$variants[[pair[2]]][!boring,]
 
-      if ( !('inGene' %in% names(q1)) ) {
-        warning('importing gene names from SNPs in scatter plots')
-        q1$inGene = variants$SNPs[as.character(q1$x),]$inGene
-        q2$inGene = variants$SNPs[as.character(q2$x),]$inGene
-      }
-
       ps=vafScatter(q1, q2, cpus=cpus, verbose=F, doPlot=F, maxVariants=maxVariants)
       psuf=vafScatter(q1, q2, cpus=cpus, plotFlagged=F, verbose=F, doPlot=F, maxVariants=maxVariants)
 
@@ -130,7 +124,7 @@ makeScatterPlots = function(variants, samplePairs, timePoints, plotDirectory, ge
 #' @param cosmicWidth numeric. A scaling factor for the size of the green circle around COSMIC census genes. Default 3.
 #' @param ...  remaining arguments are passed to plot(...)
 #'
-#' @details This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+#' @details Deprecated. Use superFreq::vafScatter instead.
 #'
 #'
 #' @export
@@ -362,12 +356,6 @@ makeCloneScatterPlots = function(variants, stories, samplePairs, individuals, ti
       keepVariants = rownames(q1)[rownames(q1) %in% keptMutations]
       q1 = q1[keepVariants,]
       q2 = q2[keepVariants,]
-
-      if ( !('inGene' %in% names(q1)) ) {
-        warning('importing gene names from SNPs in clone scatter')
-        q1$inGene = variants$SNPs[as.character(q1$x),]$inGene
-        q2$inGene = variants$SNPs[as.character(q2$x),]$inGene
-      }
       
       col = rep('grey', nrow(q1))
       clones = clonesInTree(storyCluster$cloneTree)
@@ -691,10 +679,10 @@ vafScatter = function(q1, q2, ps = NA, covScale=100, maxCex=1.5, minCov=10, main
     printOrder = printOrder[toPrint[printOrder]]
 
     if ( length(GoI) > 0 )
-      toPrint = toPrint | q1$inGene %in% GoI
+      toPrint = toPrint | q1$consensusGene %in% GoI
     if ( printOnlyNovel ) toPrint = toPrint & freq1 < 0.1 & freq2 > 0.2
     if ( sum(toPrint) > 0 ) {
-      printNames = gsub('.+:', '', q1[printOrder,]$inGene)
+      printNames = gsub('.+:', '', q1[printOrder,]$consensusGene)
       printNames[is.na(printNames)] = 'i'
       if ( length(toPrint) > 0 )
         text(freq1[printOrder], freq2[printOrder] + 0.015*pmax(0.6, cexHL[printOrder]), printNames, col = colHL[printOrder], cex = pmax(0.6, cexHL[printOrder])*printCex)

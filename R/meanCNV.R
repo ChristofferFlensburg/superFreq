@@ -490,7 +490,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   hitX = mclapply(variants$variants, function(q) {
     catLog('.')
     q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
-    return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity, 'genes'=q$inGene))
+    return(list('x'=q$x, 'rowname'=paste0(q$x, q$variant), 'sev'=q$severity, 'genes'=q$consensusGene))
   }, mc.cores=cpus)
   hitInfo = data.frame(x=unlist(lapply(hitX, function(hit) hit$x)), rowname=unlist(lapply(hitX, function(hit) hit$rowname)), severity=unlist(lapply(hitX, function(hit) hit$sev)), genes=unlist(lapply(hitX, function(hit) hit$genes)), stringsAsFactors=F)
   hitInfo = hitInfo[!duplicated(hitInfo$rowname),]
@@ -503,7 +503,7 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
     catLog('.')
     q = q[q$somaticP > 0.1 & q$var > q$cov*clonalityCut/2 & q$severity <= 11,]
     if ( nrow(q) == 0 ) return(c())
-    return(q$inGene)
+    return(q$consensusGene)
   }, mc.cores=cpus)
   catLog('\n')
   mutatedGenes = unique(unlist(lapply(hitGenes, unique)))
@@ -520,8 +520,9 @@ getSNVrates = function(metaData, variants, clonalityCut=0.4, genome='hg19', cpus
   indDoubleHit = apply(doubleHitMx, 1, FUN=function(hasHit) sum(sapply(indSamples, function(is) any(hasHit[is]))))
   doubleMutationRate = indDoubleHit/length(uInd)
 
-  hitSNPs = SNPs[SNPs$inGene %in% mutatedGenes,]
-  hitGenesX = unlist(mclapply(mutatedGenes, function(gene) mean(hitSNPs[hitSNPs$inGene == gene,]$x), mc.cores=cpus))
+  #we use consensusGene for variants, but inGene for CNAs, might create conflicts when merged...
+  hitSNPs = SNPs[SNPs$consensusGene %in% mutatedGenes,]
+  hitGenesX = unlist(mclapply(mutatedGenes, function(gene) mean(hitSNPs[hitSNPs$consensusGene == gene,]$x), mc.cores=cpus))
 
   return(list(hitGenesX=hitGenesX, mutationRate=mutationRate, hitMx=hitMx, xRate=xRate, xMx=xMx, hitInfo=hitInfo,
               doubleHitMx=doubleHitMx, doubleMutationRate=doubleMutationRate))

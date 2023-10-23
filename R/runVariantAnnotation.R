@@ -18,12 +18,15 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
   somQ = do.call(rbind, somQlist)
   if ( any(is.na(somQ$x) | is.na(somQ$somaticP) | is.na(somQ$variant)) ) stop('NA x or somaticP or variant in annotateSomaticQs.')
   somQ = somQ[!duplicated(paste0(somQ$x, somQ$variant)),]
-  rownames(somQ) = paste0(somQ$x, somQ$variant)
+  sp = options('scipen')
+  options('scipen'=999)
+  rownames(somQ) = paste0(as.character(somQ$x), somQ$variant)
+  options('scipen'=sp)
   #this is the same ordering as in q, so subsetting rows  of somQ will match back to q without sorting.
   somQ = somQ[order(somQ$x, somQ$variant),]
 
   #do the actual annotation
-  somQ = annotateQ(somQ, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
+  somQ = superFreq:::annotateQ(somQ, genome=genome, resourceDirectory=resourceDirectory, reference=reference, cpus=cpus)
 
   #put annotation back in to the samples
   catLog('Matching annotation back to variant calls in each sample')
@@ -32,16 +35,18 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
     #this assumes no duplicated rows. Shouldnt be the case, but who knows.
     if ( any(duplicated(paste0(q$x, q$variant))) ) stop('duplicated q rows in annotateSomaticQs.')
     
-    #first subsample annotated variants. This will make them in same order as q[somatics,]
-    somatics = q$somaticP > 0
-    subSomQ = somQ[rownames(somQ) %in% rownames(q)[somatics],]
-    if ( !all(rownames(q)[somatics] == rownames(subSomQ)) ) stop('q and subSomQ not matching rownames in annotateSomaticQs')
+    #subset the annotated variants to variants present in Q, and make sure order match.
+    #in most cases the rownames match across qs, so isn't needed, but to be sure...
+    isAnnotated = rownames(q) %in% rownames(somQ)
+    subSomQ = somQ[rownames(somQ) %in% rownames(q)[isAnnotated],]
+    subSomQ = subSomQ[rownames(q)[isAnnotated],]
+    if ( !all(rownames(q)[isAnnotated] == rownames(subSomQ)) ) stop('q and subSomQ not matching rownames (including order) in annotateSomaticQs')
     
     #set up blank data for the variants not annotated.
-    q = addVAnullAnnotation(q, genome)
+    q = superFreq:::addVAnullAnnotation(q, genome)
     
     #fill in annotated variants
-    q[somatics, annotationColumns(genome)] = subSomQ[,annotationColumns(genome)]
+    q[isAnnotated, superFreq:::annotationColumns(genome)] = subSomQ[,superFreq:::annotationColumns(genome)]
 
     if ( any(is.na(q$severity)) ) stop('NA severity after filling in annotation back into null annotated variants.')
     
@@ -136,6 +141,12 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
     
     #select most severe and merge to q
     q = superFreq:::addMostSevereHit(q, allvar, coding, genome)
+    
+    #if gene assignment different from the CNV assignment, go with the VariantAnnotation gene.
+    #The CNAs gene assignment is mostly for BAFs, and is sometimes assigned to an intron even
+    #when a different gene has an exon there. That is fine for BAFs and CNAs, but not here.
+    q$consensusGene = ifelse(is.na(q$VA_symbol) | q$VA_symbol == '', q$inGene, q$VA_symbol)
+
     return(q)
   })
   catLog('done.\n')
@@ -189,16 +200,28 @@ addMostSevereHit = function(q, allvar, coding, genome) {
   coding = coding[!duplicated(coding$QUERYID)]
   coding = coding[order(coding$QUERYID)]
 
+  #load in entrez to symbol gene name dictionary  
+  if ( genome=='mm10' ) {
+  	data(entrez2symbol_mm)
+  	entrez2symbol = entrez2symbol_mm
+  }
+  if ( genome %in% c('hg19', 'hg38') ) {
+  	data(entrez2symbol_hs)
+  	entrez2symbol = entrez2symbol_hs
+  }
+  
   #set up data frame with relevant columns
   allvarDF =
     data.frame(severity=as.numeric(allvar$SEVERITY),
-               type=as.character(allvar$LOCATION), stringsAsFactors=F)
+               type=as.character(allvar$LOCATION),
+               VA_symbol=entrez2symbol[allvar$GENEID], stringsAsFactors=F)
   codingDF =
     data.frame(severity=as.numeric(coding$SEVERITY),
                type=as.character(coding$CONSEQUENCE),
                AApos=sapply(coding$PROTEINLOC, function(x) as.numeric(x)[1]),
                AAbefore=sapply(coding$REFAA, function(x) as.character(x)),
-               AAafter=sapply(coding$VARAA, function(x) as.character(x)), stringsAsFactors=F)
+               AAafter=sapply(coding$VARAA, function(x) as.character(x)),
+               VA_symbol=entrez2symbol[coding$GENEID], stringsAsFactors=F)
   
   
   #insert into q
@@ -322,9 +345,9 @@ VAseverityToConsequence = function(severity) {
 #the expected EXTRA columns added by annotation.
 annotationColumns = function(genome) {
   if ( genome %in% c('hg19', 'hg38') )
-    return(c('severity', 'type', 'isCosmicCensus', 'AApos', 'AAbefore', 'AAafter', 'cosmicVariantRank', 'cosmicVariantFrequency', 'cosmicGeneRank', 'cosmicGeneFrequency', 'ClinVar_ClinicalSignificance', 'ClinVar_OriginSimple', 'ClinVar_ReviewStatus', 'ClinVar_VariationID'))
+    return(c('severity', 'type', 'isCosmicCensus', 'AApos', 'AAbefore', 'AAafter', 'cosmicVariantRank', 'cosmicVariantFrequency', 'cosmicGeneRank', 'cosmicGeneFrequency', 'ClinVar_ClinicalSignificance', 'ClinVar_OriginSimple', 'ClinVar_ReviewStatus', 'ClinVar_VariationID', 'VA_symbol', 'consensusGene'))
   if ( genome %in% c('mm10') )
-    return(c('severity', 'type', 'AApos', 'AAbefore', 'AAafter', 'isCCGD', 'CCGDstudies', 'CCGDcancerTypes', 'CCGDcosmic', 'CCGDcgc', 'CCGDranks', 'isCosmicCensus'))
+    return(c('severity', 'type', 'AApos', 'AAbefore', 'AAafter', 'isCCGD', 'CCGDstudies', 'CCGDcancerTypes', 'CCGDcosmic', 'CCGDcgc', 'CCGDranks', 'isCosmicCensus', 'VA_symbol', 'consensusGene'))
 }
 
 
@@ -335,6 +358,8 @@ addVAnullAnnotation = function(q, genome) {
   q$AApos = rep('', nrow(q))
   q$AAbefore = rep('', nrow(q))
   q$AAafter = rep('', nrow(q))
+  q$VA_symbol = rep('', nrow(q))
+  q$consensusGene = q$inGene
   if ( genome %in% c('hg19', 'hg38') ) q$cosmicVariantRank = rep('', nrow(q))
   if ( genome %in% c('hg19', 'hg38') ) q$cosmicVariantFrequency = rep('', nrow(q))
   if ( genome %in% c('hg19', 'hg38') ) q$cosmicGeneRank = rep('', nrow(q))
@@ -358,7 +383,7 @@ addCOSMICannotation = function(q, genome, resourceDirectory) {
   countsFile = paste0(resourceDirectory, "/COSMIC/cosmicCounts.Rdata")
   load(countsFile)
   censusGenes = names(cosmicCounts$geneCounts)
-  q$isCosmicCensus = q$inGene %in% censusGenes
+  q$isCosmicCensus = q$consensusGene %in% censusGenes
 
   #then load in the full COSMIC information
   countsFile = paste0(resourceDirectory, "/COSMIC/allCosmicCounts_", genome, ".Rdata")
@@ -372,9 +397,9 @@ addCOSMICannotation = function(q, genome, resourceDirectory) {
   genesDF$rank = rank(-genesDF$density)
 
   #link gene rates to q
-  genesDF = genesDF[genesDF$gene %in% q$inGene,] #this speeds up the random access next lines
+  genesDF = genesDF[genesDF$gene %in% q$consensusGene,] #this speeds up the random access next lines
   rownames(genesDF) = genesDF$gene
-  genesDF = genesDF[q$inGene,]
+  genesDF = genesDF[q$consensusGene,]
   q$cosmicGeneMPMPB = genesDF$density
   q$cosmicGeneRank = genesDF$rank
 
@@ -429,11 +454,11 @@ preprocessCCGD = function(resourceDirectory) {
   return(CCGDsummary)
 }
 
-#adds CCGD annotation to q from the q$inGene column.
+#adds CCGD annotation to q from the q$consensusGene column.
 addCCGDannotation = function(q, CCGDsummary) {
   
   censusGenes = rownames(CCGDsummary)
-  isCCGD = q$inGene %in% censusGenes
+  isCCGD = q$consensusGene %in% censusGenes
     
   CCGDstudies = rep(0, nrow(q))
   CCGDcancerTypes = rep('', nrow(q))
@@ -441,11 +466,11 @@ addCCGDannotation = function(q, CCGDsummary) {
   CCGDcgc = rep('', nrow(q))
   CCGDranks = rep('', nrow(q))
   
-  CCGDstudies[isCCGD] = CCGDsummary[q$inGene[isCCGD],]$studies
-  CCGDcancerTypes[isCCGD] = CCGDsummary[q$inGene[isCCGD],]$cancerTypes
-  CCGDcosmic[isCCGD] = ifelse(CCGDsummary[q$inGene[isCCGD],]$cosmic, 'YES!', 'no')
-  CCGDcgc[isCCGD] = ifelse(CCGDsummary[q$inGene[isCCGD],]$cgc, 'YES!', 'no')
-  CCGDranks[isCCGD] = CCGDsummary[q$inGene[isCCGD],]$ranks
+  CCGDstudies[isCCGD] = CCGDsummary[q$consensusGene[isCCGD],]$studies
+  CCGDcancerTypes[isCCGD] = CCGDsummary[q$consensusGene[isCCGD],]$cancerTypes
+  CCGDcosmic[isCCGD] = ifelse(CCGDsummary[q$consensusGene[isCCGD],]$cosmic, 'YES!', 'no')
+  CCGDcgc[isCCGD] = ifelse(CCGDsummary[q$consensusGene[isCCGD],]$cgc, 'YES!', 'no')
+  CCGDranks[isCCGD] = CCGDsummary[q$consensusGene[isCCGD],]$ranks
 
   q$isCCGD = isCCGD
   q$CCGDstudies = CCGDstudies
@@ -460,7 +485,7 @@ addCCGDannotation = function(q, CCGDsummary) {
 addCOSMICmouseHomologs = function(q, resourceDirectory) {
 	mm10genes = read.table(paste0(resourceDirectory, '/COSMIC/MGIBatchReport_20220629_032731_filtered.txt'), sep='\t', fill=T, quote='', header=T)
     homologCensusGenes = unique(mm10genes$Symbol)
-	q$isCosmicCensus = q$inGene %in% homologCensusGenes
+	q$isCosmicCensus = q$consensusGene %in% homologCensusGenes
 	return(q)
 }
 

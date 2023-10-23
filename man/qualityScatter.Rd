@@ -105,7 +105,7 @@ qualityScatter(
 plots a scatter of the VAF between two samples
 }
 \details{
-This function is a wrapped for the base heatmap() function. It got nicer default colours, doesn't normalise rows or columns by deafult, and has some support for differential expression data. Also prints a colour scale at the side.
+Deprecated. Use superFreq::vafScatter instead.
 }
 \examples{
 #random matrix to plot, centered around 0. Plot in 'DE' colours.

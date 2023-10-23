@@ -75,6 +75,7 @@ newVariants = function(q1, q2, genome='hg19', cpus=1, ps=NA) {
     reference=q1$reference[toReturn],
     variant=q1$variant[toReturn],
     inGene=q1$inGene[toReturn],
+    consensusGene=q1$consensusGene[toReturn],
     severity=severity,
     effect= effect,
     f1=q1$var[toReturn]/q1$cov[toReturn],

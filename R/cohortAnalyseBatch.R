@@ -468,11 +468,11 @@ makeCSVofAllPointMutations = function(genome, metaDataFile='metaData.tsv', Rdire
   csvFile = paste0(cohortPlots, '/somaticVariants.csv')
   write.csv(q[q$somaticP > 0.5,], file=csvFile)
   
-  if ( sum(q$inGene %in% GoI) > 0 ) {
+  if ( sum(q$consensusGene %in% GoI) > 0 ) {
     csvFile = paste0(cohortPlots, '/somaticVariants_GoI.csv')
-    write.csv(q[q$inGene %in% GoI & q$somaticP > 0.5, ], file=csvFile)
+    write.csv(q[q$consensusGene %in% GoI & q$somaticP > 0.5, ], file=csvFile)
     csvFile = paste0(cohortPlots, '/unfilteredVariants_GoI.csv')
-    write.csv(q[q$inGene %in% GoI, ], file=csvFile)    
+    write.csv(q[q$consensusGene %in% GoI, ], file=csvFile)    
   }
 
   return(invisible(q))
