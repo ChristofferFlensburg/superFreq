@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.5.0')
+superVersion = function() return('1.5.1')
 
 
 #' Wrapper to run default superFreq analysis
@@ -194,7 +194,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
     catLog('Now running:\n')
     for ( participant in names(splitInput) ) {
       input = splitInput[[participant]]
-      catLog(date(), ': ', participant, '...')
+      catLog(date(), ': starting run for ', participant, '.\n')
       superFreq(metaDataFile=input$metaDataFile, captureRegions=captureRegions,
                 normalDirectory=normalDirectory, Rdirectory=input$Rdirectory,
                 plotDirectory=input$plotDirectory,
@@ -211,7 +211,7 @@ superFreq = function(metaDataFile, captureRegions='', normalDirectory, Rdirector
       assign('catLog', function(...) cat(..., file=logFile, append=T), envir = .GlobalEnv)
       if ( outputToTerminalAsWell )
         assign('catLog', function(...) {cat(..., file=logFile, append=T); cat(...)}, envir = .GlobalEnv)
-      catLog('done with split run! :)\n')
+      catLog(date(), ': run completed for ', participant, '! :)\n')
       }
     return()
   }
