@@ -154,7 +154,7 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
   CCGDsummary = ''
   if ( genome %in% c('mm10') ) {
     catLog('Preprocessing CCGD data...')
-    CCGDsummary = preprocessCCGD(resourceDirectory=resourceDirectory)
+    CCGDsummary = superFreq:::preprocessCCGD(resourceDirectory=resourceDirectory)
     catLog('done.\n')
   }
   
@@ -480,6 +480,23 @@ addCCGDannotation = function(q, CCGDsummary) {
   q$CCGDranks = CCGDranks
   
   return(q)
+}
+
+#shortcut for getting the COSMIC census genes for humans or the mouse homologs.
+getCOSMICcensusGenes = function(genome, resourceDirectory='superFreqResources') {
+	if ( genome %in% c('hg19', 'hg38') ) {
+	  countsFile = paste0(resourceDirectory, "/COSMIC/cosmicCounts.Rdata")
+	  load(countsFile)
+	  censusGenes = names(cosmicCounts$geneCounts)
+	  return(censusGenes)
+	}
+	if ( genome %in% c('mm10') ) {
+		mm10genes = read.table(paste0(resourceDirectory, '/COSMIC/MGIBatchReport_20220629_032731_filtered.txt'), sep='\t', fill=T, quote='', header=T)
+	    homologCensusGenes = unique(mm10genes$Symbol)
+	    return(homologCensusGenes)
+	}
+	warning('genome not recognised, returning empty cosmic census genes.')
+	return(c())
 }
 
 addCOSMICmouseHomologs = function(q, resourceDirectory) {

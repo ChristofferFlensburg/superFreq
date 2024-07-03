@@ -10,6 +10,11 @@ outputData = function(clusters, stories, plotDirectory, genome='hg19', resourceD
     	load(paste0(resourceDirectory, '/COSMIC/cosmicCounts.Rdata'))
 		cosmicGenes = names(cosmicCounts$geneCounts)
 	}
+    if ( genome %in% c('mm10') ) {	
+		mm10genes = read.table(paste0(resourceDirectory, '/COSMIC/MGIBatchReport_20220629_032731_filtered.txt'), sep='\t', fill=T, quote='', header=T)
+    	cosmicGenes = unique(mm10genes$Symbol)
+    }
+
     lapply(names(clusters), function(sample) {
         file = paste0(dataDir, '/CNAsegments_', sample, '.tsv')
         #if ( file.exists(file) ) return()

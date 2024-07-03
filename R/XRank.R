@@ -448,6 +448,10 @@ getPosterior = function(r, d=0.1, prior = 'flat', mode='normal',
   }
   else if ( mode == 't' ) {
     flatD = dt((x-log2(r))*t/abs(log2(r)), df, 0)
+    #in extreme cases, t is so large that all flatD are zero.
+    #For those cases, find the most likely bin and set that to 1 manually.
+    if ( all(flatD == 0) )
+    	flatD[which.max(dt((x-log2(r))*t/abs(log2(r)), df, 0, log=TRUE))] = 1
   }
 
   #find the normalised (over all bins) posterior prob dist
@@ -512,7 +516,7 @@ posteriors = function(fit, mode='t', priors='empirical', FDR = F,
   #The uncertainty in LFC is taken from the t-statistics or the
   #s2.post and stdev.unscaled of the fit object, depending on the input option.
   getPosteriors = function(rep, gene) {
-    getPosterior(2^fit$coefficients[gene, rep], prior = priors[[rep]],
+    superFreq:::getPosterior(2^fit$coefficients[gene, rep], prior = priors[[rep]],
                  mode=mode, df = fit$df.total[gene], t=abs(fit$t[gene,rep]),
                  d = sqrt(fit$s2.post[gene])*fit$stdev.unscaled[gene, rep],
                  binsize = binsize[[rep]])
@@ -839,8 +843,8 @@ XRank = function(fit, coefs = 0, keepPosterior = T, verbose=F, plot=F, cpus=5) {
   if ( coefs == 0 ) coefs = colnames(fit)
   if ( is.numeric(coefs) ) coefs = colnames(fit)[coefs]
   require(parallel)
-  posts = posteriors(fit, coefs = coefs, quiet= !verbose, plot=plot, cpus=cpus, prior='empirical')
-  ranks = postRank(posts, quiet = !verbose, cpus=cpus)
+  posts = superFreq:::posteriors(fit, coefs = coefs, quiet= !verbose, plot=plot, cpus=cpus, prior='empirical')
+  ranks = superFreq:::postRank(posts, quiet = !verbose, cpus=cpus)
 
   if ( !keepPosterior ) fitSmall = fit
   fit$posterior = posts$data

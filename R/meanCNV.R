@@ -303,10 +303,7 @@ plotMeanCNV = function(metaData, meanCNV, cosmicDirectory='', add=F, printGeneNa
         warning('Removing genes from top 10 SNVs, as some are not found. Likely caused by unmatching gene names.')
         mark[is.na(SNVgenesX)] = F
       }
-      if ( cosmicDirectory != '' )
-        COSMICgenes = names(getCosmicCensusDensity(cosmicDirectory=cosmicDirectory))
-      else
-        COSMICgenes = c()
+      COSMICgenes = getCOSMICcensusGenes(genome=genome)
       printGenes = names(meanCNV$snvRates$mutationRate)[mark]
       if ( length(printGenes) > 0 ) {
         text(spreadPositions(SNVgenesX[mark], max(xs)*0.035), spaceForGenes*0.4,
@@ -775,16 +772,7 @@ plotMutationMatrix = function(metaData, meanCNV, cosmicDirectory='', priorCnvWei
   points(squareX-0.15, squareY+0.2, pch=16, col=snvCol, cex=1.5*boxScale)
   points(squareX-0.15, squareY+0.2, pch=16, col=doubleSnvCol, cex=0.9*boxScale)
 
-  if ( cosmicDirectory != '' ) {
-    COSMICgenes = names(getCosmicCensusDensity(cosmicDirectory=cosmicDirectory))
-    if ( file.exists(paste0(cosmicDirectory, '/CCGD_export.csv')) ) {
-      CCGDdata = read.table(paste0(cosmicDirectory, '/CCGD_export.csv'), sep=',', header=T, stringsAsFactors=F)
-      censusGenes = unique(CCGDdata$Mouse.Symbol)
-      COSMICgenes = c(COSMICgenes, censusGenes)
-    }
-  }
-  else
-    COSMICgenes = c()
+  COSMICgenes = getCOSMICcensusGenes(genome=genome)
   if ( !add ) text(0.3, y, cancerGenes, adj=c(1, 0.5), srt=0, cex=1,
                    col=ifelse(cancerGenes %in% COSMICgenes, mcri('green'), 'black'),
                    font=ifelse(cancerGenes %in% COSMICgenes, 2, 1))

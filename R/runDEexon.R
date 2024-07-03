@@ -275,7 +275,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
                             ylab='~log(1+read depth)')
           points(superFreq:::annotationToX(annotation, genome), (dn-mean(dn))/1.5 + mean(ylim), cex=w/2, pch=16,
                  col=mcri('orange', 0.5))
-          addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
+          superFreq:::addChromosomeLines(ylim=ylim, col=mcri('green'), genome=genome)
           legend('bottomright', c('binding strength'), pch=16, col=mcri('orange'), bg='white')
           dev.off()
         }
@@ -309,10 +309,10 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   if ( getSettings(settings, 'MAcorrection') ) {
     catLog('Second round of loess normalisation..')
     counts = countsSexLoBS
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
-    counts[,group=='normal'] = loessNormAll(counts[,group=='normal',drop=F], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
-    counts[,group!='normal'] = loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
+    counts[,group=='normal'] = superFreq:::loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group=='normal'] = superFreq:::loessNormAll(counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = superFreq:::loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
+    counts[,group!='normal'] = superFreq:::loessNormAllToReference(counts[,group!='normal',drop=F], counts[,group=='normal',drop=F], span=0.5)
     loessCorrectionFactor2 = (0.5+counts)/(0.5+countsSexLoBS)
     countsSexLoBSLo = counts
     catLog('done.\n')
@@ -409,7 +409,7 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   rownames(geneCounts) = geneCounts[,1]
   geneCounts = geneCounts[,-1]
   
-  x = annotationToX(annotation, genome=genome)
+  x = superFreq:::annotationToX(annotation, genome=genome)
   geneX = aggregate(x, list(rownames(counts)), FUN='min')[,2]
   geneOrder = order(geneX)
   geneX = geneX[geneOrder]
@@ -442,9 +442,9 @@ runDE = function(bamFiles, sampleNames, externalNormalBams, captureRegions, Rdir
   exonFit = contrasts.fit(exonFit, contrasts)
   exonFit = eBayes(exonFit)
   catLog('XRank..')
-  exonFit = XRank(exonFit, plot=F, cpus=cpus, verbose=T, keepPosterior=F)
-  exonFit$x = annotationToX(annotation, genome=genome)
-  x1x2 = annotationToX1X2(annotation, genome=genome)
+  exonFit = superFreq:::XRank(exonFit, plot=F, cpus=cpus, verbose=T, keepPosterior=F)
+  exonFit$x = superFreq:::annotationToX(annotation, genome=genome)
+  x1x2 = superFreq:::annotationToX1X2(annotation, genome=genome)
   exonFit$x1 = x1x2[,1]
   exonFit$x2 = x1x2[,2]
   exonFit$chr = annotationToChr(annotation)

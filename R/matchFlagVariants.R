@@ -8,8 +8,6 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
   if ( file.exists(saveFile) & !forceRedoMatchFlag ) {
     catLog('Loading final version of combined variants.\n')
     load(file=saveFile)
-    catLog('Estimating reference bias.\n')
-    setVariantLoss(allVariants$normalVariants$variants, correctReferenceBias=correctReferenceBias)
     return(allVariants)
   }
   variants$variants = lapply(variants$variants, function(q) q[!is.na(q$cov),])
@@ -46,6 +44,8 @@ matchFlagVariants = function(variants, normalVariants, individuals, normals, gen
   }
   
   allVariants = list('variants'=variants, 'normalVariants'=normalVariants)
+  catLog('Removing reference normal variants for memory purposes..')
+  allVariants = list('variants'=variants, 'normalVariants'='removed for memory')
   catLog('Saving final version of combined variants..')
   save('allVariants', file=saveFile)
   catLog('done.\n')
@@ -457,7 +457,7 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
         fisher.test(matrix(c(q$ref[i], q$var[i], qn$ref[i], qn$var[i]), nrow=2), alternative='less')$p.value,
         mc.cores=cpus))
       fdrSameF = p.adjust(psameF, method='fdr')
-      referenceNormal[referenceNormal] = (psameF < 0.05 & (q$var/q$cov > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*superFreq:::noneg(1 - 20*psameF)
+      referenceNormal[referenceNormal] = (psameF < 0.05 & (q$var/pmax(1,q$cov) > 0.05 + 2*(qn$var/qn$cov))[referenceNormal])*superFreq:::noneg(1 - 20*psameF)
       notInNormal = referenceNormal*referenceNormalFactor
       normalOK = ifelse(qn$cov == 0, 0.5, superFreq:::noneg(1 - 5*qn$var/qn$cov)) #penalty for non-zero normal frequency
 
@@ -489,6 +489,7 @@ markSomatics = function(variants, normalVariants, individuals, normals, cpus=1, 
     	catLog('lowFrequencyPenalty = ', lowFrequencyPenalty[na], '\n', sep='')
     	catLog('lowCoveragePenalty = ', lowCoveragePenalty[na], '\n', sep='')
     	catLog('fewVariantReadsPenalty = ', fewVariantReadsPenalty[na], '\n\n', sep='')
+    	somaticP[is.na(somaticP)] = 0
     }
  
     variants$variants[[name]]$somaticP = 0

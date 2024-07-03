@@ -6,7 +6,7 @@
 #'          Third digit is minor changes.
 #'          1.0.0 will be the version used in the performance testing in the first preprint.
 #' @export
-superVersion = function() return('1.5.1')
+superVersion = function() return('1.6')
 
 
 #' Wrapper to run default superFreq analysis
@@ -616,10 +616,14 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
   catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')
 
   saveFile = paste0(Rdirectory, '/allVariantsPreVEP.Rdata')
+  vLsaveFile = paste0(Rdirectory, '/vL.Rdata')
   {
-    if ( file.exists(saveFile) & !forceRedoMatchFlag & !forceRedoVariants & !forceRedoNormalVariants ) {
-      catLog('Loading final version of combined variants.\n')
+    if ( file.exists(saveFile) & file.exists(vLsaveFile) &
+    	 !forceRedoMatchFlag & !forceRedoVariants & !forceRedoNormalVariants ) {
+      catLog('Loading final version of combined variants and variantLoss.\n')
       load(file=saveFile)
+      load(vLsaveFile)
+      assign('.variantLoss', vL, envir = .GlobalEnv)
     }
     else {
       #import, filter and QC the variants. Save to file.
@@ -637,6 +641,10 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
         getNormalVariants(variants, externalNormalBams, names(externalNormalBams), captureRegions, fasta=reference,
                         genome, BQoffset, dbSNPdirectory, normalRdirectory, Rdirectory, plotDirectory, cpus=cpus,
                         exacPopulation=exacPopulation, forceRedoSNPs=forceRedoNormalSNPs, forceRedoVariants=forceRedoNormalVariants)
+	  #estimate reference bias in the VAF readouts
+      setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
+      vL = superFreq:::variantLoss()
+      save(vL, file=vLsaveFile)
       
       #share variants with normals
       flaggingVersion = 'new'
@@ -647,12 +655,12 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
         Rdirectory, flaggingVersion=flaggingVersion, RNA=RNA, cpus=cpus, byIndividual=byIndividual,
         rareGermline=rareGermline, forceRedoMatchFlag=forceRedoMatchFlag, cosmicDirectory=cosmicDirectory,
         cosmicSalvageRate=parameters$cosmicSalvageRate)
+	  #the reference normal variants are not used more after this
+	  #so remove to decrease memory footprint 
+  	  rm(normalVariants)
     }
   }
   variants = allVariants$variants
-  normalVariants = allVariants$normalVariants
-  setVariantLoss(normalVariants$variants, correctReferenceBias=correctReferenceBias)
-  rm(normalVariants)
   rm(allVariants)
   gcSummary = colSums(gc(reset=T))[c(2,6)]
   catLog(as.character(Sys.time()), '\n')
@@ -720,9 +728,7 @@ analyse = function(inputFiles, outputDirectories, settings, forceRedo, runtimeSe
                manualStoryMerge=manualStoryMerge, correctReferenceBias=correctReferenceBias,
                rareGermline=rareGermline)
   variants = stories$variants
-  normalVariants = stories$normalVariants
   stories = stories$stories
-  rm(normalVariants)
   gcSummary = colSums(gc(reset=T))[c(2,6)]
   catLog(as.character(Sys.time()), '\n')
   catLog('Current memory use (Mb): ', gcSummary[1], ', max use (Mb): ', gcSummary[2], '\n', sep='')

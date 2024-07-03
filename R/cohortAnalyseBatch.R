@@ -313,13 +313,17 @@ superCohort = function(metaDataFile, Rdirectory, plotDirectory, genome, cpus=1, 
   metaDataDir = paste0(dirname(metaDataFile), '/splitMetaData')
   metaDataFiles = list.files(metaDataDir, pattern='*.tsv', full.names=T)
   metaDataFiles = metaDataFiles[!(basename(metaDataFiles) %in% paste0(excludeIndividuals, '.tsv'))]
-  cohortDir = normalizePath(paste0(plotDirectory, '/cohort'))
+  cohortDir = paste0(plotDirectory, '/cohort')
   superFreq:::ensureDirectoryExists(cohortDir)
-  batchDir = normalizePath(paste0(cohortDir, '/data'))
+  cohortDir = normalizePath(cohortDir)
+  batchDir = paste0(cohortDir, '/data')
   superFreq:::ensureDirectoryExists(batchDir)
-  Rdirectories = list.dirs(Rdirectory, recursive=F)
+  batchDir = normalizePath(batchDir)
+  md = importSampleMetaData(metaDataFile)
+  Rdirectories = paste0(Rdirectory, '/', unique(md$INDIVIDUAL))
+  Rdirectories = Rdirectories[dir.exists(Rdirectories)]
   Rdirectories = Rdirectories[!(basename(Rdirectories) %in% excludeIndividuals)]
-
+  
   paths = data.frame('metaDataFile' = metaDataFiles, 'Rdirectory'= Rdirectories)
 
   targetMetaDataFile = paste0(batchDir, '/metaData.tsv')
