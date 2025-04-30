@@ -1,3 +1,5 @@
+SuperFreq is no longer actively maintained as of 2025.
+
 # External resources
 
 Plos Computational Biology: https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1007603
