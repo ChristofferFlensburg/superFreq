@@ -123,7 +123,7 @@ annotateQ = function(q, genome='hg19', resourceDirectory='superFreqResources', r
   if ( !hasChr ) dump = removeChrFromDump(dump)
   
   #create data base for this thread
-  txdb = GenomicFeatures::makeTxDb(transcripts=dump$transcripts, splicings=dump$splicings, genes=dump$genes, chrominfo=dump$chrominfo)
+  txdb = txdbmaker::makeTxDb(transcripts=dump$transcripts, splicings=dump$splicings, genes=dump$genes, chrominfo=dump$chrominfo)
   catLog('done.\n')
   
   catLog('Running annotation by batch')
