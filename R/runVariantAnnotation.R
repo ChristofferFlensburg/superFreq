@@ -18,8 +18,11 @@ annotateSomaticQs = function(qs, genome='hg19', resourceDirectory='superFreqReso
   somQ = do.call(rbind, somQlist)
   if ( any(is.na(somQ$x) | is.na(somQ$somaticP) | is.na(somQ$variant)) ) stop('NA x or somaticP or variant in annotateSomaticQs.')
   somQ = somQ[!duplicated(paste0(somQ$x, somQ$variant)),]
+  #there are corner cases where even million positions can be converted to scientific 1e6 notation.
+  #avoid that by heavily discourage R from using scientifici notation with the scipen option, then return to old scipen value
+  #to not mess with users session.
   sp = options('scipen')
-  options('scipen'=999)
+  if ( class(sp)=='list' ) sp = sp[[1]]  #options return a list in some versions, but want a vector back  options('scipen'=999)
   rownames(somQ) = paste0(as.character(somQ$x), somQ$variant)
   options('scipen'=sp)
   #this is the same ordering as in q, so subsetting rows  of somQ will match back to q without sorting.
