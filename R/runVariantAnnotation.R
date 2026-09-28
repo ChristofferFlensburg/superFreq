@@ -214,17 +214,22 @@ addMostSevereHit = function(q, allvar, coding, genome) {
   }
   
   #set up data frame with relevant columns
+  #note that data.frame takes rownames from first named column, which would be VA_symbol in these two
+  #due to entrez2symbol returning a named vector, where the names are NA if no non-NA hits
+  #And that column sometimes has NAs, and a single (not 2+) NA will make this crash
+  #with a "row names contain missing values" error.
+  #fixed with a quick unname() here, but take care if changes will introduce other named columns.
   allvarDF =
     data.frame(severity=as.numeric(allvar$SEVERITY),
                type=as.character(allvar$LOCATION),
-               VA_symbol=entrez2symbol[allvar$GENEID], stringsAsFactors=F)
+               VA_symbol=unname(entrez2symbol[allvar$GENEID]), stringsAsFactors=F)
   codingDF =
     data.frame(severity=as.numeric(coding$SEVERITY),
                type=as.character(coding$CONSEQUENCE),
                AApos=sapply(coding$PROTEINLOC, function(x) as.numeric(x)[1]),
                AAbefore=sapply(coding$REFAA, function(x) as.character(x)),
                AAafter=sapply(coding$VARAA, function(x) as.character(x)),
-               VA_symbol=entrez2symbol[coding$GENEID], stringsAsFactors=F)
+               VA_symbol=unname(entrez2symbol[coding$GENEID]), stringsAsFactors=F)
   
   
   #insert into q
